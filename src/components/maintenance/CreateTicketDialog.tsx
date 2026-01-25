@@ -132,7 +132,7 @@ export function CreateTicketDialog({ open, onOpenChange }: CreateTicketDialogPro
                           <SelectValue placeholder="Select room" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-popover">
                         <SelectItem value="">No specific room</SelectItem>
                         {rooms.map((room) => (
                           <SelectItem key={room.id} value={room.id}>
@@ -158,7 +158,7 @@ export function CreateTicketDialog({ open, onOpenChange }: CreateTicketDialogPro
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-popover">
                         <SelectItem value="1">Normal</SelectItem>
                         <SelectItem value="2">High</SelectItem>
                         <SelectItem value="3">Critical</SelectItem>
