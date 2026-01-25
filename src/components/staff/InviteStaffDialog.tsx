@@ -1,0 +1,247 @@
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AppRole } from "@/types/database";
+
+const ALL_ROLES: { value: AppRole; label: string }[] = [
+  { value: "manager", label: "Manager" },
+  { value: "front_desk", label: "Front Desk" },
+  { value: "accountant", label: "Accountant" },
+  { value: "housekeeping", label: "Housekeeping" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "kitchen", label: "Kitchen" },
+  { value: "waiter", label: "Waiter" },
+  { value: "night_auditor", label: "Night Auditor" },
+];
+
+interface InviteStaffDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps) {
+  const { toast } = useToast();
+  const { tenant, properties, currentProperty } = useTenant();
+  const queryClient = useQueryClient();
+
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
+  const [selectedProperties, setSelectedProperties] = useState<string[]>(
+    currentProperty ? [currentProperty.id] : []
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const toggleRole = (role: AppRole) => {
+    setSelectedRoles((prev) =>
+      prev.includes(role)
+        ? prev.filter((r) => r !== role)
+        : [...prev, role]
+    );
+  };
+
+  const toggleProperty = (propertyId: string) => {
+    setSelectedProperties((prev) =>
+      prev.includes(propertyId)
+        ? prev.filter((p) => p !== propertyId)
+        : [...prev, propertyId]
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email || !fullName) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedRoles.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please select at least one role.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedProperties.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please select at least one property.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Generate a temporary password
+      const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
+
+      // Create the user account using Supabase Admin (via edge function would be ideal)
+      // For now, we'll use signUp and the handle_new_user trigger will create the profile
+      // However, this will log in as the new user, so we need a different approach
+      
+      // NOTE: In a real production app, you would use an admin API or edge function
+      // For now, we'll show a message about the limitation
+      toast({
+        title: "Coming Soon",
+        description: "Staff invitation via email is being set up. For now, have staff members sign up directly and you can assign roles after.",
+      });
+      
+      onOpenChange(false);
+      resetForm();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setEmail("");
+    setFullName("");
+    setSelectedRoles([]);
+    setSelectedProperties(currentProperty ? [currentProperty.id] : []);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Invite Staff Member</DialogTitle>
+          <DialogDescription>
+            Send an invitation to a new staff member to join your team.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Info */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="staff@example.com"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name *</Label>
+              <Input
+                id="fullName"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="John Doe"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Roles */}
+          <div className="space-y-3">
+            <Label>Assign Roles *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_ROLES.map((role) => (
+                <Card
+                  key={role.value}
+                  className={`cursor-pointer transition-colors ${
+                    selectedRoles.includes(role.value)
+                      ? "border-primary bg-primary/5"
+                      : ""
+                  }`}
+                  onClick={() => toggleRole(role.value)}
+                >
+                  <CardContent className="flex items-center gap-2 p-2">
+                    <Checkbox
+                      checked={selectedRoles.includes(role.value)}
+                      onCheckedChange={() => toggleRole(role.value)}
+                    />
+                    <span className="text-sm">{role.label}</span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Property Access */}
+          <div className="space-y-3">
+            <Label>Property Access *</Label>
+            <div className="space-y-2">
+              {properties.map((property) => (
+                <Card
+                  key={property.id}
+                  className={`cursor-pointer transition-colors ${
+                    selectedProperties.includes(property.id)
+                      ? "border-primary bg-primary/5"
+                      : ""
+                  }`}
+                  onClick={() => toggleProperty(property.id)}
+                >
+                  <CardContent className="flex items-center gap-2 p-2">
+                    <Checkbox
+                      checked={selectedProperties.includes(property.id)}
+                      onCheckedChange={() => toggleProperty(property.id)}
+                    />
+                    <div>
+                      <span className="text-sm font-medium">{property.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({property.code})
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                onOpenChange(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? "Sending..." : "Send Invitation"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
