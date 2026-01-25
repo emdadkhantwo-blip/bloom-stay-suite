@@ -10,6 +10,13 @@ import {
   CheckCircle2,
   Eye,
   Shield,
+  TrendingUp,
+  Activity,
+  Globe,
+  Plus,
+  FileText,
+  Settings,
+  RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,7 +43,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TenantDetailDrawer } from "@/components/admin/TenantDetailDrawer";
 import {
@@ -44,13 +50,17 @@ import {
   useUpdateTenantStatus,
   type TenantWithStats,
 } from "@/hooks/useAdminTenants";
+import { useAuth } from "@/hooks/useAuth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 
 export default function AdminTenants() {
   const [search, setSearch] = useState("");
   const [selectedTenant, setSelectedTenant] = useState<TenantWithStats | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { profile } = useAuth();
 
-  const { data: tenants = [], isLoading } = useAdminTenants();
+  const { data: tenants = [], isLoading, refetch } = useAdminTenants();
   const updateStatus = useUpdateTenantStatus();
 
   const filteredTenants = tenants.filter(
@@ -64,11 +74,12 @@ export default function AdminTenants() {
   const totalStaff = tenants.reduce((acc, t) => acc + t.staff_count, 0);
   const totalRooms = tenants.reduce((acc, t) => acc + t.rooms_count, 0);
   const activeTenants = tenants.filter((t) => t.status === "active").length;
+  const suspendedTenants = tenants.filter((t) => t.status === "suspended").length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-success text-success-foreground">Active</Badge>;
+        return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Active</Badge>;
       case "suspended":
         return <Badge variant="destructive">Suspended</Badge>;
       case "pending":
@@ -118,24 +129,55 @@ export default function AdminTenants() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Shield className="h-6 w-6" />
-          Tenant Management
-        </h1>
-        <p className="text-muted-foreground">
-          Manage all tenants, their subscriptions, and feature flags
-        </p>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-700 p-6 md:p-8 text-white">
+        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
+        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-purple-500/20 blur-3xl" />
+        
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                <Shield className="h-7 w-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                  Platform Administration
+                </h1>
+                <p className="text-purple-100 mt-1">
+                  Welcome back, {profile?.full_name || profile?.username || 'Administrator'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2">
+                <Activity className="h-4 w-4 text-emerald-300" />
+                <span className="text-sm font-medium">System Online</span>
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => refetch()}
+                className="bg-white/20 hover:bg-white/30 text-white border-0"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+      {/* Stats Cards Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Building2 className="h-5 w-5 text-primary" />
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/20">
+                <Building2 className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{tenants.length}</p>
@@ -144,37 +186,61 @@ export default function AdminTenants() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10">
-                <CheckCircle2 className="h-5 w-5 text-success" />
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{activeTenants}</p>
                 <p className="text-xs text-muted-foreground">Active</p>
+                {suspendedTenants > 0 && (
+                  <p className="text-xs text-destructive">{suspendedTenants} suspended</p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Users className="h-5 w-5 text-blue-500" />
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{totalProperties}</p>
+                <p className="text-xs text-muted-foreground">Properties</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20">
+                <Users className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalStaff}</p>
-                <p className="text-xs text-muted-foreground">Total Staff</p>
+                <p className="text-xs text-muted-foreground">Staff Members</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10">
-                <DoorOpen className="h-5 w-5 text-orange-500" />
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/20">
+                <DoorOpen className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalRooms}</p>
@@ -185,143 +251,208 @@ export default function AdminTenants() {
         </Card>
       </div>
 
-      {/* Tenants Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div>
-              <CardTitle>All Tenants</CardTitle>
-              <CardDescription>
-                View and manage tenant accounts
-              </CardDescription>
-            </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tenants..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Skeleton className="h-10 w-48" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-6 w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-8 w-32" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-6 w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-24" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-8 w-8" />
-                      </TableCell>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-purple-50 hover:border-purple-200 dark:hover:bg-purple-950/20"
+        >
+          <Plus className="h-5 w-5 text-purple-600" />
+          <span className="text-sm">Create Tenant</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-blue-950/20"
+        >
+          <FileText className="h-5 w-5 text-blue-600" />
+          <span className="text-sm">Export Reports</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-amber-50 hover:border-amber-200 dark:hover:bg-amber-950/20"
+        >
+          <TrendingUp className="h-5 w-5 text-amber-600" />
+          <span className="text-sm">View Analytics</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-slate-50 hover:border-slate-200 dark:hover:bg-slate-950/20"
+        >
+          <Settings className="h-5 w-5 text-slate-600" />
+          <span className="text-sm">System Settings</span>
+        </Button>
+      </div>
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="tenants" className="space-y-4">
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value="tenants" className="data-[state=active]:bg-background">
+            <Building2 className="h-4 w-4 mr-2" />
+            Tenants
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="data-[state=active]:bg-background">
+            <Activity className="h-4 w-4 mr-2" />
+            Activity Log
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tenants" className="space-y-4">
+          {/* Tenants Table */}
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-muted/30">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                <div>
+                  <CardTitle className="text-lg">All Tenants</CardTitle>
+                  <CardDescription>
+                    View and manage tenant accounts across the platform
+                  </CardDescription>
+                </div>
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tenants..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/20">
+                      <TableHead>Tenant</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Usage</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                  ))
-                ) : filteredTenants.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <p className="text-muted-foreground">No tenants found</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTenants.map((tenant) => (
-                    <TableRow key={tenant.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{tenant.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {tenant.contact_email || tenant.slug}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getPlanBadge(tenant.plan_type)}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1 min-w-[120px]">
-                          <div className="flex items-center gap-2 text-xs">
-                            <Building2 className="h-3 w-3" />
-                            <span>{tenant.properties_count} props</span>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <Skeleton className="h-10 w-48" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-6 w-16" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-8 w-32" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-6 w-16" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-24" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-8 w-8" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : filteredTenants.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <Building2 className="h-10 w-10 text-muted-foreground/50" />
+                            <p className="text-muted-foreground">No tenants found</p>
+                            <p className="text-xs text-muted-foreground/70">Try adjusting your search criteria</p>
                           </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <Users className="h-3 w-3" />
-                            <span>{tenant.staff_count} staff</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <DoorOpen className="h-3 w-3" />
-                            <span>{tenant.rooms_count} rooms</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(tenant.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(tenant.created_at), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewTenant(tenant)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {tenant.status === "active" ? (
-                              <DropdownMenuItem
-                                onClick={() => handleSuspend(tenant)}
-                                className="text-destructive"
-                              >
-                                <Ban className="mr-2 h-4 w-4" />
-                                Suspend Tenant
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => handleReactivate(tenant)}
-                                className="text-success"
-                              >
-                                <CheckCircle2 className="mr-2 h-4 w-4" />
-                                Reactivate
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredTenants.map((tenant) => (
+                        <TableRow 
+                          key={tenant.id} 
+                          className="hover:bg-muted/30 cursor-pointer transition-colors"
+                          onClick={() => handleViewTenant(tenant)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 flex items-center justify-center">
+                                <Building2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{tenant.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {tenant.contact_email || tenant.slug}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getPlanBadge(tenant.plan_type)}</TableCell>
+                          <TableCell>
+                            <div className="space-y-1 min-w-[120px]">
+                              <div className="flex items-center gap-2 text-xs">
+                                <Globe className="h-3 w-3 text-muted-foreground" />
+                                <span>{tenant.properties_count} properties</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <span>{tenant.staff_count} staff</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <DoorOpen className="h-3 w-3 text-muted-foreground" />
+                                <span>{tenant.rooms_count} rooms</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(tenant.status)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {format(new Date(tenant.created_at), "MMM d, yyyy")}
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewTenant(tenant)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {tenant.status === "active" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleSuspend(tenant)}
+                                    className="text-destructive"
+                                  >
+                                    <Ban className="mr-2 h-4 w-4" />
+                                    Suspend Tenant
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleReactivate(tenant)}
+                                    className="text-emerald-600"
+                                  >
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                    Reactivate
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <AuditLogViewer />
+        </TabsContent>
+      </Tabs>
 
       {/* Tenant Detail Drawer */}
       <TenantDetailDrawer

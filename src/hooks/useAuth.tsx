@@ -6,7 +6,8 @@ import { ROLE_PERMISSIONS, type AppRole } from '@/types/database';
 // Helper function to get the appropriate dashboard based on user roles
 export function getRoleDashboard(roles: AppRole[]): string {
   // Priority-based routing - highest priority roles first
-  if (roles.includes('superadmin')) return '/dashboard';
+  // Superadmins go to admin panel, not regular dashboard
+  if (roles.includes('superadmin')) return '/admin/tenants';
   if (roles.includes('owner')) return '/dashboard';
   if (roles.includes('manager')) return '/dashboard';
   if (roles.includes('front_desk')) return '/front-desk';
