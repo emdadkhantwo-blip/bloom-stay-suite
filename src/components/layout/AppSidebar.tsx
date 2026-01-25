@@ -126,7 +126,9 @@ export function AppSidebar() {
   const filteredBillingItems = billingItems.filter(item => canAccessRoute(item.url));
 
   const canAccessAdmin = hasAnyRole(['owner', 'manager']);
-  const canAccessPOS = hasFeature('pos') && hasAnyRole(['owner', 'manager', 'kitchen', 'waiter']);
+  // Owner/Manager can always see POS section, other roles need feature flag
+  const canAccessPOS = hasAnyRole(['owner', 'manager']) || 
+    (hasFeature('pos') && hasAnyRole(['kitchen', 'waiter']));
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
