@@ -196,6 +196,7 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
                   <CardContent className="flex items-center gap-2 p-2">
                     <Checkbox
                       checked={selectedRoles.includes(role.value)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <span className="text-sm">{role.label}</span>
                   </CardContent>
@@ -221,6 +222,7 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
                   <CardContent className="flex items-center gap-2 p-2">
                     <Checkbox
                       checked={selectedProperties.includes(property.id)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <div>
                       <span className="text-sm font-medium">{property.name}</span>

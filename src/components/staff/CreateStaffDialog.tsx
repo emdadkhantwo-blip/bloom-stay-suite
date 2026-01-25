@@ -311,6 +311,7 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
                   <CardContent className="flex items-start gap-2 p-2">
                     <Checkbox
                       checked={selectedRoles.includes(role.value)}
+                      onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
                     <div>
@@ -345,6 +346,7 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
                   <CardContent className="flex items-center gap-2 p-2">
                     <Checkbox
                       checked={selectedProperties.includes(property.id)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <div>
                       <span className="text-sm font-medium">{property.name}</span>
