@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Building2,
   Calendar,
+  CalendarRange,
   Users,
   BedDouble,
   Receipt,
@@ -46,6 +47,7 @@ import { cn } from '@/lib/utils';
 const mainNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Reservations', url: '/reservations', icon: Calendar },
+  { title: 'Calendar', url: '/calendar', icon: CalendarRange },
   { title: 'Rooms', url: '/rooms', icon: BedDouble },
   { title: 'Guests', url: '/guests', icon: Users },
 ];
