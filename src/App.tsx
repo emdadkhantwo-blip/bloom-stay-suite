@@ -4,10 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { TenantProvider } from "@/hooks/useTenant";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Rooms from "./pages/Rooms";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -75,8 +77,18 @@ const AppRoutes = () => (
       path="/dashboard"
       element={
         <ProtectedRoute>
-          <DashboardLayout>
+          <DashboardLayout title="Dashboard">
             <Dashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/rooms"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Rooms">
+            <Rooms />
           </DashboardLayout>
         </ProtectedRoute>
       }
@@ -94,7 +106,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <TenantProvider>
+            <AppRoutes />
+          </TenantProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
