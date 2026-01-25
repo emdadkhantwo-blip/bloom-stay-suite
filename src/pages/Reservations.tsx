@@ -7,10 +7,12 @@ import {
   useCheckOut,
   useCancelReservation,
   type ReservationStatus,
+  type Reservation,
 } from "@/hooks/useReservations";
 import { ReservationStatsBar } from "@/components/reservations/ReservationStatsBar";
 import { ReservationFilters } from "@/components/reservations/ReservationFilters";
 import { ReservationListItem } from "@/components/reservations/ReservationListItem";
+import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -30,7 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
 
 export default function Reservations() {
   const { data: reservations, isLoading } = useReservations();
@@ -46,6 +47,10 @@ export default function Reservations() {
     from: undefined,
     to: undefined,
   });
+
+  // Detail drawer
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Dialogs
   const [checkInDialog, setCheckInDialog] = useState<string | null>(null);
@@ -119,8 +124,32 @@ export default function Reservations() {
   };
 
   const handleView = (reservationId: string) => {
-    // TODO: Open reservation detail drawer/modal
-    toast.info("Reservation details coming soon");
+    const reservation = reservations?.find((r) => r.id === reservationId);
+    if (reservation) {
+      setSelectedReservation(reservation);
+      setDrawerOpen(true);
+    }
+  };
+
+  const handleDrawerCheckIn = () => {
+    if (selectedReservation) {
+      setDrawerOpen(false);
+      setCheckInDialog(selectedReservation.id);
+    }
+  };
+
+  const handleDrawerCheckOut = () => {
+    if (selectedReservation) {
+      setDrawerOpen(false);
+      setCheckOutDialog(selectedReservation.id);
+    }
+  };
+
+  const handleDrawerCancel = () => {
+    if (selectedReservation) {
+      setDrawerOpen(false);
+      setCancelDialog(selectedReservation.id);
+    }
   };
 
   if (isLoading) {
@@ -254,6 +283,16 @@ export default function Reservations() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reservation Detail Drawer */}
+      <ReservationDetailDrawer
+        reservation={selectedReservation}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onCheckIn={handleDrawerCheckIn}
+        onCheckOut={handleDrawerCheckOut}
+        onCancel={handleDrawerCancel}
+      />
     </div>
   );
 }
