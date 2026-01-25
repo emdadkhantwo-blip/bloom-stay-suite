@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/useTenant';
+import { useAuth } from '@/hooks/useAuth';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 export type HousekeepingTask = Tables<'housekeeping_tasks'> & {
@@ -325,5 +326,34 @@ export function useUpdateRoomStatus() {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['housekeeping-stats'] });
     },
+  });
+}
+
+export function useMyAssignedTasks() {
+  const { currentProperty } = useTenant();
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['my-assigned-tasks', currentProperty?.id, user?.id],
+    queryFn: async () => {
+      if (!currentProperty?.id || !user?.id) return [];
+
+      const { data, error } = await supabase
+        .from('housekeeping_tasks')
+        .select(`
+          *,
+          room:rooms(room_number, floor)
+        `)
+        .eq('property_id', currentProperty.id)
+        .eq('assigned_to', user.id)
+        .in('status', ['pending', 'in_progress'])
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentProperty?.id && !!user?.id,
+    refetchInterval: 30000,
   });
 }

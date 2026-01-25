@@ -17,6 +17,7 @@ interface TaskCardProps {
   onStart: (taskId: string) => void;
   onComplete: (taskId: string) => void;
   onAssign: (task: HousekeepingTask) => void;
+  canAssign?: boolean;
   isStarting?: boolean;
   isCompleting?: boolean;
 }
@@ -47,6 +48,7 @@ export function TaskCard({
   onStart,
   onComplete,
   onAssign,
+  canAssign = true,
   isStarting,
   isCompleting,
 }: TaskCardProps) {
@@ -151,19 +153,21 @@ export function TaskCard({
                 Complete
               </Button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuItem onClick={() => onAssign(task)}>
-                  <User className="mr-2 h-4 w-4" />
-                  {task.assigned_to ? 'Reassign' : 'Assign'} Task
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canAssign && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  <DropdownMenuItem onClick={() => onAssign(task)}>
+                    <User className="mr-2 h-4 w-4" />
+                    {task.assigned_to ? 'Reassign' : 'Assign'} Task
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </CardContent>
