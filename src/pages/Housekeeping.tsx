@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HousekeepingStatsBar } from '@/components/housekeeping/HousekeepingStatsBar';
 import { TaskCard } from '@/components/housekeeping/TaskCard';
 import { TaskFilters } from '@/components/housekeeping/TaskFilters';
@@ -13,6 +15,7 @@ import {
   useHousekeepingStats,
   useStartTask,
   useCompleteTask,
+  useMyAssignedTasks,
   type HousekeepingTask,
 } from '@/hooks/useHousekeeping';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +29,8 @@ export default function Housekeeping() {
 
   // Only managers, owners, and front_desk can create tasks
   const canCreateTask = hasAnyRole(['owner', 'manager', 'front_desk']);
+  // Only managers and owners can assign tasks
+  const canAssignTask = hasAnyRole(['owner', 'manager']);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -35,8 +40,11 @@ export default function Housekeeping() {
 
   const { data: tasks, isLoading: tasksLoading, refetch } = useHousekeepingTasks();
   const { data: stats, isLoading: statsLoading } = useHousekeepingStats();
+  const { data: myTasks } = useMyAssignedTasks();
   const startTask = useStartTask();
   const completeTask = useCompleteTask();
+  
+  const myTaskCount = myTasks?.length || 0;
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
@@ -119,6 +127,44 @@ export default function Housekeeping() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Housekeeping Management</h2>
         <div className="flex items-center gap-2">
+          {/* My Tasks Notification Button */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="relative">
+                <Bell className="h-4 w-4" />
+                {myTaskCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {myTaskCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">My Assigned Tasks</h4>
+                {myTaskCount === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tasks assigned to you.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {myTasks?.map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                        <div>
+                          <p className="font-medium text-sm">Room {task.room?.room_number}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {task.task_type.replace('_', ' ')} • {task.status === 'pending' ? 'Pending' : 'In Progress'}
+                          </p>
+                        </div>
+                        <Badge variant={task.status === 'pending' ? 'secondary' : 'default'}>
+                          {task.status === 'pending' ? 'Start' : 'Continue'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-1 h-4 w-4" />
             Refresh
@@ -174,6 +220,7 @@ export default function Housekeeping() {
                   onStart={handleStartTask}
                   onComplete={handleCompleteTask}
                   onAssign={handleAssignTask}
+                  canAssign={canAssignTask}
                   isStarting={startTask.isPending}
                   isCompleting={completeTask.isPending}
                 />
