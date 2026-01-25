@@ -26,6 +26,8 @@ import POS from "./pages/POS";
 import NightAudit from "./pages/NightAudit";
 import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
+import CorporateAccounts from "./pages/CorporateAccounts";
+import AdminTenants from "./pages/admin/Tenants";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -308,6 +310,26 @@ const AppRoutes = () => (
       element={
         <RoleProtectedRoute allowedRoles={['night_auditor', 'accountant']} route="/night-audit">
           <NightAudit />
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/corporate"
+      element={
+        <RoleProtectedRoute allowedRoles={['front_desk']} route="/corporate">
+          <DashboardLayout title="Corporate Accounts">
+            <CorporateAccounts />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/admin/tenants"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/admin/tenants">
+          <DashboardLayout title="Tenant Management">
+            <AdminTenants />
+          </DashboardLayout>
         </RoleProtectedRoute>
       }
     />

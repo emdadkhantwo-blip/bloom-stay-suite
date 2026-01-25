@@ -12,6 +12,7 @@ import {
   BarChart3,
   Heart,
   History,
+  MessageSquare,
 } from "lucide-react";
 import {
   Sheet,
@@ -33,6 +34,7 @@ import { useGuestAnalytics } from "@/hooks/useGuestAnalytics";
 import { GuestAnalyticsTab } from "./GuestAnalyticsTab";
 import { GuestPreferencesTab } from "./GuestPreferencesTab";
 import { GuestHistoryTab } from "./GuestHistoryTab";
+import { GuestNotesTab } from "./GuestNotesTab";
 
 interface GuestDetailDrawerProps {
   guest: Guest | null;
@@ -117,11 +119,15 @@ export function GuestDetailDrawer({
         <Separator className="my-4" />
 
         <Tabs defaultValue="details" className="flex-1">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details" className="text-xs">Details</TabsTrigger>
+            <TabsTrigger value="notes" className="text-xs">
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Notes
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="text-xs">
               <BarChart3 className="h-3 w-3 mr-1" />
-              Analytics
+              Stats
             </TabsTrigger>
             <TabsTrigger value="preferences" className="text-xs">
               <Heart className="h-3 w-3 mr-1" />
@@ -227,6 +233,11 @@ export function GuestDetailDrawer({
               <div className="text-xs text-muted-foreground text-center pt-2">
                 Guest since {format(new Date(guest.created_at), "MMMM yyyy")}
               </div>
+            </TabsContent>
+
+            {/* Notes Tab */}
+            <TabsContent value="notes" className="mt-0">
+              <GuestNotesTab guest={guest} />
             </TabsContent>
 
             {/* Analytics Tab */}
