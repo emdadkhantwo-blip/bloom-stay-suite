@@ -116,9 +116,11 @@ export function AppSidebar() {
         {!collapsed && properties.length > 1 && (
           <div className="px-2 py-2">
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex w-full items-center justify-between rounded-md bg-sidebar-accent px-2 py-1.5 text-xs text-sidebar-accent-foreground hover:bg-sidebar-accent/80">
+               <DropdownMenuTrigger asChild>
+                 <button className="flex w-full items-center justify-between rounded-md bg-sidebar-accent px-2 py-1.5 text-xs text-sidebar-accent-foreground hover:bg-sidebar-accent/80">
                 <span className="truncate">{currentProperty?.name}</span>
                 <ChevronDown className="h-3 w-3" />
+                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
                 {properties.map((property) => (
