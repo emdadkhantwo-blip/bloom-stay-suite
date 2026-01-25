@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -68,6 +68,8 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const hasInitializedProperties = useRef(false);
+
   const form = useForm<CreateStaffFormData>({
     resolver: zodResolver(createStaffSchema),
     defaultValues: {
@@ -80,10 +82,16 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
 
   // Initialize selectedProperties when dialog opens
   useEffect(() => {
-    if (open && currentProperty && selectedProperties.length === 0) {
+    if (open && currentProperty && !hasInitializedProperties.current) {
       setSelectedProperties([currentProperty.id]);
+      hasInitializedProperties.current = true;
     }
-  }, [open, currentProperty, selectedProperties.length]);
+    
+    // Reset on close
+    if (!open) {
+      hasInitializedProperties.current = false;
+    }
+  }, [open, currentProperty]);
 
   const toggleRole = (role: AppRole) => {
     setSelectedRoles((prev) =>
