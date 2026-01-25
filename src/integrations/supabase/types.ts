@@ -600,6 +600,356 @@ export type Database = {
         }
         Relationships: []
       }
+      pos_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          outlet_id: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          outlet_id: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          outlet_id?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_categories_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "pos_outlets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_items: {
+        Row: {
+          category_id: string | null
+          code: string
+          cost: number | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_available: boolean
+          name: string
+          outlet_id: string
+          prep_time_minutes: number | null
+          price: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          code: string
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_available?: boolean
+          name: string
+          outlet_id: string
+          prep_time_minutes?: number | null
+          price: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          code?: string
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_available?: boolean
+          name?: string
+          outlet_id?: string
+          prep_time_minutes?: number | null
+          price?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "pos_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_items_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "pos_outlets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string | null
+          item_name: string
+          notes: string | null
+          order_id: string
+          prepared_at: string | null
+          quantity: number
+          served_at: string | null
+          status: string
+          tenant_id: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_name: string
+          notes?: string | null
+          order_id: string
+          prepared_at?: string | null
+          quantity?: number
+          served_at?: string | null
+          status?: string
+          tenant_id: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_name?: string
+          notes?: string | null
+          order_id?: string
+          prepared_at?: string | null
+          quantity?: number
+          served_at?: string | null
+          status?: string
+          tenant_id?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_order_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pos_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "pos_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_order_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_orders: {
+        Row: {
+          covers: number | null
+          created_at: string
+          created_by: string | null
+          folio_id: string | null
+          guest_id: string | null
+          id: string
+          notes: string | null
+          order_number: string
+          outlet_id: string
+          posted_at: string | null
+          posted_by: string | null
+          room_id: string | null
+          service_charge: number
+          status: Database["public"]["Enums"]["pos_order_status"]
+          subtotal: number
+          table_number: string | null
+          tax_amount: number
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          covers?: number | null
+          created_at?: string
+          created_by?: string | null
+          folio_id?: string | null
+          guest_id?: string | null
+          id?: string
+          notes?: string | null
+          order_number: string
+          outlet_id: string
+          posted_at?: string | null
+          posted_by?: string | null
+          room_id?: string | null
+          service_charge?: number
+          status?: Database["public"]["Enums"]["pos_order_status"]
+          subtotal?: number
+          table_number?: string | null
+          tax_amount?: number
+          tenant_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          covers?: number | null
+          created_at?: string
+          created_by?: string | null
+          folio_id?: string | null
+          guest_id?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          outlet_id?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          room_id?: string | null
+          service_charge?: number
+          status?: Database["public"]["Enums"]["pos_order_status"]
+          subtotal?: number
+          table_number?: string | null
+          tax_amount?: number
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_orders_folio_id_fkey"
+            columns: ["folio_id"]
+            isOneToOne: false
+            referencedRelation: "folios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "pos_outlets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_outlets: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          property_id: string
+          settings: Json | null
+          tenant_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          property_id: string
+          settings?: Json | null
+          tenant_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          property_id?: string
+          settings?: Json | null
+          tenant_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_outlets_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_outlets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1221,6 +1571,10 @@ export type Database = {
         Args: { property_code: string }
         Returns: string
       }
+      generate_pos_order_number: {
+        Args: { outlet_code: string }
+        Returns: string
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_property_access: {
         Args: { _property_id: string; _user_id: string }
@@ -1278,6 +1632,13 @@ export type Database = {
         | "debit_card"
         | "bank_transfer"
         | "other"
+      pos_order_status:
+        | "pending"
+        | "preparing"
+        | "ready"
+        | "served"
+        | "cancelled"
+        | "posted"
       property_status: "active" | "inactive" | "maintenance"
       reservation_status:
         | "confirmed"
@@ -1465,6 +1826,14 @@ export const Constants = {
         "debit_card",
         "bank_transfer",
         "other",
+      ],
+      pos_order_status: [
+        "pending",
+        "preparing",
+        "ready",
+        "served",
+        "cancelled",
+        "posted",
       ],
       property_status: ["active", "inactive", "maintenance"],
       reservation_status: [
