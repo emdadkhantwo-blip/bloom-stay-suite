@@ -7,6 +7,7 @@ import {
   useMaintenanceStats,
   useMyAssignedTickets,
   useMyMaintenanceStats,
+  useDeleteTicket,
   type MaintenanceTicket,
 } from "@/hooks/useMaintenance";
 import { MaintenanceStatsBar } from "@/components/maintenance/MaintenanceStatsBar";
@@ -29,6 +30,7 @@ export default function Maintenance() {
   // Role-based permissions
   const canCreateTicket = hasAnyRole(['owner', 'manager', 'front_desk']);
   const canAssignTicket = hasAnyRole(['owner', 'manager']);
+  const canDeleteTicket = hasAnyRole(['owner', 'manager']);
   const isMaintenanceStaff = hasRole('maintenance') && !hasAnyRole(['owner', 'manager']);
 
   // Filters
@@ -52,6 +54,7 @@ export default function Maintenance() {
   const { data: stats, isLoading: statsLoading } = useMaintenanceStats();
   const { data: myTickets } = useMyAssignedTickets();
   const { data: myStats, isLoading: myStatsLoading } = useMyMaintenanceStats();
+  const deleteTicket = useDeleteTicket();
 
   const myTicketCount = myTickets?.length || 0;
 
@@ -80,6 +83,10 @@ export default function Maintenance() {
   const handleResolveTicket = (ticket: MaintenanceTicket) => {
     setSelectedTicket(ticket);
     setResolveDialogOpen(true);
+  };
+
+  const handleDeleteTicket = async (ticketId: string) => {
+    await deleteTicket.mutateAsync(ticketId);
   };
 
   const scrollToTicket = useCallback((ticketId: string) => {
@@ -217,7 +224,9 @@ export default function Maintenance() {
               onView={() => handleViewTicket(ticket)}
               onAssign={() => handleAssignTicket(ticket)}
               onResolve={() => handleResolveTicket(ticket)}
+              onDelete={() => handleDeleteTicket(ticket.id)}
               canAssign={canAssignTicket}
+              canDelete={canDeleteTicket}
             />
           ))
         )}

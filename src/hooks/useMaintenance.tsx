@@ -265,6 +265,32 @@ export function useAssignTicket() {
   });
 }
 
+export function useDeleteTicket() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const propertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async (ticketId: string) => {
+      const { error } = await supabase
+        .from("maintenance_tickets")
+        .delete()
+        .eq("id", ticketId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance-tickets", propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-stats", propertyId] });
+      toast.success("Ticket deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Error deleting ticket:", error);
+      toast.error("Failed to delete ticket");
+    },
+  });
+}
+
 export function useMyAssignedTickets() {
   const { currentProperty, tenant } = useTenant();
   const { user } = useAuth();

@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Clock, User, Play, CheckCircle, MoreVertical, AlertTriangle } from 'lucide-react';
+import { Clock, User, Play, CheckCircle, MoreVertical, AlertTriangle, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { HousekeepingTask } from '@/hooks/useHousekeeping';
@@ -17,7 +18,9 @@ interface TaskCardProps {
   onStart: (taskId: string) => void;
   onComplete: (taskId: string) => void;
   onAssign: (task: HousekeepingTask) => void;
+  onDelete?: (taskId: string) => void;
   canAssign?: boolean;
+  canDelete?: boolean;
   isStarting?: boolean;
   isCompleting?: boolean;
   id?: string;
@@ -49,7 +52,9 @@ export function TaskCard({
   onStart,
   onComplete,
   onAssign,
+  onDelete,
   canAssign = true,
+  canDelete = true,
   isStarting,
   isCompleting,
   id,
@@ -170,6 +175,18 @@ export function TaskCard({
                     <User className="mr-2 h-4 w-4" />
                     {task.assigned_to ? 'Reassign' : 'Assign'} Task
                   </DropdownMenuItem>
+                  {canDelete && onDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => onDelete(task.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Task
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

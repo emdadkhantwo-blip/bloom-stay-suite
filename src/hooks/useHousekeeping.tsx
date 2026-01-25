@@ -301,6 +301,26 @@ export function useCompleteTask() {
   });
 }
 
+export function useDeleteTask() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase
+        .from('housekeeping_tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks', currentProperty?.id] });
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-stats', currentProperty?.id] });
+    },
+  });
+}
+
 export function useUpdateRoomStatus() {
   const queryClient = useQueryClient();
 
