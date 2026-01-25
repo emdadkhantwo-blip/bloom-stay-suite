@@ -6,9 +6,11 @@ import {
   useMaintenanceTickets,
   useMaintenanceStats,
   useMyAssignedTickets,
+  useMyMaintenanceStats,
   type MaintenanceTicket,
 } from "@/hooks/useMaintenance";
 import { MaintenanceStatsBar } from "@/components/maintenance/MaintenanceStatsBar";
+import { MaintenanceStaffDashboard } from "@/components/maintenance/MaintenanceStaffDashboard";
 import { TicketFilters } from "@/components/maintenance/TicketFilters";
 import { TicketCard } from "@/components/maintenance/TicketCard";
 import { TicketDetailDrawer } from "@/components/maintenance/TicketDetailDrawer";
@@ -22,11 +24,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 export default function Maintenance() {
   const { currentProperty } = useTenant();
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, hasRole } = useAuth();
 
   // Role-based permissions
   const canCreateTicket = hasAnyRole(['owner', 'manager', 'front_desk']);
   const canAssignTicket = hasAnyRole(['owner', 'manager']);
+  const isMaintenanceStaff = hasRole('maintenance') && !hasAnyRole(['owner', 'manager']);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,6 +51,7 @@ export default function Maintenance() {
   });
   const { data: stats, isLoading: statsLoading } = useMaintenanceStats();
   const { data: myTickets } = useMyAssignedTickets();
+  const { data: myStats, isLoading: myStatsLoading } = useMyMaintenanceStats();
 
   const myTicketCount = myTickets?.length || 0;
 
@@ -155,14 +159,28 @@ export default function Maintenance() {
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <MaintenanceStatsBar
-        openCount={stats?.open ?? 0}
-        inProgressCount={stats?.inProgress ?? 0}
-        resolvedCount={stats?.resolved ?? 0}
-        highPriorityCount={stats?.highPriority ?? 0}
-        isLoading={statsLoading}
-      />
+      {/* Staff Dashboard - shown for maintenance role */}
+      {isMaintenanceStaff && (
+        <MaintenanceStaffDashboard
+          assignedCount={myStats?.assigned ?? 0}
+          openCount={myStats?.open ?? 0}
+          inProgressCount={myStats?.inProgress ?? 0}
+          resolvedTodayCount={myStats?.resolvedToday ?? 0}
+          highPriorityCount={myStats?.highPriority ?? 0}
+          isLoading={myStatsLoading}
+        />
+      )}
+
+      {/* Stats Bar - shown for managers/owners */}
+      {!isMaintenanceStaff && (
+        <MaintenanceStatsBar
+          openCount={stats?.open ?? 0}
+          inProgressCount={stats?.inProgress ?? 0}
+          resolvedCount={stats?.resolved ?? 0}
+          highPriorityCount={stats?.highPriority ?? 0}
+          isLoading={statsLoading}
+        />
+      )}
 
       {/* Filters */}
       <TicketFilters
