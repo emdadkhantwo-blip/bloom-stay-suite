@@ -17,10 +17,15 @@ import {
 } from '@/hooks/useHousekeeping';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Housekeeping() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasAnyRole } = useAuth();
+
+  // Only managers, owners, and front_desk can create tasks
+  const canCreateTask = hasAnyRole(['owner', 'manager', 'front_desk']);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -118,10 +123,12 @@ export default function Housekeeping() {
             <RefreshCw className="mr-1 h-4 w-4" />
             Refresh
           </Button>
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" />
-            Create Task
-          </Button>
+          {canCreateTask && (
+            <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" />
+              Create Task
+            </Button>
+          )}
         </div>
       </div>
 
@@ -147,14 +154,16 @@ export default function Housekeeping() {
           ) : filteredTasks.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No tasks found.</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setCreateDialogOpen(true)}
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                Create First Task
-              </Button>
+              {canCreateTask && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => setCreateDialogOpen(true)}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Create First Task
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

@@ -126,10 +126,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserData]);
 
   const signIn = async (username: string, password: string) => {
-    // For username login, we use email field with a constructed email
-    // Username format: username@tenant.hotel.local
+    let loginEmail = username;
+
+    // If not already an email, look up the actual email from profiles table
+    if (!username.includes('@')) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (!profile?.email) {
+        return { error: new Error('User not found') };
+      }
+
+      loginEmail = profile.email;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: username.includes('@') ? username : `${username}@hotel.local`,
+      email: loginEmail,
       password,
     });
 
@@ -137,12 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error(error.message) };
     }
 
-    // Update last login
-    if (user) {
+    // Update last login after successful auth
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
       await supabase
         .from('profiles')
         .update({ last_login_at: new Date().toISOString() })
-        .eq('id', user.id);
+        .eq('id', authUser.id);
     }
 
     return { error: null };

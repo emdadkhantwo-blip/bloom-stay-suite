@@ -3,8 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth, getRoleDashboard } from "@/hooks/useAuth";
 import { TenantProvider } from "@/hooks/useTenant";
+import { type AppRole } from "@/types/database";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -27,7 +28,65 @@ import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
 
-// Protected route wrapper
+// Define which routes each role can access
+const ROLE_ROUTES: Record<AppRole, string[]> = {
+  superadmin: ['*'],
+  owner: ['*'],
+  manager: ['*'],
+  front_desk: ['/dashboard', '/reservations', '/calendar', '/rooms', '/guests', '/front-desk', '/housekeeping', '/maintenance', '/folios'],
+  accountant: ['/dashboard', '/folios', '/reports', '/night-audit'],
+  housekeeping: ['/housekeeping'],
+  maintenance: ['/maintenance'],
+  kitchen: ['/pos', '/kitchen'],
+  waiter: ['/pos'],
+  night_auditor: ['/dashboard', '/night-audit', '/folios', '/reports'],
+};
+
+// Role-protected route wrapper
+const RoleProtectedRoute = ({ 
+  children, 
+  allowedRoles,
+  route 
+}: { 
+  children: React.ReactNode; 
+  allowedRoles: AppRole[];
+  route: string;
+}) => {
+  const { user, isLoading, roles, hasAnyRole, isSuperAdmin } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Super admins, owners, and managers can access everything
+  if (isSuperAdmin || hasAnyRole(['owner', 'manager'])) {
+    return <>{children}</>;
+  }
+
+  // Check if user's roles allow access to this route
+  const canAccess = roles.some(role => {
+    const allowedRoutes = ROLE_ROUTES[role] || [];
+    return allowedRoutes.includes('*') || allowedRoutes.includes(route);
+  });
+
+  if (!canAccess) {
+    // Redirect to their appropriate dashboard
+    const targetDashboard = getRoleDashboard(roles);
+    return <Navigate to={targetDashboard} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Protected route wrapper (basic auth check)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
 
@@ -46,9 +105,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Public route wrapper (redirects to dashboard if logged in)
+// Public route wrapper (redirects to role-appropriate dashboard if logged in)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, roles } = useAuth();
 
   if (isLoading) {
     return (
@@ -59,7 +118,9 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    // Redirect to role-appropriate dashboard
+    const targetDashboard = getRoleDashboard(roles);
+    return <Navigate to={targetDashboard} replace />;
   }
 
   return <>{children}</>;
@@ -129,107 +190,107 @@ const AppRoutes = () => (
     <Route
       path="/front-desk"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['front_desk']} route="/front-desk">
           <DashboardLayout title="Front Desk">
             <FrontDesk />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/housekeeping"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['housekeeping', 'front_desk']} route="/housekeeping">
           <DashboardLayout title="Housekeeping">
             <Housekeeping />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/guests"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['front_desk']} route="/guests">
           <DashboardLayout title="Guests">
             <Guests />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/maintenance"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['maintenance', 'front_desk']} route="/maintenance">
           <DashboardLayout title="Maintenance">
             <Maintenance />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/folios"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['front_desk', 'accountant', 'night_auditor']} route="/folios">
           <DashboardLayout title="Folios">
             <Folios />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/reports"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['accountant', 'night_auditor']} route="/reports">
           <DashboardLayout title="Reports">
             <Reports />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/staff"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={[]} route="/staff">
           <DashboardLayout title="Staff">
             <Staff />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/properties"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={[]} route="/properties">
           <DashboardLayout title="Properties">
             <Properties />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/settings"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={[]} route="/settings">
           <DashboardLayout title="Settings">
             <Settings />
           </DashboardLayout>
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/pos"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['kitchen', 'waiter']} route="/pos">
           <POS />
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
     <Route
       path="/night-audit"
       element={
-        <ProtectedRoute>
+        <RoleProtectedRoute allowedRoles={['night_auditor', 'accountant']} route="/night-audit">
           <NightAudit />
-        </ProtectedRoute>
+        </RoleProtectedRoute>
       }
     />
 

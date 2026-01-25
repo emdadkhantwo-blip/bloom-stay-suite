@@ -45,6 +45,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { cn } from '@/lib/utils';
 
+import { type AppRole } from '@/types/database';
+
 const mainNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Reservations', url: '/reservations', icon: Calendar },
@@ -81,6 +83,20 @@ const superAdminItems = [
   { title: 'System Settings', url: '/admin/settings', icon: ShieldCheck },
 ];
 
+// Define which routes each role can access
+const ROLE_ROUTES: Record<AppRole, string[]> = {
+  superadmin: ['*'],
+  owner: ['*'],
+  manager: ['*'],
+  front_desk: ['/dashboard', '/reservations', '/calendar', '/rooms', '/guests', '/front-desk', '/housekeeping', '/maintenance', '/folios'],
+  accountant: ['/dashboard', '/folios', '/reports', '/night-audit'],
+  housekeeping: ['/housekeeping'],
+  maintenance: ['/maintenance'],
+  kitchen: ['/pos', '/kitchen'],
+  waiter: ['/pos'],
+  night_auditor: ['/dashboard', '/night-audit', '/folios', '/reports'],
+};
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -89,6 +105,22 @@ export function AppSidebar() {
   const { tenant, currentProperty, properties, setCurrentProperty, hasFeature } = useTenant();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+
+  // Helper function to check if user can access a route
+  const canAccessRoute = (route: string) => {
+    if (isSuperAdmin) return true;
+    if (hasAnyRole(['owner', 'manager'])) return true;
+    
+    return roles.some(role => {
+      const allowedRoutes = ROLE_ROUTES[role] || [];
+      return allowedRoutes.includes('*') || allowedRoutes.includes(route);
+    });
+  };
+
+  // Filter navigation items based on role
+  const filteredMainNavItems = mainNavItems.filter(item => canAccessRoute(item.url));
+  const filteredOperationsItems = operationsItems.filter(item => canAccessRoute(item.url));
+  const filteredBillingItems = billingItems.filter(item => canAccessRoute(item.url));
 
   const canAccessAdmin = hasAnyRole(['owner', 'manager']);
   const canAccessPOS = hasFeature('pos') && hasAnyRole(['owner', 'manager', 'kitchen', 'waiter']);
@@ -141,86 +173,92 @@ export function AppSidebar() {
           </div>
         )}
 
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-muted">Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={collapsed ? item.title : undefined}
-                  >
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+        {/* Main Navigation - Only show if user has access to any items */}
+        {filteredMainNavItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-muted">Main</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredMainNavItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      tooltip={collapsed ? item.title : undefined}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <NavLink
+                        to={item.url}
+                        className="flex items-center gap-2"
+                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-        {/* Operations */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-muted">Operations</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {operationsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={collapsed ? item.title : undefined}
-                  >
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+        {/* Operations - Only show if user has access to any items */}
+        {filteredOperationsItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-muted">Operations</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredOperationsItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      tooltip={collapsed ? item.title : undefined}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <NavLink
+                        to={item.url}
+                        className="flex items-center gap-2"
+                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-        {/* Billing */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-muted">Billing</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {billingItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={collapsed ? item.title : undefined}
-                  >
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+        {/* Billing - Only show if user has access to any items */}
+        {filteredBillingItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-muted">Billing</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredBillingItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      tooltip={collapsed ? item.title : undefined}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <NavLink
+                        to={item.url}
+                        className="flex items-center gap-2"
+                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* POS (conditional) */}
         {canAccessPOS && (
