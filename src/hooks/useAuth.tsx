@@ -14,8 +14,8 @@ export function getRoleDashboard(roles: AppRole[]): string {
   if (roles.includes('night_auditor')) return '/night-audit';
   if (roles.includes('housekeeping')) return '/housekeeping';
   if (roles.includes('maintenance')) return '/maintenance';
-  if (roles.includes('kitchen')) return '/pos';
-  if (roles.includes('waiter')) return '/pos';
+  if (roles.includes('kitchen')) return '/kitchen';
+  if (roles.includes('waiter')) return '/waiter';
   return '/dashboard'; // fallback
 }
 

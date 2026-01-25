@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "./useTenant";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
 // Types
@@ -613,6 +614,79 @@ export function useCancelPOSOrder() {
     onError: (error: Error) => {
       toast.error(`Failed to cancel order: ${error.message}`);
     },
+  });
+}
+
+// ============= WAITER-SPECIFIC HOOKS =============
+
+export function useWaiterOrders(outletId?: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["waiter-orders", outletId, user?.id],
+    queryFn: async () => {
+      if (!outletId || !user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("pos_orders")
+        .select(`
+          *,
+          outlet:pos_outlets(*),
+          guest:guests(first_name, last_name),
+          room:rooms(room_number),
+          items:pos_order_items(*)
+        `)
+        .eq("outlet_id", outletId)
+        .in("status", ["pending", "preparing", "ready"])
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as POSOrder[];
+    },
+    enabled: !!outletId && !!user?.id,
+    refetchInterval: 5000, // Frequent updates to see ready orders
+  });
+}
+
+export function useWaiterStats(outletId?: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["waiter-stats", outletId, user?.id],
+    queryFn: async () => {
+      if (!outletId || !user?.id) return null;
+      
+      // Get active orders
+      const { data: orders, error } = await supabase
+        .from("pos_orders")
+        .select("status, created_at")
+        .eq("outlet_id", outletId)
+        .in("status", ["pending", "preparing", "ready"]);
+
+      if (error) throw error;
+
+      // Get today's served orders
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: servedOrders, error: servedError } = await supabase
+        .from("pos_orders")
+        .select("id")
+        .eq("outlet_id", outletId)
+        .eq("status", "served")
+        .gte("updated_at", today.toISOString());
+
+      if (servedError) throw servedError;
+
+      return {
+        pending: orders?.filter(o => o.status === "pending").length || 0,
+        preparing: orders?.filter(o => o.status === "preparing").length || 0,
+        ready: orders?.filter(o => o.status === "ready").length || 0,
+        servedToday: servedOrders?.length || 0,
+      };
+    },
+    enabled: !!outletId && !!user?.id,
+    refetchInterval: 5000,
   });
 }
 

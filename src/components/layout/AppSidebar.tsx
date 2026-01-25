@@ -19,6 +19,8 @@ import {
   UtensilsCrossed,
   LayoutDashboard,
   Moon,
+  ChefHat,
+  Utensils,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -69,7 +71,8 @@ const billingItems = [
 
 const posItems = [
   { title: 'POS Terminal', url: '/pos', icon: UtensilsCrossed },
-  { title: 'Kitchen Display', url: '/kitchen', icon: UtensilsCrossed },
+  { title: 'Kitchen Display', url: '/kitchen', icon: ChefHat },
+  { title: 'Waiter Dashboard', url: '/waiter', icon: Utensils },
 ];
 
 const adminItems = [
@@ -92,8 +95,8 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
   accountant: ['/dashboard', '/folios', '/reports', '/night-audit'],
   housekeeping: ['/housekeeping'],
   maintenance: ['/maintenance'],
-  kitchen: ['/pos', '/kitchen'],
-  waiter: ['/pos'],
+  kitchen: ['/kitchen'],
+  waiter: ['/pos', '/waiter'],
   night_auditor: ['/dashboard', '/night-audit', '/folios', '/reports'],
 };
 
