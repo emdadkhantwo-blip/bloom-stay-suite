@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -225,10 +225,19 @@ export function StaffDetailDrawer({
                   onClick={() => toggleRole(role.value)}
                 >
                   <CardContent className="flex items-center gap-3 p-3">
-                    <Checkbox
-                      checked={selectedRoles.includes(role.value)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <div 
+                      className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center ${
+                        selectedRoles.includes(role.value) 
+                          ? "bg-primary border-primary text-primary-foreground" 
+                          : "border-primary"
+                      }`}
+                    >
+                      {selectedRoles.includes(role.value) && (
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
                     <div className="flex-1">
                       <p className="font-medium text-sm">{role.label}</p>
                       <p className="text-xs text-muted-foreground">
@@ -272,10 +281,19 @@ export function StaffDetailDrawer({
                     onClick={() => toggleProperty(property.id)}
                   >
                     <CardContent className="flex items-center gap-3 p-3">
-                      <Checkbox
-                        checked={selectedProperties.includes(property.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      <div 
+                        className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center ${
+                          selectedProperties.includes(property.id) 
+                            ? "bg-primary border-primary text-primary-foreground" 
+                            : "border-primary"
+                        }`}
+                      >
+                        {selectedProperties.includes(property.id) && (
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </div>
                       <div className="flex-1">
                         <p className="font-medium text-sm">{property.name}</p>
                         <p className="text-xs text-muted-foreground">

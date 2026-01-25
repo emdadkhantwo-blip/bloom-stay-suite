@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -309,11 +309,19 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
                   onClick={() => toggleRole(role.value)}
                 >
                   <CardContent className="flex items-start gap-2 p-2">
-                    <Checkbox
-                      checked={selectedRoles.includes(role.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-0.5"
-                    />
+                    <div 
+                      className={`mt-0.5 h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center ${
+                        selectedRoles.includes(role.value) 
+                          ? "bg-primary border-primary text-primary-foreground" 
+                          : "border-primary"
+                      }`}
+                    >
+                      {selectedRoles.includes(role.value) && (
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
                     <div>
                       <span className="text-sm font-medium">{role.label}</span>
                       <p className="text-xs text-muted-foreground">{role.description}</p>
@@ -344,10 +352,19 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
                   onClick={() => toggleProperty(property.id)}
                 >
                   <CardContent className="flex items-center gap-2 p-2">
-                    <Checkbox
-                      checked={selectedProperties.includes(property.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <div 
+                      className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center ${
+                        selectedProperties.includes(property.id) 
+                          ? "bg-primary border-primary text-primary-foreground" 
+                          : "border-primary"
+                      }`}
+                    >
+                      {selectedProperties.includes(property.id) && (
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
                     <div>
                       <span className="text-sm font-medium">{property.name}</span>
                       <span className="text-xs text-muted-foreground ml-2">
