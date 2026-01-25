@@ -57,7 +57,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
       roomId: '',
       taskType: 'cleaning',
       priority: '1',
-      assignedTo: '',
+      assignedTo: 'unassigned',
       notes: '',
     },
   });
@@ -68,7 +68,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
         roomId: data.roomId,
         taskType: data.taskType,
         priority: parseInt(data.priority),
-        assignedTo: data.assignedTo || undefined,
+        assignedTo: data.assignedTo === 'unassigned' ? undefined : data.assignedTo || undefined,
         notes: data.notes || undefined,
       });
 
@@ -187,7 +187,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {staff?.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.full_name || member.username}
