@@ -22,6 +22,7 @@ import {
   Coffee,
   Wine,
   ConciergeBell,
+  LayoutGrid,
 } from "lucide-react";
 import { usePOSOutlets, usePOSItems, usePOSOrders, usePOSCategories, POSItem, POSOrder } from "@/hooks/usePOS";
 import { POSOrderPanel } from "@/components/pos/POSOrderPanel";
@@ -30,6 +31,7 @@ import { POSOrdersTable } from "@/components/pos/POSOrdersTable";
 import { KitchenDisplay } from "@/components/pos/KitchenDisplay";
 import { POSSettingsDialog } from "@/components/pos/POSSettingsDialog";
 import { CreateOutletDialog } from "@/components/pos/CreateOutletDialog";
+import { TableManagement } from "@/components/pos/TableManagement";
 
 const outletTypeIcons: Record<string, React.ReactNode> = {
   restaurant: <UtensilsCrossed className="h-4 w-4" />,
@@ -231,6 +233,15 @@ export default function POS() {
               <ChefHat className="h-4 w-4" />
               Kitchen Display
             </TabsTrigger>
+            <TabsTrigger value="tables" className="gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Tables
+              {Object.keys(orders.filter(o => o.table_number && !["posted", "cancelled"].includes(o.status)).reduce((acc, o) => ({ ...acc, [o.table_number!]: true }), {})).length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {Object.keys(orders.filter(o => o.table_number && !["posted", "cancelled"].includes(o.status)).reduce((acc, o) => ({ ...acc, [o.table_number!]: true }), {})).length}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="order" className="mt-4 flex-1">
@@ -261,6 +272,10 @@ export default function POS() {
 
           <TabsContent value="kitchen" className="mt-4 flex-1">
             <KitchenDisplay outletId={selectedOutletId!} />
+          </TabsContent>
+
+          <TabsContent value="tables" className="mt-4 flex-1">
+            <TableManagement orders={orders} outletId={selectedOutletId!} />
           </TabsContent>
         </Tabs>
       </div>
