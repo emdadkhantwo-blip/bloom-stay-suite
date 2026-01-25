@@ -13,6 +13,7 @@ import Rooms from "./pages/Rooms";
 import Reservations from "./pages/Reservations";
 import FrontDesk from "./pages/FrontDesk";
 import Housekeeping from "./pages/Housekeeping";
+import Guests from "./pages/Guests";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -122,6 +123,16 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <DashboardLayout title="Housekeeping">
             <Housekeeping />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/guests"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Guests">
+            <Guests />
           </DashboardLayout>
         </ProtectedRoute>
       }

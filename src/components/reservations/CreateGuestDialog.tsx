@@ -37,7 +37,7 @@ type GuestFormData = z.infer<typeof guestSchema>;
 interface CreateGuestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGuestCreated: (guest: Guest) => void;
+  onGuestCreated?: (guest: Guest) => void;
 }
 
 export function CreateGuestDialog({ open, onOpenChange, onGuestCreated }: CreateGuestDialogProps) {
@@ -67,7 +67,7 @@ export function CreateGuestDialog({ open, onOpenChange, onGuestCreated }: Create
         id_number: data.id_number || undefined,
         nationality: data.nationality || undefined,
       });
-      onGuestCreated(guest);
+      onGuestCreated?.(guest);
       form.reset();
       onOpenChange(false);
     } catch (error) {
