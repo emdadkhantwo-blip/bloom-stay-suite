@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -41,10 +41,15 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
-  const [selectedProperties, setSelectedProperties] = useState<string[]>(
-    currentProperty ? [currentProperty.id] : []
-  );
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize selectedProperties when dialog opens and currentProperty is available
+  useEffect(() => {
+    if (open && currentProperty && selectedProperties.length === 0) {
+      setSelectedProperties([currentProperty.id]);
+    }
+  }, [open, currentProperty]);
 
   const toggleRole = (role: AppRole) => {
     setSelectedRoles((prev) =>
@@ -126,7 +131,7 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
     setEmail("");
     setFullName("");
     setSelectedRoles([]);
-    setSelectedProperties(currentProperty ? [currentProperty.id] : []);
+    setSelectedProperties([]);
   };
 
   return (
