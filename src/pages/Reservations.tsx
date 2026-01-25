@@ -14,6 +14,7 @@ import { ReservationFilters } from "@/components/reservations/ReservationFilters
 import { ReservationListItem } from "@/components/reservations/ReservationListItem";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
+import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -56,8 +57,11 @@ export default function Reservations() {
   // New reservation dialog
   const [newReservationOpen, setNewReservationOpen] = useState(false);
 
+  // Room assignment dialog for check-in
+  const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
+  const [pendingCheckIn, setPendingCheckIn] = useState<Reservation | null>(null);
+
   // Dialogs
-  const [checkInDialog, setCheckInDialog] = useState<string | null>(null);
   const [checkOutDialog, setCheckOutDialog] = useState<string | null>(null);
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
 
@@ -95,13 +99,24 @@ export default function Reservations() {
   }, [reservations, searchQuery, statusFilter, dateRange]);
 
   const handleCheckIn = (reservationId: string) => {
-    setCheckInDialog(reservationId);
+    const reservation = reservations?.find((r) => r.id === reservationId);
+    if (reservation) {
+      setPendingCheckIn(reservation);
+      setRoomAssignmentOpen(true);
+    }
   };
 
-  const confirmCheckIn = () => {
-    if (checkInDialog) {
-      checkIn.mutate({ reservationId: checkInDialog });
-      setCheckInDialog(null);
+  const confirmCheckIn = (assignments: Array<{ reservationRoomId: string; roomId: string }>) => {
+    if (pendingCheckIn) {
+      checkIn.mutate(
+        { reservationId: pendingCheckIn.id, roomAssignments: assignments },
+        {
+          onSuccess: () => {
+            setRoomAssignmentOpen(false);
+            setPendingCheckIn(null);
+          },
+        }
+      );
     }
   };
 
@@ -138,7 +153,8 @@ export default function Reservations() {
   const handleDrawerCheckIn = () => {
     if (selectedReservation) {
       setDrawerOpen(false);
-      setCheckInDialog(selectedReservation.id);
+      setPendingCheckIn(selectedReservation);
+      setRoomAssignmentOpen(true);
     }
   };
 
@@ -228,24 +244,17 @@ export default function Reservations() {
         </div>
       )}
 
-      {/* Check-In Confirmation Dialog */}
-      <AlertDialog open={!!checkInDialog} onOpenChange={() => setCheckInDialog(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Check-In</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to check in this guest? This will mark the reservation as checked in
-              and update the room status to occupied.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCheckIn} disabled={checkIn.isPending}>
-              {checkIn.isPending ? "Processing..." : "Check In"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Room Assignment Dialog for Check-In */}
+      <RoomAssignmentDialog
+        reservation={pendingCheckIn}
+        open={roomAssignmentOpen}
+        onOpenChange={(open) => {
+          setRoomAssignmentOpen(open);
+          if (!open) setPendingCheckIn(null);
+        }}
+        onConfirm={confirmCheckIn}
+        isLoading={checkIn.isPending}
+      />
 
       {/* Check-Out Confirmation Dialog */}
       <AlertDialog open={!!checkOutDialog} onOpenChange={() => setCheckOutDialog(null)}>
