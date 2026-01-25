@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Plus, RefreshCw, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -37,6 +37,7 @@ export default function Housekeeping() {
   const [selectedTask, setSelectedTask] = useState<HousekeepingTask | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   const { data: tasks, isLoading: tasksLoading, refetch } = useHousekeepingTasks();
   const { data: stats, isLoading: statsLoading } = useHousekeepingStats();
@@ -118,6 +119,24 @@ export default function Housekeeping() {
     });
   };
 
+  const scrollToTask = useCallback((taskId: string) => {
+    // Close the popover
+    setNotificationOpen(false);
+    
+    // Small delay to allow popover to close
+    setTimeout(() => {
+      const taskElement = document.getElementById(`task-${taskId}`);
+      if (taskElement) {
+        taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add a highlight effect
+        taskElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+        setTimeout(() => {
+          taskElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+        }, 2000);
+      }
+    }, 100);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Stats Bar */}
@@ -128,7 +147,7 @@ export default function Housekeeping() {
         <h2 className="text-lg font-semibold text-foreground">Housekeeping Management</h2>
         <div className="flex items-center gap-2">
           {/* My Tasks Notification Button */}
-          <Popover>
+          <Popover open={notificationOpen} onOpenChange={setNotificationOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="relative">
                 <Bell className="h-4 w-4" />
@@ -147,7 +166,11 @@ export default function Housekeeping() {
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {myTasks?.map((task) => (
-                      <div key={task.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                      <div
+                        key={task.id}
+                        onClick={() => scrollToTask(task.id)}
+                        className="flex items-center justify-between p-2 bg-muted rounded-md cursor-pointer hover:bg-accent transition-colors"
+                      >
                         <div>
                           <p className="font-medium text-sm">Room {task.room?.room_number}</p>
                           <p className="text-xs text-muted-foreground capitalize">
@@ -216,6 +239,7 @@ export default function Housekeeping() {
               {filteredTasks.map((task) => (
                 <TaskCard
                   key={task.id}
+                  id={`task-${task.id}`}
                   task={task}
                   onStart={handleStartTask}
                   onComplete={handleCompleteTask}

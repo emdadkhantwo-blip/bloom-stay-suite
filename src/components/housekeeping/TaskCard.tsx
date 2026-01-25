@@ -20,6 +20,7 @@ interface TaskCardProps {
   canAssign?: boolean;
   isStarting?: boolean;
   isCompleting?: boolean;
+  id?: string;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -51,15 +52,19 @@ export function TaskCard({
   canAssign = true,
   isStarting,
   isCompleting,
+  id,
 }: TaskCardProps) {
   const status = statusConfig[task.status] || statusConfig.pending;
   const priority = priorityConfig[task.priority] || priorityConfig[1];
 
   return (
-    <Card className={cn(
-      'transition-all hover:shadow-md',
-      task.priority >= 3 && task.status === 'pending' && 'border-l-4 border-l-red-500'
-    )}>
+    <Card
+      id={id}
+      className={cn(
+        'transition-all hover:shadow-md',
+        task.priority >= 3 && task.status === 'pending' && 'border-l-4 border-l-red-500'
+      )}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 space-y-2">
