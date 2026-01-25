@@ -4,8 +4,13 @@ import { RoomCard } from "@/components/rooms/RoomCard";
 import { RoomListItem } from "@/components/rooms/RoomListItem";
 import { RoomFilters } from "@/components/rooms/RoomFilters";
 import { RoomStatsBar } from "@/components/rooms/RoomStatsBar";
+import { CreateRoomDialog } from "@/components/rooms/CreateRoomDialog";
+import { EditRoomDialog } from "@/components/rooms/EditRoomDialog";
+import { RoomTypesSheet } from "@/components/room-types/RoomTypesSheet";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Settings2 } from "lucide-react";
 import type { RoomStatus } from "@/types/database";
 
 export default function Rooms() {
@@ -18,6 +23,11 @@ export default function Rooms() {
   const [statusFilter, setStatusFilter] = useState<RoomStatus | "all">("all");
   const [floorFilter, setFloorFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Dialogs
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [roomTypesOpen, setRoomTypesOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<any>(null);
 
   // Get unique floors
   const floors = useMemo(() => {
@@ -76,6 +86,10 @@ export default function Rooms() {
     updateStatus.mutate({ roomId, status: newStatus });
   };
 
+  const handleRoomClick = (room: any) => {
+    setEditingRoom(room);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -94,6 +108,20 @@ export default function Rooms() {
       {/* Stats Bar */}
       <RoomStatsBar stats={stats || null} isLoading={isLoadingStats} />
 
+      {/* Actions Row */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-2">
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Room
+          </Button>
+          <Button variant="outline" onClick={() => setRoomTypesOpen(true)}>
+            <Settings2 className="mr-2 h-4 w-4" />
+            Manage Types
+          </Button>
+        </div>
+      </div>
+
       {/* Filters */}
       <RoomFilters
         searchQuery={searchQuery}
@@ -109,8 +137,14 @@ export default function Rooms() {
 
       {/* No Results */}
       {filteredRooms.length === 0 && (
-        <div className="flex h-48 items-center justify-center rounded-lg border bg-card text-muted-foreground">
-          No rooms found matching your filters
+        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border bg-card text-muted-foreground">
+          <p>No rooms found matching your filters</p>
+          {!rooms?.length && (
+            <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add your first room
+            </Button>
+          )}
         </div>
       )}
 
@@ -133,6 +167,7 @@ export default function Rooms() {
                         : null
                     }
                     onStatusChange={handleStatusChange}
+                    onClick={() => handleRoomClick(room)}
                   />
                 ))}
               </div>
@@ -167,12 +202,26 @@ export default function Rooms() {
                       : null
                   }
                   onStatusChange={handleStatusChange}
+                  onClick={() => handleRoomClick(room)}
                 />
               ))}
             </TableBody>
           </Table>
         </div>
       )}
+
+      {/* Create Room Dialog */}
+      <CreateRoomDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+
+      {/* Edit Room Dialog */}
+      <EditRoomDialog
+        room={editingRoom}
+        open={!!editingRoom}
+        onOpenChange={(open) => !open && setEditingRoom(null)}
+      />
+
+      {/* Room Types Sheet */}
+      <RoomTypesSheet open={roomTypesOpen} onOpenChange={setRoomTypesOpen} />
     </div>
   );
 }

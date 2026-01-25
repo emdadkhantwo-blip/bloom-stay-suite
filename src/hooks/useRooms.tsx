@@ -101,6 +101,108 @@ export function useRooms() {
   });
 }
 
+export function useCreateRoom() {
+  const queryClient = useQueryClient();
+  const { currentProperty, tenant } = useTenant();
+  const currentPropertyId = currentProperty?.id;
+  const tenantId = tenant?.id;
+
+  return useMutation({
+    mutationFn: async (data: {
+      room_number: string;
+      floor: string | null;
+      room_type_id: string;
+      notes: string | null;
+    }) => {
+      if (!currentPropertyId || !tenantId) throw new Error("No property selected");
+
+      const { error } = await supabase.from("rooms").insert({
+        ...data,
+        property_id: currentPropertyId,
+        tenant_id: tenantId,
+        status: "vacant",
+        is_active: true,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
+      queryClient.invalidateQueries({ queryKey: ["room-stats", currentPropertyId] });
+      toast.success("Room created successfully");
+    },
+    onError: (error) => {
+      console.error("Error creating room:", error);
+      toast.error("Failed to create room");
+    },
+  });
+}
+
+export function useUpdateRoom() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const currentPropertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async ({
+      roomId,
+      data,
+    }: {
+      roomId: string;
+      data: {
+        room_number?: string;
+        floor?: string | null;
+        room_type_id?: string;
+        notes?: string | null;
+        is_active?: boolean;
+      };
+    }) => {
+      const { error } = await supabase
+        .from("rooms")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", roomId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
+      queryClient.invalidateQueries({ queryKey: ["room-stats", currentPropertyId] });
+      toast.success("Room updated successfully");
+    },
+    onError: (error) => {
+      console.error("Error updating room:", error);
+      toast.error("Failed to update room");
+    },
+  });
+}
+
+export function useDeleteRoom() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const currentPropertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async (roomId: string) => {
+      // Soft delete by setting is_active to false
+      const { error } = await supabase
+        .from("rooms")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", roomId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
+      queryClient.invalidateQueries({ queryKey: ["room-stats", currentPropertyId] });
+      toast.success("Room deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Error deleting room:", error);
+      toast.error("Failed to delete room");
+    },
+  });
+}
+
 export function useUpdateRoomStatus() {
   const queryClient = useQueryClient();
   const { currentProperty } = useTenant();

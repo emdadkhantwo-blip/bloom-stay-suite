@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type RoomType = Tables<"room_types">;
@@ -25,6 +26,106 @@ export function useRoomTypes() {
       return data || [];
     },
     enabled: !!propertyId,
+  });
+}
+
+export function useCreateRoomType() {
+  const queryClient = useQueryClient();
+  const { currentProperty, tenant } = useTenant();
+  const propertyId = currentProperty?.id;
+  const tenantId = tenant?.id;
+
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      code: string;
+      description: string | null;
+      base_rate: number;
+      max_occupancy: number;
+    }) => {
+      if (!propertyId || !tenantId) throw new Error("No property selected");
+
+      const { error } = await supabase.from("room_types").insert({
+        ...data,
+        property_id: propertyId,
+        tenant_id: tenantId,
+        is_active: true,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-types", propertyId] });
+      toast.success("Room type created successfully");
+    },
+    onError: (error) => {
+      console.error("Error creating room type:", error);
+      toast.error("Failed to create room type");
+    },
+  });
+}
+
+export function useUpdateRoomType() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const propertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async ({
+      roomTypeId,
+      data,
+    }: {
+      roomTypeId: string;
+      data: {
+        name?: string;
+        code?: string;
+        description?: string | null;
+        base_rate?: number;
+        max_occupancy?: number;
+        is_active?: boolean;
+      };
+    }) => {
+      const { error } = await supabase
+        .from("room_types")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", roomTypeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-types", propertyId] });
+      toast.success("Room type updated successfully");
+    },
+    onError: (error) => {
+      console.error("Error updating room type:", error);
+      toast.error("Failed to update room type");
+    },
+  });
+}
+
+export function useDeleteRoomType() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const propertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async (roomTypeId: string) => {
+      // Soft delete by setting is_active to false
+      const { error } = await supabase
+        .from("room_types")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", roomTypeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-types", propertyId] });
+      toast.success("Room type deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Error deleting room type:", error);
+      toast.error("Failed to delete room type");
+    },
   });
 }
 
