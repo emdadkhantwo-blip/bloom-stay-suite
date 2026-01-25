@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ReservationStatus } from "@/hooks/useReservations";
@@ -30,15 +31,22 @@ const statusConfig: Record<ReservationStatus, { label: string; className: string
   },
 };
 
-export function ReservationStatusBadge({ status, className }: ReservationStatusBadgeProps) {
+const ReservationStatusBadge = React.forwardRef<
+  HTMLDivElement,
+  ReservationStatusBadgeProps
+>(({ status, className }, ref) => {
   const config = statusConfig[status];
 
   return (
     <Badge
+      ref={ref}
       variant="outline"
       className={cn("font-medium", config.className, className)}
     >
       {config.label}
     </Badge>
   );
-}
+});
+ReservationStatusBadge.displayName = "ReservationStatusBadge";
+
+export { ReservationStatusBadge };
