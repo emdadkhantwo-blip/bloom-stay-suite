@@ -21,8 +21,15 @@ export type GuestInsert = {
   notes?: string;
 };
 
+export type GuestUpdate = Partial<GuestInsert> & {
+  id: string;
+  is_vip?: boolean;
+  is_blacklisted?: boolean;
+  blacklist_reason?: string | null;
+};
+
 export function useGuests(searchQuery?: string) {
-  const { currentProperty, tenant } = useTenant();
+  const { tenant } = useTenant();
   const tenantId = tenant?.id;
 
   return useQuery({
@@ -42,12 +49,63 @@ export function useGuests(searchQuery?: string) {
         );
       }
 
-      const { data, error } = await query.limit(50);
+      const { data, error } = await query.limit(100);
 
       if (error) throw error;
       return data || [];
     },
     enabled: !!tenantId,
+  });
+}
+
+export function useGuestStats() {
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
+
+  return useQuery({
+    queryKey: ["guest-stats", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return { total: 0, vip: 0, blacklisted: 0, totalRevenue: 0 };
+
+      const { data, error } = await supabase
+        .from("guests")
+        .select("id, is_vip, is_blacklisted, total_revenue")
+        .eq("tenant_id", tenantId);
+
+      if (error) throw error;
+
+      const guests = data || [];
+      return {
+        total: guests.length,
+        vip: guests.filter((g) => g.is_vip).length,
+        blacklisted: guests.filter((g) => g.is_blacklisted).length,
+        totalRevenue: guests.reduce((sum, g) => sum + (g.total_revenue || 0), 0),
+      };
+    },
+    enabled: !!tenantId,
+  });
+}
+
+export function useGuestReservations(guestId?: string) {
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
+
+  return useQuery({
+    queryKey: ["guest-reservations", tenantId, guestId],
+    queryFn: async () => {
+      if (!tenantId || !guestId) return [];
+
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("guest_id", guestId)
+        .order("check_in_date", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!tenantId && !!guestId,
   });
 }
 
@@ -74,11 +132,46 @@ export function useCreateGuest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["guests", tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["guest-stats", tenantId] });
       toast.success("Guest created successfully");
     },
     onError: (error) => {
       console.error("Error creating guest:", error);
       toast.error("Failed to create guest");
+    },
+  });
+}
+
+export function useUpdateGuest() {
+  const queryClient = useQueryClient();
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
+
+  return useMutation({
+    mutationFn: async (guest: GuestUpdate): Promise<Guest> => {
+      if (!tenantId) throw new Error("No tenant selected");
+
+      const { id, ...updateData } = guest;
+
+      const { data, error } = await supabase
+        .from("guests")
+        .update(updateData)
+        .eq("id", id)
+        .eq("tenant_id", tenantId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["guests", tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["guest-stats", tenantId] });
+      toast.success("Guest updated successfully");
+    },
+    onError: (error) => {
+      console.error("Error updating guest:", error);
+      toast.error("Failed to update guest");
     },
   });
 }
