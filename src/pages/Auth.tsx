@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, getRoleDashboard } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
@@ -33,16 +33,30 @@ export default function Auth() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const [waitingForRoles, setWaitingForRoles] = useState(false);
+  const { signIn, signUp, user, roles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if already logged in
+  // Redirect if already logged in with roles loaded
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
+    if (user && !waitingForRoles) {
+      // If we have roles, redirect based on them
+      if (roles.length > 0) {
+        const dashboard = getRoleDashboard(roles);
+        navigate(dashboard);
+      }
     }
-  }, [user, navigate]);
+  }, [user, roles, waitingForRoles, navigate]);
+
+  // Handle role-based redirect after login
+  useEffect(() => {
+    if (waitingForRoles && roles.length > 0) {
+      setWaitingForRoles(false);
+      const dashboard = getRoleDashboard(roles);
+      navigate(dashboard);
+    }
+  }, [waitingForRoles, roles, navigate]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -68,7 +82,12 @@ export default function Auth() {
           : error.message,
       });
     } else {
-      navigate('/dashboard');
+      // Wait for roles to load before redirecting
+      setWaitingForRoles(true);
+      toast({
+        title: 'Login Successful',
+        description: 'Redirecting to your dashboard...',
+      });
     }
   };
 

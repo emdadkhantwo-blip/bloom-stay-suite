@@ -3,6 +3,22 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ROLE_PERMISSIONS, type AppRole } from '@/types/database';
 
+// Helper function to get the appropriate dashboard based on user roles
+export function getRoleDashboard(roles: AppRole[]): string {
+  // Priority-based routing - highest priority roles first
+  if (roles.includes('superadmin')) return '/dashboard';
+  if (roles.includes('owner')) return '/dashboard';
+  if (roles.includes('manager')) return '/dashboard';
+  if (roles.includes('front_desk')) return '/front-desk';
+  if (roles.includes('accountant')) return '/folios';
+  if (roles.includes('night_auditor')) return '/night-audit';
+  if (roles.includes('housekeeping')) return '/housekeeping';
+  if (roles.includes('maintenance')) return '/maintenance';
+  if (roles.includes('kitchen')) return '/pos';
+  if (roles.includes('waiter')) return '/pos';
+  return '/dashboard'; // fallback
+}
+
 interface Profile {
   id: string;
   tenant_id: string | null;
