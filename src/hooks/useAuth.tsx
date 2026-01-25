@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { AppRole } from '@/types/database';
+import { ROLE_PERMISSIONS, type AppRole } from '@/types/database';
 
 interface Profile {
   id: string;
@@ -170,8 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasPermission = (permission: string) => {
     if (isSuperAdmin) return true;
-    // Import and check against ROLE_PERMISSIONS
-    const { ROLE_PERMISSIONS } = require('@/types/database');
     return roles.some((role) => {
       const perms = ROLE_PERMISSIONS[role] || [];
       return perms.includes('*') || perms.includes(permission);
