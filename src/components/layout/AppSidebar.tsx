@@ -55,6 +55,7 @@ const mainNavItems = [
   { title: 'Calendar', url: '/calendar', icon: CalendarRange },
   { title: 'Rooms', url: '/rooms', icon: BedDouble },
   { title: 'Guests', url: '/guests', icon: Users },
+  { title: 'Corporate', url: '/corporate', icon: Building2 },
 ];
 
 const operationsItems = [

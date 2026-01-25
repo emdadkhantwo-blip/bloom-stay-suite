@@ -64,6 +64,68 @@ export type Database = {
           },
         ]
       }
+      corporate_accounts: {
+        Row: {
+          account_code: string
+          billing_address: string | null
+          company_name: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string | null
+          credit_limit: number | null
+          discount_percentage: number | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          payment_terms: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_code: string
+          billing_address?: string | null
+          company_name: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          credit_limit?: number | null
+          discount_percentage?: number | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          payment_terms?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_code?: string
+          billing_address?: string | null
+          company_name?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          credit_limit?: number | null
+          discount_percentage?: number | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          payment_terms?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flags: {
         Row: {
           created_at: string
@@ -262,6 +324,54 @@ export type Database = {
           },
           {
             foreignKeyName: "folios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_notes: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string | null
+          guest_id: string
+          id: string
+          is_pinned: boolean | null
+          note_type: string
+          tenant_id: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string | null
+          guest_id: string
+          id?: string
+          is_pinned?: boolean | null
+          note_type?: string
+          tenant_id: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string | null
+          guest_id?: string
+          id?: string
+          is_pinned?: boolean | null
+          note_type?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_notes_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_notes_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
