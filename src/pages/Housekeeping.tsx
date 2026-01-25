@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HousekeepingStatsBar } from '@/components/housekeeping/HousekeepingStatsBar';
+import { HousekeepingStaffDashboard } from '@/components/housekeeping/HousekeepingStaffDashboard';
 import { TaskCard } from '@/components/housekeeping/TaskCard';
 import { TaskFilters } from '@/components/housekeeping/TaskFilters';
 import { CreateTaskDialog } from '@/components/housekeeping/CreateTaskDialog';
@@ -16,6 +17,7 @@ import {
   useStartTask,
   useCompleteTask,
   useMyAssignedTasks,
+  useMyHousekeepingStats,
   type HousekeepingTask,
 } from '@/hooks/useHousekeeping';
 import { useToast } from '@/hooks/use-toast';
@@ -25,12 +27,14 @@ import { useAuth } from '@/hooks/useAuth';
 export default function Housekeeping() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, hasRole } = useAuth();
 
   // Only managers, owners, and front_desk can create tasks
   const canCreateTask = hasAnyRole(['owner', 'manager', 'front_desk']);
   // Only managers and owners can assign tasks
   const canAssignTask = hasAnyRole(['owner', 'manager']);
+  // Check if user is housekeeping staff (not owner/manager)
+  const isHousekeepingStaff = hasRole('housekeeping') && !hasAnyRole(['owner', 'manager']);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -42,6 +46,7 @@ export default function Housekeeping() {
   const { data: tasks, isLoading: tasksLoading, refetch } = useHousekeepingTasks();
   const { data: stats, isLoading: statsLoading } = useHousekeepingStats();
   const { data: myTasks } = useMyAssignedTasks();
+  const { data: myStats, isLoading: myStatsLoading } = useMyHousekeepingStats();
   const startTask = useStartTask();
   const completeTask = useCompleteTask();
   
@@ -139,8 +144,19 @@ export default function Housekeeping() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Bar */}
-      <HousekeepingStatsBar stats={stats} isLoading={statsLoading} />
+      {/* Stats Bar - Show staff dashboard or global stats based on role */}
+      {isHousekeepingStaff ? (
+        <HousekeepingStaffDashboard
+          assignedCount={myStats?.assignedCount || 0}
+          pendingCount={myStats?.pendingCount || 0}
+          inProgressCount={myStats?.inProgressCount || 0}
+          completedTodayCount={myStats?.completedTodayCount || 0}
+          highPriorityCount={myStats?.highPriorityCount || 0}
+          isLoading={myStatsLoading}
+        />
+      ) : (
+        <HousekeepingStatsBar stats={stats} isLoading={statsLoading} />
+      )}
 
       {/* Actions Bar */}
       <div className="flex items-center justify-between">
