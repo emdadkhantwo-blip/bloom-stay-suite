@@ -8,6 +8,7 @@ import { useRoomStats } from "@/hooks/useRooms";
 import { FrontDeskStatsBar } from "@/components/front-desk/FrontDeskStatsBar";
 import { GuestListCard } from "@/components/front-desk/GuestListCard";
 import { QuickActions } from "@/components/front-desk/QuickActions";
+import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDialog";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
 import {
@@ -41,9 +42,10 @@ export default function FrontDesk() {
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [newReservationOpen, setNewReservationOpen] = useState(false);
-  const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
+  const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
   const [checkOutDialogOpen, setCheckOutDialogOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<FrontDeskReservation | null>(null);
+  const [pendingCheckIn, setPendingCheckIn] = useState<FrontDeskReservation | null>(null);
+  const [pendingCheckOut, setPendingCheckOut] = useState<FrontDeskReservation | null>(null);
 
   // Update time every minute
   useEffect(() => {
@@ -57,29 +59,35 @@ export default function FrontDesk() {
   };
 
   const handleCheckInClick = (reservation: FrontDeskReservation) => {
-    setPendingAction(reservation);
-    setCheckInDialogOpen(true);
+    setPendingCheckIn(reservation);
+    setRoomAssignmentOpen(true);
   };
 
   const handleCheckOutClick = (reservation: FrontDeskReservation) => {
-    setPendingAction(reservation);
+    setPendingCheckOut(reservation);
     setCheckOutDialogOpen(true);
   };
 
-  const confirmCheckIn = () => {
-    if (pendingAction) {
-      checkInMutation.mutate({ reservationId: pendingAction.id });
+  const confirmCheckIn = (assignments: Array<{ reservationRoomId: string; roomId: string }>) => {
+    if (pendingCheckIn) {
+      checkInMutation.mutate(
+        { reservationId: pendingCheckIn.id, roomAssignments: assignments },
+        {
+          onSuccess: () => {
+            setRoomAssignmentOpen(false);
+            setPendingCheckIn(null);
+          },
+        }
+      );
     }
-    setCheckInDialogOpen(false);
-    setPendingAction(null);
   };
 
   const confirmCheckOut = () => {
-    if (pendingAction) {
-      checkOutMutation.mutate(pendingAction.id);
+    if (pendingCheckOut) {
+      checkOutMutation.mutate(pendingCheckOut.id);
     }
     setCheckOutDialogOpen(false);
-    setPendingAction(null);
+    setPendingCheckOut(null);
   };
 
   const isLoading = arrivalsLoading || departuresLoading || inHouseLoading || roomStatsLoading;
@@ -170,11 +178,13 @@ export default function FrontDesk() {
         onOpenChange={setDrawerOpen}
         onCheckIn={() => {
           if (selectedReservation) {
+            setDrawerOpen(false);
             handleCheckInClick(selectedReservation);
           }
         }}
         onCheckOut={() => {
           if (selectedReservation) {
+            setDrawerOpen(false);
             handleCheckOutClick(selectedReservation);
           }
         }}
@@ -189,27 +199,17 @@ export default function FrontDesk() {
         onOpenChange={setNewReservationOpen}
       />
 
-      {/* Check-In Confirmation Dialog */}
-      <AlertDialog open={checkInDialogOpen} onOpenChange={setCheckInDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Check-In</AlertDialogTitle>
-            <AlertDialogDescription>
-              Check in{" "}
-              <strong>
-                {pendingAction?.guest?.first_name} {pendingAction?.guest?.last_name}
-              </strong>
-              ? This will mark the reservation as checked in and update room status to occupied.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCheckIn}>
-              Check In
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Room Assignment Dialog for Check-In */}
+      <RoomAssignmentDialog
+        reservation={pendingCheckIn}
+        open={roomAssignmentOpen}
+        onOpenChange={(open) => {
+          setRoomAssignmentOpen(open);
+          if (!open) setPendingCheckIn(null);
+        }}
+        onConfirm={confirmCheckIn}
+        isLoading={checkInMutation.isPending}
+      />
 
       {/* Check-Out Confirmation Dialog */}
       <AlertDialog open={checkOutDialogOpen} onOpenChange={setCheckOutDialogOpen}>
@@ -219,7 +219,7 @@ export default function FrontDesk() {
             <AlertDialogDescription>
               Check out{" "}
               <strong>
-                {pendingAction?.guest?.first_name} {pendingAction?.guest?.last_name}
+                {pendingCheckOut?.guest?.first_name} {pendingCheckOut?.guest?.last_name}
               </strong>
               ? This will mark the reservation as checked out and set rooms to dirty for housekeeping.
             </AlertDialogDescription>
