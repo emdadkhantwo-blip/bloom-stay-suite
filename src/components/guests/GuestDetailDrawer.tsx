@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { format } from "date-fns";
 import {
   Star,
@@ -7,13 +6,12 @@ import {
   Phone,
   MapPin,
   Calendar,
-  DollarSign,
-  User,
-  CreditCard,
   Globe,
-  FileText,
+  CreditCard,
   Edit2,
-  Hotel,
+  BarChart3,
+  Heart,
+  History,
 } from "lucide-react";
 import {
   Sheet,
@@ -29,9 +27,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { Guest } from "@/hooks/useGuests";
 import { useGuestReservations } from "@/hooks/useGuests";
+import { useGuestAnalytics } from "@/hooks/useGuestAnalytics";
+import { GuestAnalyticsTab } from "./GuestAnalyticsTab";
+import { GuestPreferencesTab } from "./GuestPreferencesTab";
+import { GuestHistoryTab } from "./GuestHistoryTab";
 
 interface GuestDetailDrawerProps {
   guest: Guest | null;
@@ -47,6 +48,7 @@ export function GuestDetailDrawer({
   onEdit,
 }: GuestDetailDrawerProps) {
   const { data: reservations = [], isLoading: reservationsLoading } = useGuestReservations(guest?.id);
+  const { data: analytics, isLoading: analyticsLoading } = useGuestAnalytics(guest?.id);
 
   if (!guest) return null;
 
@@ -67,6 +69,11 @@ export function GuestDetailDrawer({
                 <SheetTitle className="text-xl">
                   {guest.first_name} {guest.last_name}
                 </SheetTitle>
+                {onEdit && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               <SheetDescription className="flex flex-wrap items-center gap-2 mt-1">
                 {guest.is_vip && (
@@ -110,12 +117,24 @@ export function GuestDetailDrawer({
         <Separator className="my-4" />
 
         <Tabs defaultValue="details" className="flex-1">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="history">Stay History</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="details" className="text-xs">Details</TabsTrigger>
+            <TabsTrigger value="analytics" className="text-xs">
+              <BarChart3 className="h-3 w-3 mr-1" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="text-xs">
+              <Heart className="h-3 w-3 mr-1" />
+              Prefs
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-xs">
+              <History className="h-3 w-3 mr-1" />
+              History
+            </TabsTrigger>
           </TabsList>
 
           <ScrollArea className="h-[calc(100vh-380px)] mt-4">
+            {/* Details Tab */}
             <TabsContent value="details" className="space-y-4 mt-0">
               {/* Contact Information */}
               <Card>
@@ -210,68 +229,19 @@ export function GuestDetailDrawer({
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-3 mt-0">
-              {reservationsLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Card key={i}>
-                      <CardContent className="p-4">
-                        <Skeleton className="h-4 w-32 mb-2" />
-                        <Skeleton className="h-3 w-24" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : reservations.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Hotel className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No stay history found</p>
-                </div>
-              ) : (
-                reservations.map((reservation) => (
-                  <Card key={reservation.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">
-                              {reservation.confirmation_number}
-                            </p>
-                            <Badge
-                              variant={
-                                reservation.status === "checked_out"
-                                  ? "secondary"
-                                  : reservation.status === "checked_in"
-                                  ? "default"
-                                  : reservation.status === "cancelled"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              className="text-xs"
-                            >
-                              {reservation.status.replace("_", " ")}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(reservation.check_in_date), "MMM d")} -{" "}
-                            {format(new Date(reservation.check_out_date), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-success">
-                            ${reservation.total_amount.toLocaleString()}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {reservation.adults} adult{reservation.adults !== 1 ? "s" : ""}
-                            {reservation.children > 0 &&
-                              `, ${reservation.children} child${reservation.children !== 1 ? "ren" : ""}`}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+            {/* Analytics Tab */}
+            <TabsContent value="analytics" className="mt-0">
+              <GuestAnalyticsTab analytics={analytics} isLoading={analyticsLoading} />
+            </TabsContent>
+
+            {/* Preferences Tab */}
+            <TabsContent value="preferences" className="mt-0">
+              <GuestPreferencesTab guest={guest} />
+            </TabsContent>
+
+            {/* History Tab */}
+            <TabsContent value="history" className="mt-0">
+              <GuestHistoryTab reservations={reservations} isLoading={reservationsLoading} />
             </TabsContent>
           </ScrollArea>
         </Tabs>
