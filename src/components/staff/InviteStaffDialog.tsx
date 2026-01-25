@@ -49,7 +49,7 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
     if (open && currentProperty && selectedProperties.length === 0) {
       setSelectedProperties([currentProperty.id]);
     }
-  }, [open, currentProperty]);
+  }, [open, currentProperty, selectedProperties.length]);
 
   const toggleRole = (role: AppRole) => {
     setSelectedRoles((prev) =>
