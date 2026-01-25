@@ -311,7 +311,6 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
                   <CardContent className="flex items-start gap-2 p-2">
                     <Checkbox
                       checked={selectedRoles.includes(role.value)}
-                      onCheckedChange={() => toggleRole(role.value)}
                       className="mt-0.5"
                     />
                     <div>
@@ -346,7 +345,6 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
                   <CardContent className="flex items-center gap-2 p-2">
                     <Checkbox
                       checked={selectedProperties.includes(property.id)}
-                      onCheckedChange={() => toggleProperty(property.id)}
                     />
                     <div>
                       <span className="text-sm font-medium">{property.name}</span>
