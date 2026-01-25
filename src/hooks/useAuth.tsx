@@ -35,6 +35,7 @@ interface AuthContextType {
   profile: Profile | null;
   roles: AppRole[];
   isLoading: boolean;
+  rolesLoading: boolean;
   isSuperAdmin: boolean;
   tenantId: string | null;
   signIn: (username: string, password: string) => Promise<{ error: Error | null }>;
@@ -53,8 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   const fetchUserData = useCallback(async (userId: string) => {
+    setRolesLoading(true);
     try {
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase
@@ -82,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
+    } finally {
+      setRolesLoading(false);
     }
   }, []);
 
@@ -100,11 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
           setRoles([]);
+          setRolesLoading(false);
         }
 
         if (event === 'SIGNED_OUT') {
           setProfile(null);
           setRoles([]);
+          setRolesLoading(false);
         }
 
         setIsLoading(false);
@@ -216,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         roles,
         isLoading,
+        rolesLoading,
         isSuperAdmin,
         tenantId,
         signIn,
