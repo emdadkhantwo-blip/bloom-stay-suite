@@ -1,0 +1,237 @@
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { LogIn, LogOut, Hotel, Clock } from "lucide-react";
+import { useTenant } from "@/hooks/useTenant";
+import { useTodayArrivals, useTodayDepartures, useInHouseGuests } from "@/hooks/useFrontDesk";
+import { useCheckIn, useCheckOut } from "@/hooks/useReservations";
+import { useRoomStats } from "@/hooks/useRooms";
+import { FrontDeskStatsBar } from "@/components/front-desk/FrontDeskStatsBar";
+import { GuestListCard } from "@/components/front-desk/GuestListCard";
+import { QuickActions } from "@/components/front-desk/QuickActions";
+import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
+import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type { FrontDeskReservation } from "@/hooks/useFrontDesk";
+import type { Reservation } from "@/hooks/useReservations";
+
+export default function FrontDesk() {
+  const { currentProperty } = useTenant();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Data hooks
+  const { data: arrivals = [], isLoading: arrivalsLoading } = useTodayArrivals();
+  const { data: departures = [], isLoading: departuresLoading } = useTodayDepartures();
+  const { data: inHouse = [], isLoading: inHouseLoading } = useInHouseGuests();
+  const { data: roomStats, isLoading: roomStatsLoading } = useRoomStats();
+
+  // Mutations
+  const checkInMutation = useCheckIn();
+  const checkOutMutation = useCheckOut();
+
+  // UI State
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [newReservationOpen, setNewReservationOpen] = useState(false);
+  const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
+  const [checkOutDialogOpen, setCheckOutDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<FrontDeskReservation | null>(null);
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleViewDetails = (reservation: FrontDeskReservation) => {
+    setSelectedReservation(reservation);
+    setDrawerOpen(true);
+  };
+
+  const handleCheckInClick = (reservation: FrontDeskReservation) => {
+    setPendingAction(reservation);
+    setCheckInDialogOpen(true);
+  };
+
+  const handleCheckOutClick = (reservation: FrontDeskReservation) => {
+    setPendingAction(reservation);
+    setCheckOutDialogOpen(true);
+  };
+
+  const confirmCheckIn = () => {
+    if (pendingAction) {
+      checkInMutation.mutate({ reservationId: pendingAction.id });
+    }
+    setCheckInDialogOpen(false);
+    setPendingAction(null);
+  };
+
+  const confirmCheckOut = () => {
+    if (pendingAction) {
+      checkOutMutation.mutate(pendingAction.id);
+    }
+    setCheckOutDialogOpen(false);
+    setPendingAction(null);
+  };
+
+  const isLoading = arrivalsLoading || departuresLoading || inHouseLoading || roomStatsLoading;
+
+  return (
+    <div className="space-y-6">
+      {/* Header with time */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Front Desk</h1>
+          <p className="text-sm text-muted-foreground">
+            {currentProperty?.name} — {format(currentTime, "EEEE, MMMM d, yyyy")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span className="text-lg font-medium tabular-nums">
+            {format(currentTime, "HH:mm")}
+          </span>
+        </div>
+      </div>
+
+      {/* Stats Bar */}
+      <FrontDeskStatsBar
+        arrivalsCount={arrivals.length}
+        departuresCount={departures.length}
+        inHouseCount={inHouse.length}
+        vacantRoomsCount={roomStats?.vacant ?? 0}
+        dirtyRoomsCount={roomStats?.dirty ?? 0}
+        isLoading={isLoading}
+      />
+
+      {/* Quick Actions */}
+      <QuickActions
+        onNewReservation={() => setNewReservationOpen(true)}
+        onSearchGuest={() => {
+          // Could open a search modal in the future
+          window.location.href = "/reservations";
+        }}
+      />
+
+      {/* Guest Lists Grid */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Arrivals */}
+        <GuestListCard
+          title="Today's Arrivals"
+          description="Guests expected to check in"
+          icon={<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10"><LogIn className="h-4 w-4 text-success" /></div>}
+          guests={arrivals}
+          isLoading={arrivalsLoading}
+          emptyMessage="No arrivals scheduled for today"
+          type="arrivals"
+          onCheckIn={handleCheckInClick}
+          onViewDetails={handleViewDetails}
+        />
+
+        {/* Departures */}
+        <GuestListCard
+          title="Today's Departures"
+          description="Guests expected to check out"
+          icon={<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10"><LogOut className="h-4 w-4 text-warning" /></div>}
+          guests={departures}
+          isLoading={departuresLoading}
+          emptyMessage="No departures scheduled for today"
+          type="departures"
+          onCheckOut={handleCheckOutClick}
+          onViewDetails={handleViewDetails}
+        />
+
+        {/* In House */}
+        <GuestListCard
+          title="In House Guests"
+          description="Currently staying guests"
+          icon={<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10"><Hotel className="h-4 w-4 text-primary" /></div>}
+          guests={inHouse}
+          isLoading={inHouseLoading}
+          emptyMessage="No guests currently in house"
+          type="in-house"
+          onCheckOut={handleCheckOutClick}
+          onViewDetails={handleViewDetails}
+        />
+      </div>
+
+      {/* Reservation Detail Drawer */}
+      <ReservationDetailDrawer
+        reservation={selectedReservation}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onCheckIn={() => {
+          if (selectedReservation) {
+            handleCheckInClick(selectedReservation);
+          }
+        }}
+        onCheckOut={() => {
+          if (selectedReservation) {
+            handleCheckOutClick(selectedReservation);
+          }
+        }}
+        onCancel={() => {
+          // Not needed for front desk
+        }}
+      />
+
+      {/* New Reservation Dialog */}
+      <NewReservationDialog
+        open={newReservationOpen}
+        onOpenChange={setNewReservationOpen}
+      />
+
+      {/* Check-In Confirmation Dialog */}
+      <AlertDialog open={checkInDialogOpen} onOpenChange={setCheckInDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Check-In</AlertDialogTitle>
+            <AlertDialogDescription>
+              Check in{" "}
+              <strong>
+                {pendingAction?.guest?.first_name} {pendingAction?.guest?.last_name}
+              </strong>
+              ? This will mark the reservation as checked in and update room status to occupied.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCheckIn}>
+              Check In
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Check-Out Confirmation Dialog */}
+      <AlertDialog open={checkOutDialogOpen} onOpenChange={setCheckOutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Check-Out</AlertDialogTitle>
+            <AlertDialogDescription>
+              Check out{" "}
+              <strong>
+                {pendingAction?.guest?.first_name} {pendingAction?.guest?.last_name}
+              </strong>
+              ? This will mark the reservation as checked out and set rooms to dirty for housekeeping.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCheckOut}>
+              Check Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
