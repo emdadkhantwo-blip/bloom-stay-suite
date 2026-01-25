@@ -56,9 +56,9 @@ const RoleProtectedRoute = ({
   allowedRoles: AppRole[];
   route: string;
 }) => {
-  const { user, isLoading, roles, hasAnyRole, isSuperAdmin } = useAuth();
+  const { user, isLoading, roles, hasAnyRole, isSuperAdmin, rolesLoading } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || rolesLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-muted-foreground">Loading...</div>
@@ -68,6 +68,18 @@ const RoleProtectedRoute = ({
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Wait for roles to be fetched before making access decisions
+  // This prevents premature redirects when roles haven't loaded yet
+  if (roles.length === 0 && !rolesLoading) {
+    // If roles are still empty after loading, show loading state briefly
+    // This handles the case where roles are being fetched
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading permissions...</div>
+      </div>
+    );
   }
 
   // Super admins, owners, and managers can access everything
