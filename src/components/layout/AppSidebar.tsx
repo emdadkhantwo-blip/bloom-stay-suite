@@ -133,18 +133,23 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
+<SidebarHeader className="border-b border-sidebar-border px-2 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-            <Hotel className="h-4 w-4" />
+          <div className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-md",
+            isSuperAdmin 
+              ? "bg-gradient-to-br from-purple-600 to-indigo-600 text-white" 
+              : "bg-sidebar-primary text-sidebar-primary-foreground"
+          )}>
+            {isSuperAdmin ? <ShieldCheck className="h-4 w-4" /> : <Hotel className="h-4 w-4" />}
           </div>
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-sidebar-foreground">
-                {tenant?.name || 'Hotel PMS'}
+                {isSuperAdmin ? 'Platform Admin' : (tenant?.name || 'Hotel PMS')}
               </span>
               <span className="text-2xs text-sidebar-muted">
-                {currentProperty?.name || 'Select Property'}
+                {isSuperAdmin ? 'Super Administrator' : (currentProperty?.name || 'Select Property')}
               </span>
             </div>
           )}
@@ -152,8 +157,8 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin">
-        {/* Property Selector */}
-        {!collapsed && properties.length > 1 && (
+        {/* Property Selector - Hide for superadmin */}
+        {!collapsed && !isSuperAdmin && properties.length > 1 && (
           <div className="px-2 py-2">
             <DropdownMenu>
                <DropdownMenuTrigger asChild>
@@ -179,8 +184,8 @@ export function AppSidebar() {
           </div>
         )}
 
-        {/* Main Navigation - Only show if user has access to any items */}
-        {filteredMainNavItems.length > 0 && (
+        {/* Main Navigation - Only show if user has access to any items and not a superadmin-only session */}
+        {!isSuperAdmin && filteredMainNavItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-muted">Main</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -209,7 +214,7 @@ export function AppSidebar() {
         )}
 
         {/* Operations - Only show if user has access to any items */}
-        {filteredOperationsItems.length > 0 && (
+        {!isSuperAdmin && filteredOperationsItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-muted">Operations</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -238,7 +243,7 @@ export function AppSidebar() {
         )}
 
         {/* Billing - Only show if user has access to any items */}
-        {filteredBillingItems.length > 0 && (
+        {!isSuperAdmin && filteredBillingItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-muted">Billing</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -267,7 +272,7 @@ export function AppSidebar() {
         )}
 
         {/* POS (conditional) */}
-        {canAccessPOS && (
+        {!isSuperAdmin && canAccessPOS && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-muted">Restaurant</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -295,8 +300,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Admin (conditional) */}
-        {canAccessAdmin && (
+        {/* Admin (conditional) - Hide for superadmin-only view */}
+        {!isSuperAdmin && canAccessAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-muted">Admin</SidebarGroupLabel>
             <SidebarGroupContent>
