@@ -2,17 +2,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, ChefHat, CheckCircle, Timer } from "lucide-react";
+import { Clock, ChefHat, CheckCircle, Timer, Volume2, VolumeX } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useState } from "react";
 import { useKitchenOrders, useUpdatePOSOrderStatus, POSOrderStatus } from "@/hooks/usePOS";
+import { useKitchenNotifications } from "@/hooks/useKitchenNotifications";
 
 interface KitchenDisplayProps {
   outletId: string;
 }
 
 export function KitchenDisplay({ outletId }: KitchenDisplayProps) {
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const { data: orders = [], isLoading } = useKitchenOrders(outletId);
   const updateStatus = useUpdatePOSOrderStatus();
+  
+  // Real-time notifications with sound
+  useKitchenNotifications({ outletId, enabled: soundEnabled });
 
   const pendingOrders = orders.filter((o) => o.status === "pending");
   const preparingOrders = orders.filter((o) => o.status === "preparing");
@@ -105,7 +111,26 @@ export function KitchenDisplay({ outletId }: KitchenDisplayProps) {
   }
 
   return (
-    <div className="grid h-full grid-cols-2 gap-6">
+    <div className="relative grid h-full grid-cols-2 gap-6">
+      {/* Sound Toggle Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="absolute right-0 top-0 z-10"
+        onClick={() => setSoundEnabled(!soundEnabled)}
+      >
+        {soundEnabled ? (
+          <>
+            <Volume2 className="mr-2 h-4 w-4" />
+            Sound On
+          </>
+        ) : (
+          <>
+            <VolumeX className="mr-2 h-4 w-4" />
+            Sound Off
+          </>
+        )}
+      </Button>
       {/* Pending Orders */}
       <div className="flex flex-col">
         <div className="mb-4 flex items-center gap-2">
