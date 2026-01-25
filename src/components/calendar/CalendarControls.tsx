@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, CalendarDays, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { format, addDays, startOfWeek, startOfMonth, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +75,6 @@ export function CalendarControls({
         onValueChange={(value) => onNumDaysChange(parseInt(value, 10))}
       >
         <SelectTrigger className="w-[130px]">
-          <CalendarRange className="h-4 w-4 mr-2" />
           <SelectValue />
         </SelectTrigger>
         <SelectContent className="bg-popover">
