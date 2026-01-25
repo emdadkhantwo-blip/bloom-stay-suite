@@ -300,3 +300,54 @@ export function useMyAssignedTickets() {
     refetchInterval: 30000,
   });
 }
+
+export function useMyMaintenanceStats() {
+  const { currentProperty, tenant } = useTenant();
+  const { user } = useAuth();
+  const propertyId = currentProperty?.id;
+  const tenantId = tenant?.id;
+
+  return useQuery({
+    queryKey: ["my-maintenance-stats", propertyId, user?.id],
+    queryFn: async () => {
+      if (!propertyId || !tenantId || !user?.id) {
+        return { assigned: 0, open: 0, inProgress: 0, resolvedToday: 0, highPriority: 0 };
+      }
+
+      // Get assigned tickets
+      const { data: assignedTickets, error: assignedError } = await supabase
+        .from("maintenance_tickets")
+        .select("status, priority")
+        .eq("property_id", propertyId)
+        .eq("tenant_id", tenantId)
+        .eq("assigned_to", user.id)
+        .in("status", ["open", "in_progress"]);
+
+      if (assignedError) throw assignedError;
+
+      // Get resolved today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: resolvedToday, error: resolvedError } = await supabase
+        .from("maintenance_tickets")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("tenant_id", tenantId)
+        .eq("resolved_by", user.id)
+        .gte("resolved_at", today.toISOString());
+
+      if (resolvedError) throw resolvedError;
+
+      const tickets = assignedTickets || [];
+      return {
+        assigned: tickets.length,
+        open: tickets.filter((t) => t.status === "open").length,
+        inProgress: tickets.filter((t) => t.status === "in_progress").length,
+        resolvedToday: resolvedToday?.length || 0,
+        highPriority: tickets.filter((t) => t.priority >= 3).length,
+      };
+    },
+    enabled: !!propertyId && !!tenantId && !!user?.id,
+  });
+}
