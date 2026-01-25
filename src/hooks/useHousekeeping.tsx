@@ -357,3 +357,62 @@ export function useMyAssignedTasks() {
     refetchInterval: 30000,
   });
 }
+
+export function useMyHousekeepingStats() {
+  const { currentProperty } = useTenant();
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['my-housekeeping-stats', currentProperty?.id, user?.id],
+    queryFn: async () => {
+      if (!currentProperty?.id || !user?.id) {
+        return {
+          assignedCount: 0,
+          pendingCount: 0,
+          inProgressCount: 0,
+          completedTodayCount: 0,
+          highPriorityCount: 0,
+        };
+      }
+
+      // Get assigned tasks
+      const { data: tasks, error: tasksError } = await supabase
+        .from('housekeeping_tasks')
+        .select('status, priority')
+        .eq('property_id', currentProperty.id)
+        .eq('assigned_to', user.id)
+        .in('status', ['pending', 'in_progress']);
+
+      if (tasksError) throw tasksError;
+
+      // Get completed today count
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { count: completedTodayCount, error: completedError } = await supabase
+        .from('housekeeping_tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('property_id', currentProperty.id)
+        .eq('assigned_to', user.id)
+        .eq('status', 'completed')
+        .gte('completed_at', today.toISOString());
+
+      if (completedError) throw completedError;
+
+      const assignedCount = tasks?.length || 0;
+      const pendingCount = tasks?.filter(t => t.status === 'pending').length || 0;
+      const inProgressCount = tasks?.filter(t => t.status === 'in_progress').length || 0;
+      const highPriorityCount = tasks?.filter(t => t.priority >= 3).length || 0;
+
+      return {
+        assignedCount,
+        pendingCount,
+        inProgressCount,
+        completedTodayCount: completedTodayCount || 0,
+        highPriorityCount,
+      };
+    },
+    enabled: !!currentProperty?.id && !!user?.id,
+    refetchInterval: 30000,
+  });
+}
