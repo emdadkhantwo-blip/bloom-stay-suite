@@ -8,6 +8,7 @@ import {
   MapPin,
   Calendar,
   Wrench,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,9 @@ interface TicketCardProps {
   onAssign?: () => void;
   onResolve?: () => void;
   onView?: () => void;
+  onDelete?: () => void;
   canAssign?: boolean;
+  canDelete?: boolean;
   id?: string;
 }
 
@@ -50,7 +53,7 @@ const PRIORITY_CONFIG = {
   3: { label: "Critical", className: "bg-destructive/20 text-destructive" },
 };
 
-export function TicketCard({ ticket, onAssign, onResolve, onView, canAssign = true, id }: TicketCardProps) {
+export function TicketCard({ ticket, onAssign, onResolve, onView, onDelete, canAssign = true, canDelete = true, id }: TicketCardProps) {
   const statusConfig = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.open;
   const priorityConfig = PRIORITY_CONFIG[ticket.priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG[1];
   const StatusIcon = statusConfig.icon;
@@ -110,36 +113,51 @@ export function TicketCard({ ticket, onAssign, onResolve, onView, canAssign = tr
           )}
 
           {/* Actions */}
-          {ticket.status !== "resolved" && (
-            <div className="flex gap-2 pt-1">
-              {canAssign && !ticket.assigned_to && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAssign?.();
-                  }}
-                >
-                  <User className="mr-1 h-3 w-3" />
-                  Assign
-                </Button>
-              )}
-              {ticket.status === "in_progress" && (
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onResolve?.();
-                  }}
-                >
-                  <CheckCircle className="mr-1 h-3 w-3" />
-                  Resolve
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex gap-2 pt-1">
+            {ticket.status !== "resolved" && (
+              <>
+                {canAssign && !ticket.assigned_to && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAssign?.();
+                    }}
+                  >
+                    <User className="mr-1 h-3 w-3" />
+                    Assign
+                  </Button>
+                )}
+                {ticket.status === "in_progress" && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResolve?.();
+                    }}
+                  >
+                    <CheckCircle className="mr-1 h-3 w-3" />
+                    Resolve
+                  </Button>
+                )}
+              </>
+            )}
+            {canDelete && onDelete && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+              >
+                <Trash2 className="mr-1 h-3 w-3" />
+                Delete
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

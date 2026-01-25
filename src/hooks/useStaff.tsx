@@ -233,6 +233,32 @@ export function useStaff() {
     },
   });
 
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke("delete-staff", {
+        body: { userId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      toast({
+        title: "Staff Deleted",
+        description: data?.message || "Staff member has been deleted successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     staff: staffQuery.data || [],
     isLoading: staffQuery.isLoading,
@@ -241,11 +267,13 @@ export function useStaff() {
     updateRoles: updateRolesMutation.mutate,
     updatePropertyAccess: updatePropertyAccessMutation.mutate,
     toggleActiveStatus: toggleActiveStatusMutation.mutate,
+    deleteStaff: deleteStaffMutation.mutate,
     isUpdating:
       updateStaffMutation.isPending ||
       updateRolesMutation.isPending ||
       updatePropertyAccessMutation.isPending ||
       toggleActiveStatusMutation.isPending,
+    isDeleting: deleteStaffMutation.isPending,
   };
 }
 

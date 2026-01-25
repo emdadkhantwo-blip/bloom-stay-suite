@@ -5,17 +5,30 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Trash2 } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStaff, type StaffMember } from "@/hooks/useStaff";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import type { AppRole } from "@/types/database";
 
@@ -42,8 +55,9 @@ export function StaffDetailDrawer({
   open,
   onOpenChange,
 }: StaffDetailDrawerProps) {
-  const { updateStaff, updateRoles, updatePropertyAccess, isUpdating } = useStaff();
+  const { updateStaff, updateRoles, updatePropertyAccess, deleteStaff, isUpdating, isDeleting } = useStaff();
   const { properties } = useTenant();
+  const { user } = useAuth();
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -94,6 +108,11 @@ export function StaffDetailDrawer({
     });
   };
 
+  const handleDeleteStaff = () => {
+    deleteStaff(staff.id);
+    onOpenChange(false);
+  };
+
   const toggleRole = (role: AppRole) => {
     setSelectedRoles((prev) =>
       prev.includes(role)
@@ -101,6 +120,8 @@ export function StaffDetailDrawer({
         : [...prev, role]
     );
   };
+
+  const isOwnAccount = user?.id === staff.id;
 
   const toggleProperty = (propertyId: string) => {
     setSelectedProperties((prev) =>
@@ -205,6 +226,39 @@ export function StaffDetailDrawer({
             >
               {isUpdating ? "Saving..." : "Save Profile"}
             </Button>
+
+            {!isOwnAccount && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isDeleting ? "Deleting..." : "Delete Staff Member"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{staff.full_name || staff.username}"? 
+                      This action cannot be undone. All their roles, property access, and account will be permanently removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteStaff}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </TabsContent>
 
           {/* Roles Tab */}

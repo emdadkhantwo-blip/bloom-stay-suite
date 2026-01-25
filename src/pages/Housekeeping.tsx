@@ -16,6 +16,7 @@ import {
   useHousekeepingStats,
   useStartTask,
   useCompleteTask,
+  useDeleteTask,
   useMyAssignedTasks,
   useMyHousekeepingStats,
   type HousekeepingTask,
@@ -33,6 +34,8 @@ export default function Housekeeping() {
   const canCreateTask = hasAnyRole(['owner', 'manager', 'front_desk']);
   // Only managers and owners can assign tasks
   const canAssignTask = hasAnyRole(['owner', 'manager']);
+  // Only managers and owners can delete tasks
+  const canDeleteTask = hasAnyRole(['owner', 'manager']);
   // Check if user is housekeeping staff (not owner/manager)
   const isHousekeepingStaff = hasRole('housekeeping') && !hasAnyRole(['owner', 'manager']);
 
@@ -49,6 +52,7 @@ export default function Housekeeping() {
   const { data: myStats, isLoading: myStatsLoading } = useMyHousekeepingStats();
   const startTask = useStartTask();
   const completeTask = useCompleteTask();
+  const deleteTask = useDeleteTask();
   
   const myTaskCount = myTasks?.length || 0;
 
@@ -112,6 +116,23 @@ export default function Housekeeping() {
   const handleAssignTask = (task: HousekeepingTask) => {
     setSelectedTask(task);
     setAssignDialogOpen(true);
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask.mutateAsync(taskId);
+      toast({
+        title: 'Task Deleted',
+        description: 'The task has been deleted successfully.',
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete task.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -260,7 +281,9 @@ export default function Housekeeping() {
                   onStart={handleStartTask}
                   onComplete={handleCompleteTask}
                   onAssign={handleAssignTask}
+                  onDelete={handleDeleteTask}
                   canAssign={canAssignTask}
+                  canDelete={canDeleteTask}
                   isStarting={startTask.isPending}
                   isCompleting={completeTask.isPending}
                 />
