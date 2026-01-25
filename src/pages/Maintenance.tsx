@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
-import { Plus, Wrench } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Plus, Wrench, Bell } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import {
   useMaintenanceTickets,
   useMaintenanceStats,
+  useMyAssignedTickets,
   type MaintenanceTicket,
 } from "@/hooks/useMaintenance";
 import { MaintenanceStatsBar } from "@/components/maintenance/MaintenanceStatsBar";
@@ -14,10 +16,17 @@ import { CreateTicketDialog } from "@/components/maintenance/CreateTicketDialog"
 import { AssignTicketDialog } from "@/components/maintenance/AssignTicketDialog";
 import { ResolveTicketDialog } from "@/components/maintenance/ResolveTicketDialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function Maintenance() {
   const { currentProperty } = useTenant();
+  const { hasAnyRole } = useAuth();
+
+  // Role-based permissions
+  const canCreateTicket = hasAnyRole(['owner', 'manager', 'front_desk']);
+  const canAssignTicket = hasAnyRole(['owner', 'manager']);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,6 +39,7 @@ export default function Maintenance() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   // Data hooks
   const { data: tickets = [], isLoading: ticketsLoading } = useMaintenanceTickets({
@@ -37,6 +47,9 @@ export default function Maintenance() {
     priority: priorityFilter !== "all" ? parseInt(priorityFilter) : undefined,
   });
   const { data: stats, isLoading: statsLoading } = useMaintenanceStats();
+  const { data: myTickets } = useMyAssignedTickets();
+
+  const myTicketCount = myTickets?.length || 0;
 
   // Filter by search query
   const filteredTickets = useMemo(() => {
@@ -65,6 +78,21 @@ export default function Maintenance() {
     setResolveDialogOpen(true);
   };
 
+  const scrollToTicket = useCallback((ticketId: string) => {
+    setNotificationOpen(false);
+    
+    setTimeout(() => {
+      const ticketElement = document.getElementById(`ticket-${ticketId}`);
+      if (ticketElement) {
+        ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ticketElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+        setTimeout(() => {
+          ticketElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+        }, 2000);
+      }
+    }, 100);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -75,10 +103,56 @@ export default function Maintenance() {
             {currentProperty?.name} — Track and manage maintenance tickets
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Ticket
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* My Tickets Notification Button */}
+          <Popover open={notificationOpen} onOpenChange={setNotificationOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="relative">
+                <Bell className="h-4 w-4" />
+                {myTicketCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {myTicketCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">My Assigned Tickets</h4>
+                {myTicketCount === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tickets assigned to you.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {myTickets?.map((ticket) => (
+                      <div
+                        key={ticket.id}
+                        onClick={() => scrollToTicket(ticket.id)}
+                        className="flex items-center justify-between p-2 bg-muted rounded-md cursor-pointer hover:bg-accent transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{ticket.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ticket.room ? `Room ${ticket.room.room_number}` : 'No room'} • {ticket.status === 'open' ? 'Open' : 'In Progress'}
+                          </p>
+                        </div>
+                        <Badge variant={ticket.status === 'open' ? 'secondary' : 'default'}>
+                          {ticket.status === 'open' ? 'Start' : 'Continue'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {canCreateTicket && (
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Ticket
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Bar */}
@@ -120,10 +194,12 @@ export default function Maintenance() {
           filteredTickets.map((ticket) => (
             <TicketCard
               key={ticket.id}
+              id={`ticket-${ticket.id}`}
               ticket={ticket}
               onView={() => handleViewTicket(ticket)}
               onAssign={() => handleAssignTicket(ticket)}
               onResolve={() => handleResolveTicket(ticket)}
+              canAssign={canAssignTicket}
             />
           ))
         )}
@@ -134,6 +210,7 @@ export default function Maintenance() {
         ticket={selectedTicket}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
+        canAssign={canAssignTicket}
         onAssign={() => {
           setDrawerOpen(false);
           setAssignDialogOpen(true);

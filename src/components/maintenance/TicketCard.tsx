@@ -19,6 +19,8 @@ interface TicketCardProps {
   onAssign?: () => void;
   onResolve?: () => void;
   onView?: () => void;
+  canAssign?: boolean;
+  id?: string;
 }
 
 const STATUS_CONFIG = {
@@ -48,13 +50,13 @@ const PRIORITY_CONFIG = {
   3: { label: "Critical", className: "bg-destructive/20 text-destructive" },
 };
 
-export function TicketCard({ ticket, onAssign, onResolve, onView }: TicketCardProps) {
+export function TicketCard({ ticket, onAssign, onResolve, onView, canAssign = true, id }: TicketCardProps) {
   const statusConfig = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.open;
   const priorityConfig = PRIORITY_CONFIG[ticket.priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG[1];
   const StatusIcon = statusConfig.icon;
 
   return (
-    <Card className="cursor-pointer transition-colors hover:bg-accent/50" onClick={onView}>
+    <Card id={id} className="cursor-pointer transition-colors hover:bg-accent/50" onClick={onView}>
       <CardContent className="p-4">
         <div className="flex flex-col gap-3">
           {/* Header */}
@@ -110,7 +112,7 @@ export function TicketCard({ ticket, onAssign, onResolve, onView }: TicketCardPr
           {/* Actions */}
           {ticket.status !== "resolved" && (
             <div className="flex gap-2 pt-1">
-              {!ticket.assigned_to && (
+              {canAssign && !ticket.assigned_to && (
                 <Button
                   size="sm"
                   variant="outline"

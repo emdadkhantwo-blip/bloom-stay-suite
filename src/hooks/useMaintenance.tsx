@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -261,5 +262,41 @@ export function useAssignTicket() {
       console.error("Error assigning ticket:", error);
       toast.error("Failed to assign ticket");
     },
+  });
+}
+
+export function useMyAssignedTickets() {
+  const { currentProperty, tenant } = useTenant();
+  const { user } = useAuth();
+  const propertyId = currentProperty?.id;
+  const tenantId = tenant?.id;
+
+  return useQuery({
+    queryKey: ["my-assigned-tickets", propertyId, user?.id],
+    queryFn: async (): Promise<MaintenanceTicket[]> => {
+      if (!propertyId || !tenantId || !user?.id) return [];
+
+      const { data, error } = await supabase
+        .from("maintenance_tickets")
+        .select(`
+          *,
+          room:rooms(room_number, floor)
+        `)
+        .eq("property_id", propertyId)
+        .eq("tenant_id", tenantId)
+        .eq("assigned_to", user.id)
+        .in("status", ["open", "in_progress"])
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return (data || []).map((t) => ({
+        ...t,
+        assigned_profile: null,
+        reported_profile: null,
+      }));
+    },
+    enabled: !!propertyId && !!tenantId && !!user?.id,
+    refetchInterval: 30000,
   });
 }

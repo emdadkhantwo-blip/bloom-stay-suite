@@ -29,6 +29,7 @@ interface TicketDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   onAssign?: () => void;
   onResolve?: () => void;
+  canAssign?: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -61,6 +62,7 @@ export function TicketDetailDrawer({
   onOpenChange,
   onAssign,
   onResolve,
+  canAssign = true,
 }: TicketDetailDrawerProps) {
   if (!ticket) return null;
 
@@ -88,7 +90,7 @@ export function TicketDetailDrawer({
           {/* Actions */}
           {ticket.status !== "resolved" && (
             <div className="flex gap-2">
-              {!ticket.assigned_to && (
+              {canAssign && !ticket.assigned_to && (
                 <Button variant="outline" size="sm" onClick={onAssign}>
                   <User className="mr-1 h-4 w-4" />
                   Assign
