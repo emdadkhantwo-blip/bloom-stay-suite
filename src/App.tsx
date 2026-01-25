@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Rooms from "./pages/Rooms";
+import Reservations from "./pages/Reservations";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,16 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <DashboardLayout title="Rooms">
             <Rooms />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/reservations"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Reservations">
+            <Reservations />
           </DashboardLayout>
         </ProtectedRoute>
       }
