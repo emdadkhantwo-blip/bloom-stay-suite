@@ -19,6 +19,7 @@ import Maintenance from "./pages/Maintenance";
 import Folios from "./pages/Folios";
 import Reports from "./pages/Reports";
 import Staff from "./pages/Staff";
+import Properties from "./pages/Properties";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -188,6 +189,16 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <DashboardLayout title="Staff">
             <Staff />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/properties"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Properties">
+            <Properties />
           </DashboardLayout>
         </ProtectedRoute>
       }
