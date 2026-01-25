@@ -24,6 +24,8 @@ import Properties from "./pages/Properties";
 import Settings from "./pages/Settings";
 import POS from "./pages/POS";
 import NightAudit from "./pages/NightAudit";
+import Kitchen from "./pages/Kitchen";
+import Waiter from "./pages/Waiter";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -37,8 +39,8 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
   accountant: ['/dashboard', '/folios', '/reports', '/night-audit'],
   housekeeping: ['/housekeeping'],
   maintenance: ['/maintenance'],
-  kitchen: ['/pos', '/kitchen'],
-  waiter: ['/pos'],
+  kitchen: ['/kitchen'],
+  waiter: ['/pos', '/waiter'],
   night_auditor: ['/dashboard', '/night-audit', '/folios', '/reports'],
 };
 
@@ -282,6 +284,22 @@ const AppRoutes = () => (
       element={
         <RoleProtectedRoute allowedRoles={['kitchen', 'waiter']} route="/pos">
           <POS />
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/kitchen"
+      element={
+        <RoleProtectedRoute allowedRoles={['kitchen']} route="/kitchen">
+          <Kitchen />
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/waiter"
+      element={
+        <RoleProtectedRoute allowedRoles={['waiter']} route="/waiter">
+          <Waiter />
         </RoleProtectedRoute>
       }
     />
