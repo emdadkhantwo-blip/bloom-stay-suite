@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   BedDouble,
   Users,
@@ -8,14 +9,20 @@ import {
   Clock,
   ArrowUpRight,
   ArrowDownRight,
+  ClipboardList,
+  Wrench,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { ROOM_STATUS_CONFIG, type RoomStatus } from '@/types/database';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface DashboardStats {
   totalRooms: number;
@@ -27,11 +34,12 @@ interface DashboardStats {
   todayDepartures: number;
   inHouseGuests: number;
   pendingReservations: number;
-}
-
-interface RoomStatusCount {
-  status: RoomStatus;
-  count: number;
+  todayRevenue: number;
+  monthRevenue: number;
+  pendingHousekeepingTasks: number;
+  inProgressHousekeepingTasks: number;
+  openMaintenanceTickets: number;
+  criticalMaintenanceTickets: number;
 }
 
 export default function Dashboard() {
@@ -46,6 +54,12 @@ export default function Dashboard() {
     todayDepartures: 0,
     inHouseGuests: 0,
     pendingReservations: 0,
+    todayRevenue: 0,
+    monthRevenue: 0,
+    pendingHousekeepingTasks: 0,
+    inProgressHousekeepingTasks: 0,
+    openMaintenanceTickets: 0,
+    criticalMaintenanceTickets: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,6 +69,7 @@ export default function Dashboard() {
     const fetchStats = async () => {
       setIsLoading(true);
       const today = new Date().toISOString().split('T')[0];
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
       try {
         // Fetch room counts by status
@@ -100,6 +115,54 @@ export default function Dashboard() {
           .eq('status', 'confirmed')
           .gte('check_in_date', today);
 
+        // Fetch today's payments for revenue
+        const { data: todayPayments } = await supabase
+          .from('payments')
+          .select('amount, created_at')
+          .gte('created_at', `${today}T00:00:00`)
+          .lte('created_at', `${today}T23:59:59`)
+          .eq('voided', false);
+
+        const todayRevenue = (todayPayments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+        // Fetch month's payments for revenue
+        const { data: monthPayments } = await supabase
+          .from('payments')
+          .select('amount')
+          .gte('created_at', `${monthStart}T00:00:00`)
+          .eq('voided', false);
+
+        const monthRevenue = (monthPayments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+        // Fetch pending housekeeping tasks
+        const { count: pendingTasks } = await supabase
+          .from('housekeeping_tasks')
+          .select('*', { count: 'exact', head: true })
+          .eq('property_id', currentProperty.id)
+          .eq('status', 'pending');
+
+        // Fetch in-progress housekeeping tasks
+        const { count: inProgressTasks } = await supabase
+          .from('housekeeping_tasks')
+          .select('*', { count: 'exact', head: true })
+          .eq('property_id', currentProperty.id)
+          .eq('status', 'in_progress');
+
+        // Fetch open maintenance tickets
+        const { count: openTickets } = await supabase
+          .from('maintenance_tickets')
+          .select('*', { count: 'exact', head: true })
+          .eq('property_id', currentProperty.id)
+          .in('status', ['open', 'in_progress']);
+
+        // Fetch critical maintenance tickets (priority 3)
+        const { count: criticalTickets } = await supabase
+          .from('maintenance_tickets')
+          .select('*', { count: 'exact', head: true })
+          .eq('property_id', currentProperty.id)
+          .in('status', ['open', 'in_progress'])
+          .eq('priority', 3);
+
         setStats({
           totalRooms: rooms?.length || 0,
           occupiedRooms: roomCounts.occupied || 0,
@@ -110,6 +173,12 @@ export default function Dashboard() {
           todayDepartures: departures || 0,
           inHouseGuests: inHouse || 0,
           pendingReservations: pending || 0,
+          todayRevenue,
+          monthRevenue,
+          pendingHousekeepingTasks: pendingTasks || 0,
+          inProgressHousekeepingTasks: inProgressTasks || 0,
+          openMaintenanceTickets: openTickets || 0,
+          criticalMaintenanceTickets: criticalTickets || 0,
         });
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
@@ -125,109 +194,193 @@ export default function Dashboard() {
     ? Math.round((stats.occupiedRooms / stats.totalRooms) * 100)
     : 0;
 
-  const statCards = [
-    {
-      title: 'Occupancy Rate',
-      value: `${occupancyRate}%`,
-      description: `${stats.occupiedRooms} of ${stats.totalRooms} rooms`,
-      icon: TrendingUp,
-      trend: occupancyRate > 70 ? 'up' : 'down',
-      color: 'text-info',
-    },
-    {
-      title: 'Available Rooms',
-      value: stats.vacantRooms.toString(),
-      description: 'Ready for check-in',
-      icon: BedDouble,
-      color: 'text-success',
-    },
-    {
-      title: 'In-House Guests',
-      value: stats.inHouseGuests.toString(),
-      description: 'Currently staying',
-      icon: Users,
-      color: 'text-primary',
-    },
-    {
-      title: 'Today\'s Arrivals',
-      value: stats.todayArrivals.toString(),
-      description: 'Expected check-ins',
-      icon: Calendar,
-      color: 'text-warning',
-    },
-  ];
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  if (!currentProperty) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">No property selected. Please contact support.</p>
+      </div>
+    );
+  }
 
   return (
-    <DashboardLayout title="Dashboard" subtitle={currentProperty?.name}>
-      <div className="space-y-6">
-        {/* Plan Info */}
+    <div className="space-y-6">
+      {/* Header with date and property info */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(), 'EEEE, MMMM d, yyyy')} • {currentProperty.name}
+          </p>
+        </div>
         {subscription && (
-          <Card className="border-info/20 bg-info/5">
-            <CardContent className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="border-info text-info">
-                  {subscription.plan?.name || 'Free'} Plan
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  {subscription.plan?.max_properties === 999 ? 'Unlimited' : subscription.plan?.max_properties} properties
-                  {' · '}
-                  {subscription.plan?.max_rooms === 9999 ? 'Unlimited' : subscription.plan?.max_rooms} rooms
-                </span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                Status: <span className="text-success">Active</span>
-              </span>
-            </CardContent>
-          </Card>
+          <Badge variant="outline" className="w-fit border-primary/30 text-primary">
+            {subscription.plan?.name || 'Free'} Plan
+          </Badge>
         )}
+      </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={cn('h-4 w-4', stat.color)} />
-              </CardHeader>
-              <CardContent>
+      {/* Primary KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Occupancy Rate */}
+        <Card className="relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-primary/10" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Occupancy Rate
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{stat.value}</span>
-                  {stat.trend && (
-                    stat.trend === 'up' ? (
-                      <ArrowUpRight className="h-4 w-4 text-success" />
-                    ) : (
-                      <ArrowDownRight className="h-4 w-4 text-destructive" />
-                    )
+                  <span className="text-3xl font-bold">{occupancyRate}%</span>
+                  {occupancyRate > 70 ? (
+                    <ArrowUpRight className="h-4 w-4 text-success" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4 text-warning" />
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">{stat.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.occupiedRooms} of {stats.totalRooms} rooms occupied
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
+        {/* Today's Revenue */}
+        <Card className="relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-success/10" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Today's Revenue
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-success" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="text-3xl font-bold">{formatCurrency(stats.todayRevenue)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatCurrency(stats.monthRevenue)} this month
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pending Tasks */}
+        <Card className="relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-warning/10" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Housekeeping Tasks
+            </CardTitle>
+            <ClipboardList className="h-4 w-4 text-warning" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{stats.pendingHousekeepingTasks}</span>
+                  <span className="text-sm text-muted-foreground">pending</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.inProgressHousekeepingTasks} in progress
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Maintenance Tickets */}
+        <Card className="relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-destructive/10" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Maintenance Tickets
+            </CardTitle>
+            <Wrench className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{stats.openMaintenanceTickets}</span>
+                  <span className="text-sm text-muted-foreground">open</span>
+                </div>
+                {stats.criticalMaintenanceTickets > 0 && (
+                  <p className="flex items-center gap-1 text-xs text-destructive">
+                    <AlertTriangle className="h-3 w-3" />
+                    {stats.criticalMaintenanceTickets} critical
+                  </p>
+                )}
+                {stats.criticalMaintenanceTickets === 0 && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-3 w-3 text-success" />
+                    No critical issues
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary Stats Grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Room Status Overview */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Room Status Overview</CardTitle>
-              <CardDescription>Current status of all rooms</CardDescription>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Room Status</CardTitle>
+                <CardDescription>Current status of all rooms</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/rooms">View All</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="grid grid-cols-5 gap-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-20" />
+                ))}
+              </div>
+            ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                 {Object.entries(ROOM_STATUS_CONFIG).map(([status, config]) => {
                   const count = status === 'vacant' ? stats.vacantRooms
                     : status === 'occupied' ? stats.occupiedRooms
                     : status === 'dirty' ? stats.dirtyRooms
-                    : status === 'maintenance' || status === 'out_of_order' ? stats.maintenanceRooms
+                    : status === 'maintenance' ? stats.maintenanceRooms
+                    : status === 'out_of_order' ? 0
                     : 0;
 
                   return (
                     <div
                       key={status}
-                      className="flex flex-col items-center rounded-lg border p-3 text-center"
+                      className="flex flex-col items-center rounded-lg border p-3 text-center transition-colors hover:bg-muted/50"
                     >
                       <div
                         className={cn(
@@ -235,105 +388,154 @@ export default function Dashboard() {
                           config.color
                         )}
                       >
-                        {status === 'out_of_order' ? stats.maintenanceRooms : count}
+                        {count}
                       </div>
                       <span className="text-xs text-muted-foreground">{config.label}</span>
                     </div>
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Today's Activity</CardTitle>
-              <CardDescription>Arrivals and departures</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
-                      <ArrowUpRight className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Arrivals</p>
-                      <p className="text-xs text-muted-foreground">Expected check-ins today</p>
-                    </div>
-                  </div>
-                  <span className="text-2xl font-bold">{stats.todayArrivals}</span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
-                      <ArrowDownRight className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Departures</p>
-                      <p className="text-xs text-muted-foreground">Expected check-outs today</p>
-                    </div>
-                  </div>
-                  <span className="text-2xl font-bold">{stats.todayDepartures}</span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10 text-info">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Pending Reservations</p>
-                      <p className="text-xs text-muted-foreground">Future confirmed bookings</p>
-                    </div>
-                  </div>
-                  <span className="text-2xl font-bold">{stats.pendingReservations}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
+        {/* Today's Activity */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Today's Activity</CardTitle>
+                <CardDescription>Arrivals, departures & reservations</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/front-desk">Front Desk</Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <a
-                href="/reservations/new"
-                className="flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
-              >
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                New Reservation
-              </a>
-              <a
-                href="/front-desk"
-                className="flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
-              >
-                <Users className="h-4 w-4 text-muted-foreground" />
-                Check-In Guest
-              </a>
-              <a
-                href="/rooms"
-                className="flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
-              >
-                <BedDouble className="h-4 w-4 text-muted-foreground" />
-                View Rooms
-              </a>
-              <a
-                href="/housekeeping"
-                className="flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
-              >
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                Housekeeping
-              </a>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
+                    <ArrowUpRight className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Arrivals</p>
+                    <p className="text-xs text-muted-foreground">Expected check-ins</p>
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-8" />
+                ) : (
+                  <span className="text-2xl font-bold">{stats.todayArrivals}</span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
+                    <ArrowDownRight className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Departures</p>
+                    <p className="text-xs text-muted-foreground">Expected check-outs</p>
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-8" />
+                ) : (
+                  <span className="text-2xl font-bold">{stats.todayDepartures}</span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">In-House Guests</p>
+                    <p className="text-xs text-muted-foreground">Currently staying</p>
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-8" />
+                ) : (
+                  <span className="text-2xl font-bold">{stats.inHouseGuests}</span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10 text-info">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Pending Reservations</p>
+                    <p className="text-xs text-muted-foreground">Upcoming confirmed</p>
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-8" />
+                ) : (
+                  <span className="text-2xl font-bold">{stats.pendingReservations}</span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+              <Link to="/reservations">
+                <Calendar className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">New Reservation</p>
+                  <p className="text-xs text-muted-foreground">Create booking</p>
+                </div>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+              <Link to="/front-desk">
+                <Users className="h-5 w-5 text-success" />
+                <div className="text-left">
+                  <p className="font-medium">Check-In Guest</p>
+                  <p className="text-xs text-muted-foreground">Process arrival</p>
+                </div>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+              <Link to="/housekeeping">
+                <ClipboardList className="h-5 w-5 text-warning" />
+                <div className="text-left">
+                  <p className="font-medium">Housekeeping</p>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.pendingHousekeepingTasks} tasks pending
+                  </p>
+                </div>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+              <Link to="/maintenance">
+                <Wrench className="h-5 w-5 text-destructive" />
+                <div className="text-left">
+                  <p className="font-medium">Maintenance</p>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.openMaintenanceTickets} tickets open
+                  </p>
+                </div>
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
