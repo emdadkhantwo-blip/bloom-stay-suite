@@ -5,8 +5,9 @@ import { StaffFilters } from "@/components/staff/StaffFilters";
 import { StaffCard } from "@/components/staff/StaffCard";
 import { StaffDetailDrawer } from "@/components/staff/StaffDetailDrawer";
 import { InviteStaffDialog } from "@/components/staff/InviteStaffDialog";
+import { CreateStaffDialog } from "@/components/staff/CreateStaffDialog";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Mail } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { StaffMember } from "@/hooks/useStaff";
 import type { AppRole } from "@/types/database";
@@ -17,6 +18,7 @@ export default function Staff() {
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,10 +84,16 @@ export default function Staff() {
             Manage employees, roles, and property access
           </p>
         </div>
-        <Button onClick={() => setIsInviteOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Invite Staff
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Create Staff
+          </Button>
+          <Button variant="outline" onClick={() => setIsInviteOpen(true)}>
+            <Mail className="mr-2 h-4 w-4" />
+            Invite Staff
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -139,6 +147,9 @@ export default function Staff() {
 
       {/* Invite Dialog */}
       <InviteStaffDialog open={isInviteOpen} onOpenChange={setIsInviteOpen} />
+
+      {/* Create Staff Dialog */}
+      <CreateStaffDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
     </div>
   );
 }
