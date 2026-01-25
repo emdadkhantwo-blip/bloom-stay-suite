@@ -13,6 +13,7 @@ import { ReservationStatsBar } from "@/components/reservations/ReservationStatsB
 import { ReservationFilters } from "@/components/reservations/ReservationFilters";
 import { ReservationListItem } from "@/components/reservations/ReservationListItem";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
+import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -51,6 +52,9 @@ export default function Reservations() {
   // Detail drawer
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // New reservation dialog
+  const [newReservationOpen, setNewReservationOpen] = useState(false);
 
   // Dialogs
   const [checkInDialog, setCheckInDialog] = useState<string | null>(null);
@@ -180,7 +184,7 @@ export default function Reservations() {
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
         />
-        <Button>
+        <Button onClick={() => setNewReservationOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           New Reservation
         </Button>
@@ -292,6 +296,12 @@ export default function Reservations() {
         onCheckIn={handleDrawerCheckIn}
         onCheckOut={handleDrawerCheckOut}
         onCancel={handleDrawerCancel}
+      />
+
+      {/* New Reservation Dialog */}
+      <NewReservationDialog
+        open={newReservationOpen}
+        onOpenChange={setNewReservationOpen}
       />
     </div>
   );
