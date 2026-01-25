@@ -324,11 +324,11 @@ export default function Dashboard() {
                 View Rooms
               </a>
               <a
-                href="/reports"
+                href="/housekeeping"
                 className="flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
               >
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
-                View Reports
+                Housekeeping
               </a>
             </div>
           </CardContent>

@@ -9,6 +9,7 @@ import { FrontDeskStatsBar } from "@/components/front-desk/FrontDeskStatsBar";
 import { GuestListCard } from "@/components/front-desk/GuestListCard";
 import { QuickActions } from "@/components/front-desk/QuickActions";
 import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDialog";
+import { GuestSearchDialog } from "@/components/front-desk/GuestSearchDialog";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
 import {
@@ -23,8 +24,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { FrontDeskReservation } from "@/hooks/useFrontDesk";
 import type { Reservation } from "@/hooks/useReservations";
+import { useNavigate } from "react-router-dom";
 
 export default function FrontDesk() {
+  const navigate = useNavigate();
   const { currentProperty } = useTenant();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -44,6 +47,7 @@ export default function FrontDesk() {
   const [newReservationOpen, setNewReservationOpen] = useState(false);
   const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
   const [checkOutDialogOpen, setCheckOutDialogOpen] = useState(false);
+  const [guestSearchOpen, setGuestSearchOpen] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<FrontDeskReservation | null>(null);
   const [pendingCheckOut, setPendingCheckOut] = useState<FrontDeskReservation | null>(null);
 
@@ -90,6 +94,14 @@ export default function FrontDesk() {
     setPendingCheckOut(null);
   };
 
+  const handleGuestSelect = (guestId: string) => {
+    navigate(`/guests?selected=${guestId}`);
+  };
+
+  const handleReservationSelect = (reservationId: string) => {
+    navigate(`/reservations?selected=${reservationId}`);
+  };
+
   const isLoading = arrivalsLoading || departuresLoading || inHouseLoading || roomStatsLoading;
 
   return (
@@ -123,10 +135,7 @@ export default function FrontDesk() {
       {/* Quick Actions */}
       <QuickActions
         onNewReservation={() => setNewReservationOpen(true)}
-        onSearchGuest={() => {
-          // Could open a search modal in the future
-          window.location.href = "/reservations";
-        }}
+        onSearchGuest={() => setGuestSearchOpen(true)}
       />
 
       {/* Guest Lists Grid */}
@@ -209,6 +218,14 @@ export default function FrontDesk() {
         }}
         onConfirm={confirmCheckIn}
         isLoading={checkInMutation.isPending}
+      />
+
+      {/* Guest Search Dialog */}
+      <GuestSearchDialog
+        open={guestSearchOpen}
+        onOpenChange={setGuestSearchOpen}
+        onSelectGuest={handleGuestSelect}
+        onSelectReservation={handleReservationSelect}
       />
 
       {/* Check-Out Confirmation Dialog */}
