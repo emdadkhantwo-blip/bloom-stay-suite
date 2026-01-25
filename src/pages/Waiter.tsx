@@ -11,11 +11,14 @@ import {
   Bell, 
   Plus,
   Timer,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePOSOutlets, useWaiterOrders, useWaiterStats, useUpdatePOSOrderStatus, POSOrder, POSOrderStatus } from "@/hooks/usePOS";
+import { useWaiterNotifications } from "@/hooks/useWaiterNotifications";
 import { useNavigate } from "react-router-dom";
 
 function WaiterStatsBar({ stats }: { stats: ReturnType<typeof useWaiterStats>["data"] }) {
@@ -144,12 +147,16 @@ export default function Waiter() {
   const navigate = useNavigate();
   const { data: outlets = [], isLoading: outletsLoading } = usePOSOutlets();
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const activeOutletId = selectedOutletId || outlets[0]?.id;
   
   const { data: orders = [], isLoading: ordersLoading } = useWaiterOrders(activeOutletId);
   const { data: stats } = useWaiterStats(activeOutletId);
   const updateStatus = useUpdatePOSOrderStatus();
+  
+  // Real-time notifications with sound
+  useWaiterNotifications({ outletId: activeOutletId, enabled: soundEnabled });
 
   const handleServe = (orderId: string) => {
     updateStatus.mutate({ orderId, status: "served" as POSOrderStatus });
@@ -202,6 +209,15 @@ export default function Waiter() {
           </div>
           
           <div className="flex items-center gap-3">
+            <Button
+              variant={soundEnabled ? "secondary" : "outline"}
+              size="icon"
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              title={soundEnabled ? "Mute notifications" : "Enable notifications"}
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </Button>
+            
             {outlets.length > 1 && (
               <Select value={activeOutletId} onValueChange={setSelectedOutletId}>
                 <SelectTrigger className="w-48">
