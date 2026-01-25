@@ -16,6 +16,8 @@ import FrontDesk from "./pages/FrontDesk";
 import Housekeeping from "./pages/Housekeeping";
 import Guests from "./pages/Guests";
 import Maintenance from "./pages/Maintenance";
+import Folios from "./pages/Folios";
+import Reports from "./pages/Reports";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -155,6 +157,26 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <DashboardLayout title="Maintenance">
             <Maintenance />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/folios"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Folios">
+            <Folios />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/reports"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Reports">
+            <Reports />
           </DashboardLayout>
         </ProtectedRoute>
       }
