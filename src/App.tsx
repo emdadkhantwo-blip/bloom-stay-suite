@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Rooms from "./pages/Rooms";
 import Reservations from "./pages/Reservations";
+import Calendar from "./pages/Calendar";
 import FrontDesk from "./pages/FrontDesk";
 import Housekeeping from "./pages/Housekeeping";
 import Guests from "./pages/Guests";
@@ -104,6 +105,16 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <DashboardLayout title="Reservations">
             <Reservations />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/calendar"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Calendar">
+            <Calendar />
           </DashboardLayout>
         </ProtectedRoute>
       }
