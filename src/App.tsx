@@ -20,6 +20,7 @@ import Folios from "./pages/Folios";
 import Reports from "./pages/Reports";
 import Staff from "./pages/Staff";
 import Properties from "./pages/Properties";
+import Settings from "./pages/Settings";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -199,6 +200,16 @@ const AppRoutes = () => (
         <ProtectedRoute>
           <DashboardLayout title="Properties">
             <Properties />
+          </DashboardLayout>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/settings"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Settings">
+            <Settings />
           </DashboardLayout>
         </ProtectedRoute>
       }
