@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   UtensilsCrossed,
   LayoutDashboard,
+  Moon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -60,6 +61,7 @@ const operationsItems = [
 
 const billingItems = [
   { title: 'Folios', url: '/folios', icon: Receipt },
+  { title: 'Night Audit', url: '/night-audit', icon: Moon },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
 ];
 

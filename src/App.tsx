@@ -22,6 +22,7 @@ import Staff from "./pages/Staff";
 import Properties from "./pages/Properties";
 import Settings from "./pages/Settings";
 import POS from "./pages/POS";
+import NightAudit from "./pages/NightAudit";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -220,6 +221,14 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <POS />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/night-audit"
+      element={
+        <ProtectedRoute>
+          <NightAudit />
         </ProtectedRoute>
       }
     />

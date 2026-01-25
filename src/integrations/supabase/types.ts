@@ -501,6 +501,90 @@ export type Database = {
           },
         ]
       }
+      night_audits: {
+        Row: {
+          adr: number | null
+          business_date: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          occupancy_rate: number | null
+          property_id: string
+          report_data: Json | null
+          revpar: number | null
+          rooms_charged: number | null
+          run_by: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["night_audit_status"]
+          tenant_id: string
+          total_fb_revenue: number | null
+          total_other_revenue: number | null
+          total_payments: number | null
+          total_room_revenue: number | null
+          updated_at: string
+        }
+        Insert: {
+          adr?: number | null
+          business_date: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          occupancy_rate?: number | null
+          property_id: string
+          report_data?: Json | null
+          revpar?: number | null
+          rooms_charged?: number | null
+          run_by?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["night_audit_status"]
+          tenant_id: string
+          total_fb_revenue?: number | null
+          total_other_revenue?: number | null
+          total_payments?: number | null
+          total_room_revenue?: number | null
+          updated_at?: string
+        }
+        Update: {
+          adr?: number | null
+          business_date?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          occupancy_rate?: number | null
+          property_id?: string
+          report_data?: Json | null
+          revpar?: number | null
+          rooms_charged?: number | null
+          run_by?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["night_audit_status"]
+          tenant_id?: string
+          total_fb_revenue?: number | null
+          total_other_revenue?: number | null
+          total_payments?: number | null
+          total_room_revenue?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "night_audits_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "night_audits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -1626,6 +1710,7 @@ export type Database = {
         | "service_charge"
         | "discount"
         | "deposit"
+      night_audit_status: "pending" | "in_progress" | "completed" | "failed"
       payment_method:
         | "cash"
         | "credit_card"
@@ -1820,6 +1905,7 @@ export const Constants = {
         "discount",
         "deposit",
       ],
+      night_audit_status: ["pending", "in_progress", "completed", "failed"],
       payment_method: [
         "cash",
         "credit_card",
