@@ -196,7 +196,6 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
                   <CardContent className="flex items-center gap-2 p-2">
                     <Checkbox
                       checked={selectedRoles.includes(role.value)}
-                      onCheckedChange={() => toggleRole(role.value)}
                     />
                     <span className="text-sm">{role.label}</span>
                   </CardContent>
@@ -222,7 +221,6 @@ export function InviteStaffDialog({ open, onOpenChange }: InviteStaffDialogProps
                   <CardContent className="flex items-center gap-2 p-2">
                     <Checkbox
                       checked={selectedProperties.includes(property.id)}
-                      onCheckedChange={() => toggleProperty(property.id)}
                     />
                     <div>
                       <span className="text-sm font-medium">{property.name}</span>

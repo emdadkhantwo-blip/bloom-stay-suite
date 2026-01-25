@@ -227,7 +227,6 @@ export function StaffDetailDrawer({
                   <CardContent className="flex items-center gap-3 p-3">
                     <Checkbox
                       checked={selectedRoles.includes(role.value)}
-                      onCheckedChange={() => toggleRole(role.value)}
                     />
                     <div className="flex-1">
                       <p className="font-medium text-sm">{role.label}</p>
@@ -274,7 +273,6 @@ export function StaffDetailDrawer({
                     <CardContent className="flex items-center gap-3 p-3">
                       <Checkbox
                         checked={selectedProperties.includes(property.id)}
-                        onCheckedChange={() => toggleProperty(property.id)}
                       />
                       <div className="flex-1">
                         <p className="font-medium text-sm">{property.name}</p>
