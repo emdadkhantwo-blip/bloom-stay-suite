@@ -14,6 +14,8 @@ import {
   AlertCircle,
   CalendarDays,
   Trash2,
+  IdCard,
+  ExternalLink,
 } from "lucide-react";
 import {
   Sheet,
@@ -65,6 +67,15 @@ interface FolioSummary {
   status: string;
 }
 
+interface GuestIdDocument {
+  id: string;
+  guest_number: number;
+  document_url: string;
+  document_type: string;
+  file_name: string | null;
+  created_at: string;
+}
+
 export function ReservationDetailDrawer({
   reservation,
   open,
@@ -92,6 +103,24 @@ export function ReservationDetailDrawer({
 
       if (error) throw error;
       return data;
+    },
+    enabled: !!reservation?.id && open,
+  });
+
+  // Fetch guest ID documents for this reservation
+  const { data: guestIds, isLoading: isGuestIdsLoading } = useQuery({
+    queryKey: ["reservation-guest-ids", reservation?.id],
+    queryFn: async (): Promise<GuestIdDocument[]> => {
+      if (!reservation?.id) return [];
+
+      const { data, error } = await supabase
+        .from("reservation_guest_ids")
+        .select("id, guest_number, document_url, document_type, file_name, created_at")
+        .eq("reservation_id", reservation.id)
+        .order("guest_number", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!reservation?.id && open,
   });
@@ -263,6 +292,73 @@ export function ReservationDetailDrawer({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No rooms assigned</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Guest ID Documents */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <IdCard className="h-4 w-4" />
+                Guest ID Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isGuestIdsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : guestIds && guestIds.length > 0 ? (
+                <div className="space-y-2">
+                  {guestIds.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        {doc.document_type === "image" ? (
+                          <div className="h-10 w-14 rounded border overflow-hidden bg-muted flex items-center justify-center">
+                            <img
+                              src={doc.document_url}
+                              alt={`Guest ${doc.guest_number} ID`}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.parentElement?.querySelector(".fallback-icon")?.classList.remove("hidden");
+                              }}
+                            />
+                            <IdCard className="h-5 w-5 text-muted-foreground fallback-icon hidden" />
+                          </div>
+                        ) : (
+                          <div className="h-10 w-14 rounded border bg-muted flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">Guest {doc.guest_number} ID</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                            {doc.file_name || `${doc.document_type.toUpperCase()} Document`}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => window.open(doc.document_url, "_blank")}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertCircle className="h-4 w-4" />
+                  No ID documents uploaded
+                </div>
               )}
             </CardContent>
           </Card>

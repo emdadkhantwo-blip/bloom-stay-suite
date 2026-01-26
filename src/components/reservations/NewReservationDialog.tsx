@@ -267,12 +267,33 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     setGuestIdFiles(updatedFiles);
   };
 
+  const [idValidationError, setIdValidationError] = useState<string | null>(null);
+
   const onSubmit = async (data: ReservationFormData) => {
     // Validate rooms
     const validRooms = rooms.filter((r) => r.room_type_id);
     if (validRooms.length === 0) {
       return;
     }
+
+    // Validate that all adult guests have ID documents uploaded
+    const adultsCount = data.adults || 1;
+    const missingIds: number[] = [];
+    for (let i = 1; i <= adultsCount; i++) {
+      if (!guestIdFiles.has(i)) {
+        missingIds.push(i);
+      }
+    }
+    
+    if (missingIds.length > 0) {
+      setIdValidationError(
+        `Please upload ID documents for all guests. Missing: Guest ${missingIds.join(", Guest ")}`
+      );
+      toast.error("Guest ID documents are required for all adult guests");
+      return;
+    }
+    
+    setIdValidationError(null);
 
     // Convert Map to format expected by hook
     const idFilesForUpload = new Map<number, { file: File; type: string; fileName: string }>();
@@ -631,10 +652,17 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
               {/* Guest ID Documents Upload */}
               <div className="space-y-3">
                 <div>
-                  <FormLabel>Guest ID Documents</FormLabel>
+                  <FormLabel className={idValidationError ? "text-destructive" : ""}>
+                    Guest ID Documents *
+                  </FormLabel>
                   <p className="text-xs text-muted-foreground mt-1">
                     Upload identification for each adult guest (JPEG, PNG, WebP, or PDF, max 5MB)
                   </p>
+                  {idValidationError && (
+                    <p className="text-sm font-medium text-destructive mt-1">
+                      {idValidationError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
