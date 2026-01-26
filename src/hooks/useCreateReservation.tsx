@@ -12,6 +12,8 @@ export interface CreateReservationInput {
   source: string;
   special_requests?: string;
   internal_notes?: string;
+  reference_id?: string;
+  discount_amount?: number;
   rooms: Array<{
     room_type_id: string;
     room_id?: string;
@@ -46,12 +48,14 @@ export function useCreateReservation() {
 
       if (confError) throw confError;
 
-      // Calculate total amount
+      // Calculate total amount (after discount)
       const nights = Math.ceil(
         (new Date(input.check_out_date).getTime() - new Date(input.check_in_date).getTime()) /
           (1000 * 60 * 60 * 24)
       );
-      const totalAmount = input.rooms.reduce((sum, room) => sum + room.rate_per_night * nights, 0);
+      const subtotal = input.rooms.reduce((sum, room) => sum + room.rate_per_night * nights, 0);
+      const discountAmount = input.discount_amount || 0;
+      const totalAmount = Math.max(0, subtotal - discountAmount);
 
       // Create reservation
       const { data: reservation, error: resError } = await supabase
@@ -69,6 +73,8 @@ export function useCreateReservation() {
           special_requests: input.special_requests || null,
           internal_notes: input.internal_notes || null,
           total_amount: totalAmount,
+          discount_amount: discountAmount,
+          reference_id: input.reference_id || null,
           status: "confirmed",
         })
         .select()

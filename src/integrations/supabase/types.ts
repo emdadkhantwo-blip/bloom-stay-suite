@@ -1392,6 +1392,66 @@ export type Database = {
           },
         ]
       }
+      references: {
+        Row: {
+          code: string
+          created_at: string | null
+          discount_percentage: number | null
+          discount_type: string | null
+          fixed_discount: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          property_id: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          discount_percentage?: number | null
+          discount_type?: string | null
+          fixed_discount?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          property_id?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          discount_percentage?: number | null
+          discount_type?: string | null
+          fixed_discount?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          property_id?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "references_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "references_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       refunds: {
         Row: {
           amount: number
@@ -1528,11 +1588,13 @@ export type Database = {
           confirmation_number: string
           created_at: string
           created_by: string | null
+          discount_amount: number | null
           guest_id: string
           id: string
           internal_notes: string | null
           paid_amount: number
           property_id: string
+          reference_id: string | null
           source: Database["public"]["Enums"]["booking_source"]
           source_reference: string | null
           special_requests: string | null
@@ -1551,11 +1613,13 @@ export type Database = {
           confirmation_number: string
           created_at?: string
           created_by?: string | null
+          discount_amount?: number | null
           guest_id: string
           id?: string
           internal_notes?: string | null
           paid_amount?: number
           property_id: string
+          reference_id?: string | null
           source?: Database["public"]["Enums"]["booking_source"]
           source_reference?: string | null
           special_requests?: string | null
@@ -1574,11 +1638,13 @@ export type Database = {
           confirmation_number?: string
           created_at?: string
           created_by?: string | null
+          discount_amount?: number | null
           guest_id?: string
           id?: string
           internal_notes?: string | null
           paid_amount?: number
           property_id?: string
+          reference_id?: string | null
           source?: Database["public"]["Enums"]["booking_source"]
           source_reference?: string | null
           special_requests?: string | null
@@ -1600,6 +1666,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_reference_id_fkey"
+            columns: ["reference_id"]
+            isOneToOne: false
+            referencedRelation: "references"
             referencedColumns: ["id"]
           },
           {

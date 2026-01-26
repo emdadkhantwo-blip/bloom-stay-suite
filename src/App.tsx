@@ -27,6 +27,7 @@ import NightAudit from "./pages/NightAudit";
 import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
 import CorporateAccounts from "./pages/CorporateAccounts";
+import References from "./pages/References";
 import AdminTenants from "./pages/admin/Tenants";
 import AdminApplications from "./pages/admin/Applications";
 import Profile from "./pages/Profile";
@@ -333,6 +334,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={['front_desk']} route="/corporate">
           <DashboardLayout title="Corporate Accounts">
             <CorporateAccounts />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/references"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/references">
+          <DashboardLayout title="References">
+            <References />
           </DashboardLayout>
         </RoleProtectedRoute>
       }

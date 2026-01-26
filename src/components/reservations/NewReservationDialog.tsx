@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, differenceInDays } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Tags, Percent, DollarSign } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,11 +38,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { GuestSearchSelect } from "./GuestSearchSelect";
 import { CreateGuestDialog } from "./CreateGuestDialog";
 import { useRoomTypes } from "@/hooks/useRoomTypes";
 import { useCreateReservation } from "@/hooks/useCreateReservation";
+import { useActiveReferences, calculateDiscount, type Reference } from "@/hooks/useReferences";
+import { formatCurrency } from "@/lib/currency";
 import type { Guest } from "@/hooks/useGuests";
 
 const reservationSchema = z.object({
@@ -89,9 +92,11 @@ const bookingSources = [
 
 export function NewReservationDialog({ open, onOpenChange }: NewReservationDialogProps) {
   const { data: roomTypes } = useRoomTypes();
+  const { data: references } = useActiveReferences();
   const createReservation = useCreateReservation();
 
   const [createGuestOpen, setCreateGuestOpen] = useState(false);
+  const [selectedReference, setSelectedReference] = useState<Reference | null>(null);
   const [rooms, setRooms] = useState<RoomSelection[]>([
     { id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 },
   ]);
@@ -116,9 +121,17 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     return Math.max(0, differenceInDays(checkOutDate, checkInDate));
   }, [checkInDate, checkOutDate]);
 
-  const totalAmount = useMemo(() => {
+  const subtotal = useMemo(() => {
     return rooms.reduce((sum, room) => sum + room.rate_per_night * nights, 0);
   }, [rooms, nights]);
+
+  const discountAmount = useMemo(() => {
+    return calculateDiscount(selectedReference, subtotal);
+  }, [selectedReference, subtotal]);
+
+  const totalAmount = useMemo(() => {
+    return Math.max(0, subtotal - discountAmount);
+  }, [subtotal, discountAmount]);
 
   const handleGuestSelect = (guest: Guest | null) => {
     form.setValue("guest_id", guest?.id || "");
@@ -159,6 +172,15 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     );
   };
 
+  const handleReferenceChange = (referenceId: string) => {
+    if (referenceId === "none") {
+      setSelectedReference(null);
+    } else {
+      const ref = references?.find((r) => r.id === referenceId) || null;
+      setSelectedReference(ref);
+    }
+  };
+
   const onSubmit = async (data: ReservationFormData) => {
     // Validate rooms
     const validRooms = rooms.filter((r) => r.room_type_id);
@@ -176,6 +198,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
         source: data.source,
         special_requests: data.special_requests,
         internal_notes: data.internal_notes,
+        reference_id: selectedReference?.id,
+        discount_amount: discountAmount,
         rooms: validRooms.map((r) => ({
           room_type_id: r.room_type_id,
           rate_per_night: r.rate_per_night,
@@ -186,6 +210,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
       
       // Reset form and close
       form.reset();
+      setSelectedReference(null);
       setRooms([{ id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 }]);
       onOpenChange(false);
     } catch (error) {
@@ -456,6 +481,47 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                 />
               </div>
 
+              {/* Reference Selection */}
+              {references && references.length > 0 && (
+                <div className="space-y-2">
+                  <FormLabel>Reference (Optional)</FormLabel>
+                  <Select
+                    value={selectedReference?.id || "none"}
+                    onValueChange={handleReferenceChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reference for discount..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No reference</SelectItem>
+                      {references.map((ref) => (
+                        <SelectItem key={ref.id} value={ref.id}>
+                          <div className="flex items-center gap-2">
+                            <Tags className="h-3 w-3" />
+                            <span>{ref.name}</span>
+                            <Badge variant="secondary" className="ml-1 text-xs">
+                              {ref.discount_type === "percentage"
+                                ? `${ref.discount_percentage}%`
+                                : formatCurrency(ref.fixed_discount)}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedReference && discountAmount > 0 && (
+                    <p className="flex items-center gap-1 text-sm text-vibrant-green">
+                      {selectedReference.discount_type === "percentage" ? (
+                        <Percent className="h-3 w-3" />
+                      ) : (
+                        <DollarSign className="h-3 w-3" />
+                      )}
+                      Discount applied: -{formatCurrency(discountAmount)}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Notes */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -497,15 +563,35 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
               <Separator />
 
               {/* Total */}
-              <div className="flex items-center justify-between rounded-lg bg-muted p-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Estimated Total</p>
-                  <p className="text-xs text-muted-foreground">
-                    {rooms.filter((r) => r.room_type_id).length} room{rooms.length !== 1 ? "s" : ""} × {nights} night
-                    {nights !== 1 ? "s" : ""}
-                  </p>
+              <div className="rounded-lg bg-muted p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Subtotal ({rooms.filter((r) => r.room_type_id).length} room
+                      {rooms.length !== 1 ? "s" : ""} × {nights} night
+                      {nights !== 1 ? "s" : ""})
+                    </span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  {selectedReference && discountAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm text-vibrant-green">
+                      <span className="flex items-center gap-1">
+                        <Tags className="h-3 w-3" />
+                        {selectedReference.name} (
+                        {selectedReference.discount_type === "percentage"
+                          ? `${selectedReference.discount_percentage}%`
+                          : "Fixed"}
+                        )
+                      </span>
+                      <span>-{formatCurrency(discountAmount)}</span>
+                    </div>
+                  )}
+                  <Separator className="my-2" />
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Total</span>
+                    <span className="text-2xl font-bold">{formatCurrency(totalAmount)}</span>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold">৳{totalAmount.toLocaleString()}</p>
               </div>
 
               <DialogFooter>
