@@ -551,7 +551,6 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
-      </div>
 
       {/* Admin Chatbot */}
       <AdminChatbot />
