@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, parseISO } from "date-fns";
 import { MoreHorizontal, LogIn, LogOut, XCircle, Eye, Star, Trash2 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReservationStatusBadge } from "./ReservationStatusBadge";
 import type { Reservation } from "@/hooks/useReservations";
+import { cn } from "@/lib/utils";
 
 interface ReservationListItemProps {
   reservation: Reservation;
@@ -37,9 +38,9 @@ export function ReservationListItem({
     .map((rr) => rr.room?.room_number || rr.room_type?.code || "TBA")
     .join(", ");
 
-  const nights = Math.ceil(
-    (new Date(reservation.check_out_date).getTime() - new Date(reservation.check_in_date).getTime()) /
-      (1000 * 60 * 60 * 24)
+  const nights = differenceInCalendarDays(
+    parseISO(reservation.check_out_date),
+    parseISO(reservation.check_in_date)
   );
 
   const canCheckIn = reservation.status === "confirmed";
@@ -47,16 +48,32 @@ export function ReservationListItem({
   const canCancel = reservation.status === "confirmed";
   const canDelete = reservation.status === "confirmed" || reservation.status === "cancelled";
 
+  const getRowBorderColor = () => {
+    if (reservation.guest?.is_vip) return "border-l-amber-500";
+    switch (reservation.status) {
+      case "checked_in": return "border-l-emerald-500";
+      case "confirmed": return "border-l-blue-500";
+      case "cancelled": return "border-l-rose-500";
+      case "checked_out": return "border-l-slate-400";
+      default: return "border-l-muted";
+    }
+  };
+
   return (
-    <TableRow className="hover:bg-muted/50">
+    <TableRow className={cn(
+      "hover:bg-muted/30 transition-colors border-l-4",
+      getRowBorderColor()
+    )}>
       <TableCell className="font-mono text-sm">
-        {reservation.confirmation_number}
+        <span className="bg-muted/50 px-2 py-1 rounded text-xs">
+          {reservation.confirmation_number}
+        </span>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
           <span className="font-medium">{guestName}</span>
           {reservation.guest?.is_vip && (
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
           )}
         </div>
         {reservation.guest?.email && (
@@ -65,19 +82,23 @@ export function ReservationListItem({
       </TableCell>
       <TableCell>
         <div className="text-sm">
-          {format(new Date(reservation.check_in_date), "MMM d")} -{" "}
-          {format(new Date(reservation.check_out_date), "MMM d, yyyy")}
+          {format(parseISO(reservation.check_in_date), "MMM d")} -{" "}
+          {format(parseISO(reservation.check_out_date), "MMM d, yyyy")}
         </div>
-        <p className="text-xs text-muted-foreground">{nights} night{nights !== 1 ? "s" : ""}</p>
+        <p className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded inline-block mt-0.5">
+          {nights} night{nights !== 1 ? "s" : ""}
+        </p>
       </TableCell>
       <TableCell>
-        <span className="text-sm">{roomInfo || "Not assigned"}</span>
+        <span className="text-sm font-medium">{roomInfo || "Not assigned"}</span>
       </TableCell>
       <TableCell>
         <ReservationStatusBadge status={reservation.status} />
       </TableCell>
-      <TableCell className="text-right font-medium">
-        ৳{reservation.total_amount.toLocaleString()}
+      <TableCell className="text-right">
+        <span className="font-semibold text-emerald-600">
+          ৳{reservation.total_amount.toLocaleString()}
+        </span>
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -87,7 +108,7 @@ export function ReservationListItem({
               <span className="sr-only">Open menu</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-48 bg-popover">
             <DropdownMenuItem onClick={() => onView(reservation.id)}>
               <Eye className="mr-2 h-4 w-4" />
               View Details

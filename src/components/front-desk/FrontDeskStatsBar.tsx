@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LogIn, LogOut, Hotel, BedDouble, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FrontDeskStatsBarProps {
   arrivalsCount: number;
@@ -24,36 +25,36 @@ export function FrontDeskStatsBar({
       label: "Arrivals Today",
       value: arrivalsCount,
       icon: LogIn,
-      color: "text-success",
-      bgColor: "bg-success/10",
+      gradient: "from-emerald-500 to-teal-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "Departures Today",
       value: departuresCount,
       icon: LogOut,
-      color: "text-warning",
-      bgColor: "bg-warning/10",
+      gradient: "from-amber-500 to-orange-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "In House",
       value: inHouseCount,
       icon: Hotel,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      gradient: "from-blue-500 to-indigo-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "Vacant Rooms",
       value: vacantRoomsCount,
       icon: BedDouble,
-      color: "text-info",
-      bgColor: "bg-info/10",
+      gradient: "from-cyan-500 to-blue-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "Dirty Rooms",
       value: dirtyRoomsCount,
       icon: AlertCircle,
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
+      gradient: "from-rose-500 to-red-600",
+      iconBg: "bg-white/20",
     },
   ];
 
@@ -61,15 +62,7 @@ export function FrontDeskStatsBar({
     return (
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Card key={i} className="border-none shadow-sm">
-            <CardContent className="flex items-center gap-3 p-3">
-              <Skeleton className="h-10 w-10 rounded-lg" />
-              <div className="space-y-1">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-5 w-8" />
-              </div>
-            </CardContent>
-          </Card>
+          <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
     );
@@ -78,14 +71,24 @@ export function FrontDeskStatsBar({
   return (
     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {statItems.map((item) => (
-        <Card key={item.label} className="border-none shadow-sm">
-          <CardContent className="flex items-center gap-3 p-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.bgColor}`}>
-              <item.icon className={`h-5 w-5 ${item.color}`} />
+        <Card 
+          key={item.label} 
+          className={cn(
+            "relative overflow-hidden border-none shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5",
+            `bg-gradient-to-br ${item.gradient}`
+          )}
+        >
+          {/* Decorative circles */}
+          <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+          <div className="absolute -bottom-2 -left-2 h-12 w-12 rounded-full bg-white/5" />
+          
+          <CardContent className="relative z-10 flex items-center gap-3 p-4">
+            <div className={cn("rounded-xl p-2.5", item.iconBg)}>
+              <item.icon className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className="text-lg font-semibold">{item.value}</p>
+              <p className="text-2xl font-bold text-white">{item.value}</p>
+              <p className="text-xs text-white/80 font-medium">{item.label}</p>
             </div>
           </CardContent>
         </Card>

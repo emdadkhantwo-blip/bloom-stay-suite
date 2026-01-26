@@ -1,4 +1,4 @@
-import { format, differenceInDays } from "date-fns";
+import { differenceInDays } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +9,6 @@ import {
   LogOut, 
   Eye, 
   Crown, 
-  Phone, 
-  Mail,
   BedDouble,
   User,
 } from "lucide-react";
@@ -62,17 +60,36 @@ function GuestListItem({
     new Date(reservation.check_in_date)
   );
 
+  const getBorderColor = () => {
+    if (reservation.guest?.is_vip) return "border-l-amber-500";
+    if (type === "arrivals") return "border-l-emerald-500";
+    if (type === "departures") return "border-l-orange-500";
+    return "border-l-blue-500";
+  };
+
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+    <div className={cn(
+      "flex items-center justify-between gap-4 rounded-lg border border-l-4 p-3 transition-all hover:shadow-md hover:-translate-y-0.5 bg-card",
+      getBorderColor()
+    )}>
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-          <User className="h-5 w-5 text-muted-foreground" />
+        <div className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm",
+          reservation.guest?.is_vip 
+            ? "bg-gradient-to-br from-amber-500 to-orange-600" 
+            : type === "arrivals"
+            ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+            : type === "departures"
+            ? "bg-gradient-to-br from-orange-500 to-red-600"
+            : "bg-gradient-to-br from-blue-500 to-indigo-600"
+        )}>
+          <User className="h-5 w-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-medium truncate">{guestName}</span>
             {reservation.guest?.is_vip && (
-              <Crown className="h-3.5 w-3.5 text-warning shrink-0" />
+              <Crown className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" />
             )}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -80,10 +97,10 @@ function GuestListItem({
               <BedDouble className="h-3 w-3" />
               {roomNumbers || roomTypes || "No room assigned"}
             </span>
-            <span>
+            <span className="bg-muted/50 px-1.5 py-0.5 rounded">
               {nights} night{nights !== 1 ? "s" : ""}
             </span>
-            <span className="font-mono text-[10px]">
+            <span className="font-mono text-[10px] bg-muted/50 px-1.5 py-0.5 rounded">
               {reservation.confirmation_number}
             </span>
           </div>
@@ -104,7 +121,7 @@ function GuestListItem({
           <Button
             size="sm"
             onClick={() => onCheckIn(reservation)}
-            className="h-8 gap-1"
+            className="h-8 gap-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white border-none shadow-sm"
           >
             <LogIn className="h-4 w-4" />
             Check In
@@ -116,7 +133,10 @@ function GuestListItem({
             variant={type === "departures" ? "default" : "outline"}
             size="sm"
             onClick={() => onCheckOut(reservation)}
-            className="h-8 gap-1"
+            className={cn(
+              "h-8 gap-1",
+              type === "departures" && "bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white border-none shadow-sm"
+            )}
           >
             <LogOut className="h-4 w-4" />
             Check Out
@@ -139,23 +159,34 @@ export function GuestListCard({
   onCheckOut,
   onViewDetails,
 }: GuestListCardProps) {
+  const getHeaderGradient = () => {
+    if (type === "arrivals") return "from-emerald-500 to-teal-600";
+    if (type === "departures") return "from-orange-500 to-red-600";
+    return "from-blue-500 to-indigo-600";
+  };
+
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-3">
+    <Card className="flex flex-col overflow-hidden">
+      <CardHeader className={cn(
+        "pb-3 text-white bg-gradient-to-r",
+        getHeaderGradient()
+      )}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {icon}
+            <div className="rounded-lg bg-white/20 p-1.5">
+              {icon}
+            </div>
             <div>
-              <CardTitle className="text-base">{title}</CardTitle>
-              <CardDescription className="text-xs">{description}</CardDescription>
+              <CardTitle className="text-base text-white">{title}</CardTitle>
+              <CardDescription className="text-xs text-white/80">{description}</CardDescription>
             </div>
           </div>
-          <Badge variant="secondary" className="text-sm">
+          <Badge className="bg-white/20 text-white border-none shadow-sm text-sm">
             {isLoading ? "..." : guests.length}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 pt-0">
+      <CardContent className="flex-1 pt-4">
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (

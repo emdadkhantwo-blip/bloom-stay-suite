@@ -13,17 +13,18 @@ import {
 import { useStaff, type StaffMember } from "@/hooks/useStaff";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
-const ROLE_COLORS: Record<string, string> = {
-  owner: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  manager: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  front_desk: "bg-green-500/10 text-green-500 border-green-500/20",
-  accountant: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  housekeeping: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
-  maintenance: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-  kitchen: "bg-red-500/10 text-red-500 border-red-500/20",
-  waiter: "bg-pink-500/10 text-pink-500 border-pink-500/20",
-  night_auditor: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+const ROLE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  owner: { bg: "bg-purple-500/10", text: "text-purple-600", border: "border-purple-500/20" },
+  manager: { bg: "bg-blue-500/10", text: "text-blue-600", border: "border-blue-500/20" },
+  front_desk: { bg: "bg-emerald-500/10", text: "text-emerald-600", border: "border-emerald-500/20" },
+  accountant: { bg: "bg-amber-500/10", text: "text-amber-600", border: "border-amber-500/20" },
+  housekeeping: { bg: "bg-cyan-500/10", text: "text-cyan-600", border: "border-cyan-500/20" },
+  maintenance: { bg: "bg-orange-500/10", text: "text-orange-600", border: "border-orange-500/20" },
+  kitchen: { bg: "bg-red-500/10", text: "text-red-600", border: "border-red-500/20" },
+  waiter: { bg: "bg-pink-500/10", text: "text-pink-600", border: "border-pink-500/20" },
+  night_auditor: { bg: "bg-indigo-500/10", text: "text-indigo-600", border: "border-indigo-500/20" },
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -58,13 +59,23 @@ export function StaffCard({ member, onViewDetails }: StaffCardProps) {
     member.property_access.includes(p.id)
   );
 
+  const primaryRole = member.roles[0];
+
   return (
-    <Card className={!member.is_active ? "opacity-60" : ""}>
+    <Card className={cn(
+      "transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-l-4",
+      member.is_active ? "border-l-emerald-500" : "border-l-slate-400 opacity-70"
+    )}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-12 w-12 ring-2 ring-background shadow-md">
             <AvatarImage src={member.avatar_url || undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary">
+            <AvatarFallback className={cn(
+              "font-semibold text-white",
+              member.is_active 
+                ? "bg-gradient-to-br from-blue-500 to-indigo-600"
+                : "bg-gradient-to-br from-slate-400 to-slate-600"
+            )}>
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -82,7 +93,7 @@ export function StaffCard({ member, onViewDetails }: StaffCardProps) {
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="bg-popover">
             <DropdownMenuItem onClick={onViewDetails}>
               View Details
             </DropdownMenuItem>
@@ -104,40 +115,51 @@ export function StaffCard({ member, onViewDetails }: StaffCardProps) {
       <CardContent className="space-y-4">
         {/* Status Badge */}
         <Badge
-          variant={member.is_active ? "default" : "secondary"}
-          className="text-xs"
+          className={cn(
+            "text-xs font-medium border-none shadow-sm",
+            member.is_active 
+              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white" 
+              : "bg-slate-200 text-slate-600"
+          )}
         >
           {member.is_active ? "Active" : "Inactive"}
         </Badge>
 
         {/* Contact Info */}
-        <div className="space-y-1 text-sm">
+        <div className="space-y-1.5 text-sm">
           {member.email && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-3.5 w-3.5" />
+              <div className="rounded-full bg-blue-500/10 p-1">
+                <Mail className="h-3 w-3 text-blue-500" />
+              </div>
               <span className="truncate">{member.email}</span>
             </div>
           )}
           {member.phone && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-3.5 w-3.5" />
+              <div className="rounded-full bg-emerald-500/10 p-1">
+                <Phone className="h-3 w-3 text-emerald-500" />
+              </div>
               <span>{member.phone}</span>
             </div>
           )}
         </div>
 
         {/* Roles */}
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {member.roles.length > 0 ? (
-            member.roles.map((role) => (
-              <Badge
-                key={role}
-                variant="outline"
-                className={`text-xs ${ROLE_COLORS[role] || ""}`}
-              >
-                {ROLE_LABELS[role] || role}
-              </Badge>
-            ))
+            member.roles.map((role) => {
+              const colors = ROLE_COLORS[role] || { bg: "bg-muted", text: "text-muted-foreground", border: "border-muted" };
+              return (
+                <Badge
+                  key={role}
+                  variant="outline"
+                  className={cn("text-xs font-medium", colors.bg, colors.text, colors.border)}
+                >
+                  {ROLE_LABELS[role] || role}
+                </Badge>
+              );
+            })
           ) : (
             <span className="text-xs text-muted-foreground">No roles assigned</span>
           )}
@@ -145,7 +167,9 @@ export function StaffCard({ member, onViewDetails }: StaffCardProps) {
 
         {/* Property Access */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Building2 className="h-3.5 w-3.5" />
+          <div className="rounded-full bg-purple-500/10 p-1">
+            <Building2 className="h-3 w-3 text-purple-500" />
+          </div>
           <span>
             {accessibleProperties.length === 0
               ? "No property access"
@@ -157,7 +181,7 @@ export function StaffCard({ member, onViewDetails }: StaffCardProps) {
 
         {/* Last Login */}
         {member.last_login_at && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full inline-block">
             Last login:{" "}
             {formatDistanceToNow(new Date(member.last_login_at), {
               addSuffix: true,
@@ -169,7 +193,7 @@ export function StaffCard({ member, onViewDetails }: StaffCardProps) {
         <Button
           variant="outline"
           size="sm"
-          className="w-full"
+          className="w-full hover:bg-primary hover:text-primary-foreground transition-colors"
           onClick={onViewDetails}
         >
           Manage Staff
