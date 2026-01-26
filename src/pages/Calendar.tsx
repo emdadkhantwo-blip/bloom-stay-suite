@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInCalendarDays, parseISO, startOfDay } from "date-fns";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
 import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, useUpdateReservation, type Reservation } from "@/hooks/useReservations";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
@@ -14,8 +14,11 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export default function Calendar() {
   const queryClient = useQueryClient();
-  const [startDate, setStartDate] = useState(() => new Date());
+  const [startDate, setStartDate] = useState(() => startOfDay(new Date()));
   const [numDays, setNumDays] = useState(14);
+
+  // Safe setter that normalizes date to start of day
+  const handleStartDateChange = (date: Date) => setStartDate(startOfDay(date));
   
   // Drawer state
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -147,12 +150,12 @@ export default function Calendar() {
     newCheckOutDate: string,
     originalTotalAmount: number
   ) => {
-    // Calculate nights difference and new price
-    const originalNights = differenceInDays(
+    // Calculate nights difference and new price using calendar days
+    const originalNights = differenceInCalendarDays(
       parseISO(originalCheckOutDate),
       parseISO(originalCheckInDate)
     );
-    const newNights = differenceInDays(
+    const newNights = differenceInCalendarDays(
       parseISO(newCheckOutDate),
       parseISO(newCheckInDate)
     );
@@ -198,7 +201,7 @@ export default function Calendar() {
         <CalendarControls
           startDate={startDate}
           numDays={numDays}
-          onStartDateChange={setStartDate}
+          onStartDateChange={handleStartDateChange}
           onNumDaysChange={setNumDays}
           onRefresh={handleRefresh}
           isRefreshing={isRefetching}
