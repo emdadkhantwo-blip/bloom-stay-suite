@@ -227,3 +227,107 @@ export function useToggleFeatureFlag() {
     },
   });
 }
+
+export function useDeleteTenant() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (tenantId: string) => {
+      // Delete related data in order (respecting foreign key constraints)
+      // 1. Delete subscriptions
+      await supabase.from("subscriptions").delete().eq("tenant_id", tenantId);
+      
+      // 2. Delete feature flags
+      await supabase.from("feature_flags").delete().eq("tenant_id", tenantId);
+      
+      // 3. Delete audit logs
+      await supabase.from("audit_logs").delete().eq("tenant_id", tenantId);
+      
+      // 4. Delete chat messages
+      await supabase.from("chat_messages").delete().eq("tenant_id", tenantId);
+      
+      // 5. Delete POS order items, orders, items, categories, outlets
+      await supabase.from("pos_order_items").delete().eq("tenant_id", tenantId);
+      await supabase.from("pos_orders").delete().eq("tenant_id", tenantId);
+      await supabase.from("pos_items").delete().eq("tenant_id", tenantId);
+      await supabase.from("pos_categories").delete().eq("tenant_id", tenantId);
+      await supabase.from("pos_outlets").delete().eq("tenant_id", tenantId);
+      
+      // 6. Delete folio items, payments, refunds, folios
+      await supabase.from("folio_items").delete().eq("tenant_id", tenantId);
+      await supabase.from("refunds").delete().eq("tenant_id", tenantId);
+      await supabase.from("payments").delete().eq("tenant_id", tenantId);
+      await supabase.from("folios").delete().eq("tenant_id", tenantId);
+      
+      // 7. Delete night audits
+      await supabase.from("night_audits").delete().eq("tenant_id", tenantId);
+      
+      // 8. Delete reservation rooms, reservations
+      await supabase.from("reservation_rooms").delete().eq("tenant_id", tenantId);
+      await supabase.from("reservations").delete().eq("tenant_id", tenantId);
+      
+      // 9. Delete guest notes, guests
+      await supabase.from("guest_notes").delete().eq("tenant_id", tenantId);
+      await supabase.from("guests").delete().eq("tenant_id", tenantId);
+      
+      // 10. Delete corporate accounts
+      await supabase.from("corporate_accounts").delete().eq("tenant_id", tenantId);
+      
+      // 11. Delete housekeeping tasks, maintenance tickets
+      await supabase.from("housekeeping_tasks").delete().eq("tenant_id", tenantId);
+      await supabase.from("maintenance_tickets").delete().eq("tenant_id", tenantId);
+      
+      // 12. Delete rooms, room types
+      await supabase.from("rooms").delete().eq("tenant_id", tenantId);
+      await supabase.from("room_types").delete().eq("tenant_id", tenantId);
+      
+      // 13. Delete property access (need to get property IDs first)
+      const { data: properties } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("tenant_id", tenantId);
+      
+      if (properties && properties.length > 0) {
+        const propertyIds = properties.map((p) => p.id);
+        await supabase.from("property_access").delete().in("property_id", propertyIds);
+      }
+      
+      // 14. Delete properties
+      await supabase.from("properties").delete().eq("tenant_id", tenantId);
+      
+      // 15. Delete user roles and profiles for tenant users
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("tenant_id", tenantId);
+      
+      if (profiles && profiles.length > 0) {
+        const userIds = profiles.map((p) => p.id);
+        await supabase.from("user_roles").delete().in("user_id", userIds);
+      }
+      
+      // 16. Delete profiles
+      await supabase.from("profiles").delete().eq("tenant_id", tenantId);
+      
+      // 17. Finally, delete the tenant
+      const { error } = await supabase.from("tenants").delete().eq("id", tenantId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "tenants"] });
+      toast({
+        title: "Tenant Deleted",
+        description: "The tenant and all associated data have been permanently deleted.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error Deleting Tenant",
+        description: error.message,
+      });
+    },
+  });
+}
