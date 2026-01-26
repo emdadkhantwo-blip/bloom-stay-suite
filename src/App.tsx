@@ -28,6 +28,7 @@ import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
 import CorporateAccounts from "./pages/CorporateAccounts";
 import AdminTenants from "./pages/admin/Tenants";
+import AdminApplications from "./pages/admin/Applications";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -341,6 +342,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={[]} route="/admin/tenants">
           <DashboardLayout title="Tenant Management">
             <AdminTenants />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/admin/applications"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/admin/applications">
+          <DashboardLayout title="Applications">
+            <AdminApplications />
           </DashboardLayout>
         </RoleProtectedRoute>
       }

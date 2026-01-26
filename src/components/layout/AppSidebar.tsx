@@ -83,6 +83,7 @@ const adminItems = [
 ];
 
 const superAdminItems = [
+  { title: 'Applications', url: '/admin/applications', icon: ClipboardList, color: 'text-vibrant-amber' },
   { title: 'Tenants', url: '/admin/tenants', icon: Building2, color: 'text-vibrant-purple' },
   { title: 'System Settings', url: '/admin/settings', icon: ShieldCheck, color: 'text-vibrant-rose' },
 ];

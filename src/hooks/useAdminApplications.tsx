@@ -39,9 +39,9 @@ export function useApproveApplication() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (applicationId: string) => {
+    mutationFn: async ({ applicationId, planId }: { applicationId: string; planId: string }) => {
       const { data, error } = await supabase.functions.invoke("approve-application", {
-        body: { applicationId },
+        body: { applicationId, planId },
       });
 
       if (error) throw error;
