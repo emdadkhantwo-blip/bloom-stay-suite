@@ -1,142 +1,220 @@
 
-## Goal
-Fix the calendar timeline so a reservation modified to **Check-in: Jan 26** and **Check-out: Jan 28** visually spans the correct dates (not only Jan 26). Keep the existing Refresh button behavior.
 
-## What’s actually causing the bug (in simple terms)
-Right now the calendar’s “start date” (the left-most date column) is stored with a **time** (e.g., 11:33 PM), because it’s set using `new Date()` in a few places.
+# Enhanced Folio Summary Section
 
-But reservations from the database are “date-only” (midnight). When the code calculates block width using `differenceInDays`, the time portion can make `2 nights` turn into `1 day` visually.
+## Overview
+Enhance the Folio Summary card in the ReservationDetailDrawer to display comprehensive folio information beyond just financial amounts. This will give front desk staff a complete view of the folio at a glance.
 
-Example:
-- Calendar startDate = **Jan 26, 11:30 PM**
-- Reservation check-in = **Jan 26, 12:00 AM**
-- Reservation check-out = **Jan 28, 12:00 AM**
-- Visually computed duration becomes ~1 day (because it’s not a clean multiple of 24 hours)
+## Current State
+The Folio Summary section currently shows:
+- Folio Number
+- Subtotal, Tax, Service Charge
+- Total, Paid, Balance Due
 
-So the block appears only on the first day.
+## Proposed Enhancements
 
-## Fix strategy (robust)
-1) **Normalize calendar startDate to “start of day” (midnight) everywhere**
-2) Use **calendar-day** differences (ignore time) for rendering math:
-   - Replace `differenceInDays` with `differenceInCalendarDays` for timeline offsets/durations and drag constraints
-3) Ensure date-range generation uses normalized dates too
-4) (Optional but recommended) Align Reservation Details duration calculation to the same logic for consistency
+### Additional Information to Display
+1. **Folio Status Badge** - Show if folio is "Open" or "Closed" with color-coded badge
+2. **Charges Count** - Number of active charges on the folio
+3. **Payments Count** - Number of payments recorded
+4. **Last Updated** - When the folio was last modified
+5. **Quick Action Buttons** - Add Charge, Record Payment, View Full Folio (for open folios)
 
-This makes the UI stable even if timezones or time components slip in.
+### Visual Layout
 
----
-
-## Files to update
-### 1) `src/pages/Calendar.tsx`
-**Change**
-- Initialize state with `startOfDay(new Date())`
-- When setting startDate from controls, ensure it stays normalized (wrap `setStartDate`)
-
-**Why**
-- Prevents “11:30 PM start date” from breaking the timeline calculation.
-
-**Implementation detail**
-- Import `startOfDay` from `date-fns`
-- Replace:
-  - `useState(() => new Date())`
-  - with `useState(() => startOfDay(new Date()))`
-- Add helper:
-  - `const setStartDateSafe = (d: Date) => setStartDate(startOfDay(d));`
-- Pass `setStartDateSafe` into `CalendarControls`
-
-Also update `handleReservationDateChange` to use `differenceInCalendarDays` to keep pricing math consistent with date-only logic.
+```text
++------------------------------------------+
+| [CreditCard Icon] Folio Summary    [Open]|  <- Status badge
++------------------------------------------+
+| Folio #           F-GPB-260126-6561      |
+|------------------------------------------|
+| 3 Charges         2 Payments             |  <- NEW: Counts row
+|------------------------------------------|
+| Subtotal                            ৳540 |
+| Tax                                   ৳0 |
+| Service Charge                        ৳0 |
+|------------------------------------------|
+| Total                               ৳540 |
+| Paid                                  ৳0 |
+| Balance Due                         ৳540 |
+|------------------------------------------|
+| Last Updated: Jan 26, 2026 11:30 PM      |  <- NEW
+|------------------------------------------|
+| [+ Add Charge] [Record Payment] [View]   |  <- NEW: Action buttons
++------------------------------------------+
+```
 
 ---
 
-### 2) `src/components/calendar/CalendarControls.tsx`
-**Change**
-- Normalize any date emitted via `onStartDateChange`:
-  - Today button
-  - prev/next navigation
-  - date picker selection
+## Implementation Details
 
-**Why**
-- Ensures startDate never reintroduces a time component.
+### File: `src/components/reservations/ReservationDetailDrawer.tsx`
 
-**Implementation detail**
-- Import `startOfDay`
-- Wrap all `onStartDateChange(...)` calls with `startOfDay(...)`.
+### Step 1: Expand FolioSummary Interface
+Add additional fields to fetch:
+
+```typescript
+interface FolioSummary {
+  id: string;
+  folio_number: string;
+  subtotal: number;
+  tax_amount: number;
+  service_charge: number;
+  total_amount: number;
+  paid_amount: number;
+  balance: number;
+  status: string;
+  updated_at: string;        // NEW
+  created_at: string;        // NEW
+  charges_count: number;     // NEW (computed)
+  payments_count: number;    // NEW (computed)
+}
+```
+
+### Step 2: Update Folio Query
+Modify the query to include folio_items and payments counts:
+
+```typescript
+const { data, error } = await supabase
+  .from("folios")
+  .select(`
+    id, folio_number, subtotal, tax_amount, service_charge, 
+    total_amount, paid_amount, balance, status, updated_at, created_at,
+    folio_items(id, voided),
+    payments(id, voided)
+  `)
+  .eq("reservation_id", reservation.id)
+  .maybeSingle();
+```
+
+Then compute counts:
+```typescript
+return {
+  ...data,
+  charges_count: data.folio_items?.filter(i => !i.voided).length || 0,
+  payments_count: data.payments?.filter(p => !p.voided).length || 0,
+};
+```
+
+### Step 3: Update Card Header with Status Badge
+Add the folio status badge next to the title:
+
+```tsx
+<CardHeader className="pb-3">
+  <div className="flex items-center justify-between">
+    <CardTitle className="flex items-center gap-2 text-sm font-medium">
+      <CreditCard className="h-4 w-4" />
+      Folio Summary
+    </CardTitle>
+    <Badge 
+      variant={folio.status === 'open' ? 'default' : 'secondary'}
+      className={folio.status === 'open' 
+        ? 'bg-emerald-500 hover:bg-emerald-600' 
+        : ''}
+    >
+      {folio.status === 'open' ? 'Open' : 'Closed'}
+    </Badge>
+  </div>
+</CardHeader>
+```
+
+### Step 4: Add Charges/Payments Count Row
+Display counts with icons:
+
+```tsx
+<div className="flex items-center justify-between text-sm py-2 px-3 bg-muted/50 rounded-lg">
+  <div className="flex items-center gap-2">
+    <Receipt className="h-4 w-4 text-muted-foreground" />
+    <span>{folio.charges_count} Charge{folio.charges_count !== 1 ? 's' : ''}</span>
+  </div>
+  <div className="flex items-center gap-2">
+    <Banknote className="h-4 w-4 text-muted-foreground" />
+    <span>{folio.payments_count} Payment{folio.payments_count !== 1 ? 's' : ''}</span>
+  </div>
+</div>
+```
+
+### Step 5: Add Last Updated Timestamp
+Show when folio was last modified:
+
+```tsx
+<div className="text-xs text-muted-foreground text-center pt-2">
+  Last updated: {format(new Date(folio.updated_at), "MMM d, yyyy 'at' h:mm a")}
+</div>
+```
+
+### Step 6: Add Action Buttons (for Open Folios)
+Add quick action buttons at the bottom:
+
+```tsx
+{folio.status === 'open' && (
+  <div className="flex gap-2 pt-3">
+    <Button 
+      size="sm" 
+      variant="outline" 
+      className="flex-1 text-xs"
+      onClick={() => setAddChargeOpen(true)}
+    >
+      <Plus className="h-3 w-3 mr-1" />
+      Add Charge
+    </Button>
+    <Button 
+      size="sm" 
+      variant="outline" 
+      className="flex-1 text-xs"
+      onClick={() => setPaymentOpen(true)}
+    >
+      <CreditCard className="h-3 w-3 mr-1" />
+      Payment
+    </Button>
+    <Button 
+      size="sm" 
+      variant="ghost" 
+      className="text-xs"
+      onClick={() => navigate(`/folios?selected=${folio.id}`)}
+    >
+      <ExternalLink className="h-3 w-3" />
+    </Button>
+  </div>
+)}
+```
+
+### Step 7: Add Dialog States and Import Components
+Add state variables and import the charge/payment dialogs:
+
+```typescript
+import { AddChargeDialog } from "@/components/folios/AddChargeDialog";
+import { RecordPaymentDialog } from "@/components/folios/RecordPaymentDialog";
+import { Receipt, Banknote, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+// In component:
+const navigate = useNavigate();
+const [addChargeOpen, setAddChargeOpen] = useState(false);
+const [paymentOpen, setPaymentOpen] = useState(false);
+```
 
 ---
 
-### 3) `src/hooks/useCalendarReservations.tsx`
-**Change**
-- Build `dateRange` based on a normalized base date
-- Compute `endDate` from the normalized base date
+## Files to Modify
 
-**Why**
-- Keeps the grid columns aligned to midnight days, matching reservation dates.
-
-**Implementation detail**
-- `const base = startOfDay(startDate)`
-- `dateRange.push(addDays(base, i))`
-- `endDate = addDays(base, numDays - 1)`
+| File | Changes |
+|------|---------|
+| `src/components/reservations/ReservationDetailDrawer.tsx` | Expand FolioSummary interface, update query, add status badge, counts, timestamp, and action buttons |
 
 ---
 
-### 4) `src/components/calendar/CalendarTimeline.tsx`
-**Change**
-- Use `differenceInCalendarDays` (not `differenceInDays`) in:
-  - `DraggableReservationBlock` calculations (`startOffset`, `duration`)
-  - the drag constraint calculations (`startOffset`, `duration`) in the map loop around line ~379
-- Normalize `rangeStart` internally defensively:
-  - `const rangeStart = startOfDay(startDate);`
-
-**Why**
-- Removes all sensitivity to time-of-day differences, fixing the “only one day marked” bug.
-- Also fixes drag constraints so users can drag across the correct number of days.
-
-**Expected result**
-- For check-in Jan 26, check-out Jan 28:
-  - Duration = 2 (nights)
-  - Block spans **Jan 26 and Jan 27** columns (standard hotel calendar behavior where checkout day is not an occupied night).
-
-**Note on expectations**
-If you want the block to also color the **checkout day (Jan 28)** column, that’s a separate display choice (inclusive vs exclusive rendering). Standard hotel “nights” calendars show occupancy up to but not including checkout day. After this fix, the block will correctly cover the nights.
-
-If you prefer “inclusive coloring” (26, 27, and 28), I can implement a visual rule:
-- render `displayEnd = addDays(checkOut, 1)` for UI only
-- keep billing/availability logic unchanged
+## Visual Improvements
+- **Status Badge**: Green for "Open", gray for "Closed"
+- **Counts Row**: Muted background with icons for visual grouping
+- **Action Buttons**: Small, subtle buttons that don't overpower the summary
+- **Timestamp**: Small text showing last update time
 
 ---
 
-### 5) (Recommended consistency) `src/components/reservations/ReservationDetailDrawer.tsx`
-**Change**
-- Replace the nights calculation that uses `new Date(...).getTime()` with:
-  - `differenceInCalendarDays(parseISO(check_out_date), parseISO(check_in_date))`
-- Replace date formatting from `new Date(reservation.check_in_date)` to `parseISO(...)`
+## Benefits
+1. **At-a-Glance Information**: Staff can quickly see folio status without opening the full folio
+2. **Quick Actions**: Add charges or payments directly from the reservation drawer
+3. **Activity Overview**: See how many charges and payments exist
+4. **Recency Indicator**: Know when the folio was last updated
 
-**Why**
-- Avoid timezone-related surprises and keep all “nights” calculations consistent across the app.
-
----
-
-## Testing checklist (what we’ll verify in preview)
-1) Go to `/calendar` and set start date to Jan 26.
-2) Modify a reservation to:
-   - Check-in: Jan 26
-   - Check-out: Jan 28
-3) Confirm the reservation block spans **2 columns** (26 and 27), not only 26.
-4) Verify the tooltip still shows “Jan 26 → Jan 28”.
-5) Drag a reservation horizontally and confirm it moves the correct number of days (constraints not broken).
-6) Click Refresh and ensure:
-   - spinner shows while refetching
-   - “Calendar refreshed” toast appears
-   - reservations re-render correctly
-
----
-
-## Risks / edge cases handled
-- Different timezones / times in `Date` objects: neutralized by `startOfDay` + `differenceInCalendarDays`
-- Date picker returning midnight vs “today button” returning “now”: both normalized
-- Drag constraints mismatching block width: fixed by using the same calendar-day math in both places
-
----
-
-## Deliverable
-After implementation, the calendar will reliably show reservation blocks spanning the correct number of days/nights even after date modifications, without requiring manual refresh to “look right.”
