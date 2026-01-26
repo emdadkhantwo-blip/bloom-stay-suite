@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2 } from "lucide-react";
+import { Trash2, Upload, X, Loader2 } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,7 +29,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStaff, type StaffMember } from "@/hooks/useStaff";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import type { AppRole } from "@/types/database";
 
 const ALL_ROLES: { value: AppRole; label: string; description: string }[] = [
@@ -55,15 +57,18 @@ export function StaffDetailDrawer({
   open,
   onOpenChange,
 }: StaffDetailDrawerProps) {
-  const { updateStaff, updateRoles, updatePropertyAccess, deleteStaff, isUpdating, isDeleting } = useStaff();
+  const { updateStaff, updateRoles, updatePropertyAccess, deleteStaff, isUpdating, isDeleting, refetch } = useStaff();
   const { properties } = useTenant();
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Reset form when staff changes
   useEffect(() => {
@@ -72,6 +77,7 @@ export function StaffDetailDrawer({
       setPhone(staff.phone || "");
       setSelectedRoles(staff.roles);
       setSelectedProperties(staff.property_access);
+      setAvatarUrl(staff.avatar_url);
     }
   }, [staff]);
 
@@ -83,6 +89,100 @@ export function StaffDetailDrawer({
       .map((n) => n[0])
       .join("")
       .toUpperCase() || staff.username[0].toUpperCase();
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !staff) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${staff.id}/avatar-${Date.now()}.${fileExt}`;
+
+      // Delete old avatar if exists
+      if (avatarUrl) {
+        const oldPath = avatarUrl.split('/avatars/')[1];
+        if (oldPath) {
+          await supabase.storage.from('avatars').remove([oldPath]);
+        }
+      }
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update the profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: urlData.publicUrl })
+        .eq('id', staff.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(urlData.publicUrl);
+      refetch();
+      toast.success('Avatar uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Failed to upload avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!avatarUrl || !staff) return;
+
+    try {
+      const oldPath = avatarUrl.split('/avatars/')[1];
+      if (oldPath) {
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+
+      // Update the profile to remove avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', staff.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(null);
+      refetch();
+      toast.success('Avatar removed');
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      toast.error('Failed to remove avatar');
+    }
+  };
 
   const handleSaveProfile = () => {
     updateStaff({
@@ -136,23 +236,60 @@ export function StaffDetailDrawer({
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader className="space-y-4">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={staff.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div>
+            <div className="relative group">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={avatarUrl || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {avatarUrl && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={handleRemoveAvatar}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            <div className="flex-1">
               <SheetTitle className="text-left">
                 {staff.full_name || staff.username}
               </SheetTitle>
               <p className="text-sm text-muted-foreground">@{staff.username}</p>
-              <Badge
-                variant={staff.is_active ? "default" : "secondary"}
-                className="mt-1"
-              >
-                {staff.is_active ? "Active" : "Inactive"}
-              </Badge>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge
+                  variant={staff.is_active ? "default" : "secondary"}
+                >
+                  {staff.is_active ? "Active" : "Inactive"}
+                </Badge>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  id="staff-avatar-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Upload className="h-3 w-3 mr-1" />
+                  )}
+                  {isUploadingAvatar ? 'Uploading...' : 'Photo'}
+                </Button>
+              </div>
             </div>
           </div>
         </SheetHeader>
