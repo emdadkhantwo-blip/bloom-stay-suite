@@ -12,7 +12,7 @@ import {
   FileText,
   Clock,
   AlertCircle,
-  CalendarPlus,
+  CalendarDays,
 } from "lucide-react";
 import {
   Sheet,
@@ -361,8 +361,8 @@ export function ReservationDetailDrawer({
                 className="flex-1" 
                 onClick={() => setExtendStayOpen(true)}
               >
-                <CalendarPlus className="mr-2 h-4 w-4" />
-                Extend Stay
+                <CalendarDays className="mr-2 h-4 w-4" />
+                Modify Dates
               </Button>
             )}
             {canCancel && onCancel && (
