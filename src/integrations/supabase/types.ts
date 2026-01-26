@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_applications: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          hotel_name: string
+          id: string
+          logo_url: string | null
+          password: string
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["admin_application_status"]
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          hotel_name: string
+          id?: string
+          logo_url?: string | null
+          password: string
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["admin_application_status"]
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          hotel_name?: string
+          id?: string
+          logo_url?: string | null
+          password?: string
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["admin_application_status"]
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -1828,6 +1879,7 @@ export type Database = {
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      admin_application_status: "pending" | "approved" | "rejected"
       app_role:
         | "superadmin"
         | "owner"
@@ -2020,6 +2072,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_application_status: ["pending", "approved", "rejected"],
       app_role: [
         "superadmin",
         "owner",

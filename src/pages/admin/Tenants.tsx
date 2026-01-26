@@ -17,6 +17,8 @@ import {
   FileText,
   Settings,
   RefreshCw,
+  ClipboardList,
+  Clock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -45,22 +47,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TenantDetailDrawer } from "@/components/admin/TenantDetailDrawer";
+import { ApplicationCard } from "@/components/admin/ApplicationCard";
+import { ApplicationDetailDrawer } from "@/components/admin/ApplicationDetailDrawer";
 import {
   useAdminTenants,
   useUpdateTenantStatus,
   type TenantWithStats,
 } from "@/hooks/useAdminTenants";
+import {
+  useAdminApplications,
+  type AdminApplication,
+} from "@/hooks/useAdminApplications";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 
 export default function AdminTenants() {
   const [search, setSearch] = useState("");
+  const [applicationSearch, setApplicationSearch] = useState("");
   const [selectedTenant, setSelectedTenant] = useState<TenantWithStats | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<AdminApplication | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [applicationDrawerOpen, setApplicationDrawerOpen] = useState(false);
   const { profile } = useAuth();
 
   const { data: tenants = [], isLoading, refetch } = useAdminTenants();
+  const { data: applications = [], isLoading: applicationsLoading, refetch: refetchApplications } = useAdminApplications();
   const updateStatus = useUpdateTenantStatus();
 
   const filteredTenants = tenants.filter(
@@ -70,11 +82,22 @@ export default function AdminTenants() {
       tenant.contact_email?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const filteredApplications = applications.filter(
+    (app) =>
+      app.full_name.toLowerCase().includes(applicationSearch.toLowerCase()) ||
+      app.hotel_name.toLowerCase().includes(applicationSearch.toLowerCase()) ||
+      app.email.toLowerCase().includes(applicationSearch.toLowerCase())
+  );
+
   const totalProperties = tenants.reduce((acc, t) => acc + t.properties_count, 0);
   const totalStaff = tenants.reduce((acc, t) => acc + t.staff_count, 0);
   const totalRooms = tenants.reduce((acc, t) => acc + t.rooms_count, 0);
   const activeTenants = tenants.filter((t) => t.status === "active").length;
   const suspendedTenants = tenants.filter((t) => t.status === "suspended").length;
+
+  const pendingApplications = applications.filter((a) => a.status === "pending").length;
+  const approvedApplications = applications.filter((a) => a.status === "approved").length;
+  const rejectedApplications = applications.filter((a) => a.status === "rejected").length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -111,6 +134,11 @@ export default function AdminTenants() {
   const handleViewTenant = (tenant: TenantWithStats) => {
     setSelectedTenant(tenant);
     setDrawerOpen(true);
+  };
+
+  const handleViewApplication = (application: AdminApplication) => {
+    setSelectedApplication(application);
+    setApplicationDrawerOpen(true);
   };
 
   const handleSuspend = (tenant: TenantWithStats) => {
@@ -159,7 +187,7 @@ export default function AdminTenants() {
               <Button 
                 variant="secondary" 
                 size="sm" 
-                onClick={() => refetch()}
+                onClick={() => { refetch(); refetchApplications(); }}
                 className="bg-white/20 hover:bg-white/30 text-white border-0"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -171,7 +199,7 @@ export default function AdminTenants() {
       </div>
 
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
@@ -188,6 +216,21 @@ export default function AdminTenants() {
         </Card>
 
         <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{pendingApplications}</p>
+                <p className="text-xs text-muted-foreground">Pending Apps</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -197,9 +240,6 @@ export default function AdminTenants() {
               <div>
                 <p className="text-2xl font-bold">{activeTenants}</p>
                 <p className="text-xs text-muted-foreground">Active</p>
-                {suspendedTenants > 0 && (
-                  <p className="text-xs text-destructive">{suspendedTenants} suspended</p>
-                )}
               </div>
             </div>
           </CardContent>
@@ -221,15 +261,15 @@ export default function AdminTenants() {
         </Card>
 
         <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 text-white shadow-lg shadow-violet-500/20">
                 <Users className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalStaff}</p>
-                <p className="text-xs text-muted-foreground">Staff Members</p>
+                <p className="text-xs text-muted-foreground">Staff</p>
               </div>
             </div>
           </CardContent>
@@ -244,7 +284,7 @@ export default function AdminTenants() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalRooms}</p>
-                <p className="text-xs text-muted-foreground">Total Rooms</p>
+                <p className="text-xs text-muted-foreground">Rooms</p>
               </div>
             </div>
           </CardContent>
@@ -284,8 +324,15 @@ export default function AdminTenants() {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="tenants" className="space-y-4">
+      <Tabs defaultValue="applications" className="space-y-4">
         <TabsList className="bg-muted/50">
+          <TabsTrigger value="applications" className="data-[state=active]:bg-background">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Applications
+            {pendingApplications > 0 && (
+              <Badge className="ml-2 h-5 px-1.5 bg-amber-500 text-white">{pendingApplications}</Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="tenants" className="data-[state=active]:bg-background">
             <Building2 className="h-4 w-4 mr-2" />
             Tenants
@@ -295,6 +342,88 @@ export default function AdminTenants() {
             Activity Log
           </TabsTrigger>
         </TabsList>
+
+        {/* Applications Tab */}
+        <TabsContent value="applications" className="space-y-4">
+          {/* Application Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card className="border-l-4 border-l-amber-500">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{pendingApplications}</p>
+                  <p className="text-sm text-muted-foreground">Pending Review</p>
+                </div>
+                <Clock className="h-8 w-8 text-amber-500/50" />
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-emerald-500">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{approvedApplications}</p>
+                  <p className="text-sm text-muted-foreground">Approved</p>
+                </div>
+                <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-rose-500">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{rejectedApplications}</p>
+                  <p className="text-sm text-muted-foreground">Rejected</p>
+                </div>
+                <Ban className="h-8 w-8 text-rose-500/50" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Applications List */}
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-muted/30">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                <div>
+                  <CardTitle className="text-lg">Admin Applications</CardTitle>
+                  <CardDescription>
+                    Review and process hotel management applications
+                  </CardDescription>
+                </div>
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search applications..."
+                    value={applicationSearch}
+                    onChange={(e) => setApplicationSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              {applicationsLoading ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-40" />
+                  ))}
+                </div>
+              ) : filteredApplications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <ClipboardList className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">No applications found</p>
+                  <p className="text-xs text-muted-foreground/70">New applications will appear here</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredApplications.map((application) => (
+                    <ApplicationCard
+                      key={application.id}
+                      application={application}
+                      onView={handleViewApplication}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="tenants" className="space-y-4">
           {/* Tenants Table */}
@@ -459,6 +588,13 @@ export default function AdminTenants() {
         tenant={selectedTenant}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
+      />
+
+      {/* Application Detail Drawer */}
+      <ApplicationDetailDrawer
+        application={selectedApplication}
+        open={applicationDrawerOpen}
+        onOpenChange={setApplicationDrawerOpen}
       />
     </div>
   );

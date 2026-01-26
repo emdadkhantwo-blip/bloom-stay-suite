@@ -1,89 +1,95 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, ArrowRight, Star, CheckCircle } from "lucide-react";
+import { Phone, ArrowRight, Star, CheckCircle, FileText } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+import { AdminApplicationDialog } from "./AdminApplicationDialog";
 
 export function HeroSection() {
-  return (
-    <section className="relative min-h-[90vh] overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroBg})` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/70 to-transparent" />
-      </div>
+  const [applicationDialogOpen, setApplicationDialogOpen] = useState(false);
 
-      {/* Content */}
-      <div className="container relative mx-auto px-4 py-20 md:py-32">
-        <div className="grid items-center gap-12 lg:grid-cols-2">
-          {/* Left Content */}
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-primary-foreground"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              <Badge className="mb-6 bg-success/20 text-success border-0 px-4 py-2">
-                <span className="mr-2 h-2 w-2 rounded-full bg-success animate-pulse inline-block" />
-                ২০০০+ হোটেল বিশ্বস্ত সফটওয়্যার
-              </Badge>
-            </motion.div>
-            
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl"
-            >
-              আপনার <span className="text-info">হোটেল ব্যবসা</span>
-              <br />
-              রূপান্তর করুন
-            </motion.h1>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="mb-8 text-lg opacity-90 md:text-xl max-w-xl"
-            >
-              অল-ইন-ওয়ান ক্লাউড PMS সফটওয়্যার যা আপনার হোটেল অপারেশন সহজ করে তুলবে। 
-              রিজার্ভেশন থেকে হাউসকিপিং - সবকিছু এক প্ল্যাটফর্মে।
-            </motion.p>
-            
+  return (
+    <>
+      <section className="relative min-h-[90vh] overflow-hidden">
+        {/* Background Image with Overlay */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/70 to-transparent" />
+        </div>
+
+        {/* Content */}
+        <div className="container relative mx-auto px-4 py-20 md:py-32">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            {/* Left Content */}
             <motion.div 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-              className="flex flex-col gap-4 sm:flex-row"
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-primary-foreground"
             >
-              <Button 
-                size="lg" 
-                className="bg-info hover:bg-info/90 text-info-foreground gap-2"
-                asChild
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
               >
-                <Link to="/auth">
-                  <Phone className="h-4 w-4" />
-                  যোগাযোগ করুন
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
-                asChild
+                <Badge className="mb-6 bg-success/20 text-success border-0 px-4 py-2">
+                  <span className="mr-2 h-2 w-2 rounded-full bg-success animate-pulse inline-block" />
+                  ২০০০+ হোটেল বিশ্বস্ত সফটওয়্যার
+                </Badge>
+              </motion.div>
+              
+              <motion.h1 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.6 }}
+                className="mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl"
               >
-                <Link to="/auth">ডেমো দেখুন</Link>
-              </Button>
-            </motion.div>
+                আপনার <span className="text-info">হোটেল ব্যবসা</span>
+                <br />
+                রূপান্তর করুন
+              </motion.h1>
+              
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+                className="mb-8 text-lg opacity-90 md:text-xl max-w-xl"
+              >
+                অল-ইন-ওয়ান ক্লাউড PMS সফটওয়্যার যা আপনার হোটেল অপারেশন সহজ করে তুলবে। 
+                রিজার্ভেশন থেকে হাউসকিপিং - সবকিছু এক প্ল্যাটফর্মে।
+              </motion.p>
+              
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.6 }}
+                className="flex flex-col gap-4 sm:flex-row"
+              >
+                <Button 
+                  size="lg" 
+                  className="bg-info hover:bg-info/90 text-info-foreground gap-2"
+                  asChild
+                >
+                  <Link to="/auth">
+                    <Phone className="h-4 w-4" />
+                    যোগাযোগ করুন
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 gap-2"
+                  onClick={() => setApplicationDialogOpen(true)}
+                >
+                  <FileText className="h-4 w-4" />
+                  আবেদন করুন
+                </Button>
+              </motion.div>
 
             {/* Stats */}
             <motion.div 
@@ -208,5 +214,11 @@ export function HeroSection() {
         </div>
       </div>
     </section>
+    
+    <AdminApplicationDialog 
+      open={applicationDialogOpen} 
+      onOpenChange={setApplicationDialogOpen} 
+    />
+  </>
   );
 }
