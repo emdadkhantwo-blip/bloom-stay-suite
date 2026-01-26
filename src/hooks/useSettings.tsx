@@ -102,7 +102,9 @@ export function useSettings() {
     mutationFn: async (updates: Partial<TenantBranding>) => {
       if (!tenant?.id) throw new Error('No tenant found');
 
-      const { error } = await supabase
+      console.log('Updating branding for tenant:', tenant.id, 'with:', updates);
+
+      const { data, error } = await supabase
         .from('tenants')
         .update({
           name: updates.name,
@@ -110,9 +112,22 @@ export function useSettings() {
           contact_email: updates.contact_email,
           contact_phone: updates.contact_phone,
         })
-        .eq('id', tenant.id);
+        .eq('id', tenant.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      // If no data returned, the RLS policy blocked the update
+      if (!data) {
+        throw new Error('Update was blocked by permissions. Please ensure you have owner access.');
+      }
+
+      console.log('Branding update successful:', data);
+      return data;
     },
     onSuccess: () => {
       toast.success('Branding updated successfully');
@@ -120,7 +135,7 @@ export function useSettings() {
     },
     onError: (error) => {
       console.error('Error updating branding:', error);
-      toast.error('Failed to update branding');
+      toast.error(error instanceof Error ? error.message : 'Failed to update branding');
     },
   });
 
@@ -135,12 +150,27 @@ export function useSettings() {
         ...updates,
       };
 
-      const { error } = await supabase
+      console.log('Updating settings for tenant:', tenant.id, 'with:', newSettings);
+
+      const { data, error } = await supabase
         .from('tenants')
         .update({ settings: newSettings as unknown as Record<string, never> })
-        .eq('id', tenant.id);
+        .eq('id', tenant.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      // If no data returned, the RLS policy blocked the update
+      if (!data) {
+        throw new Error('Update was blocked by permissions. Please ensure you have owner access.');
+      }
+
+      console.log('Settings update successful:', data);
+      return data;
     },
     onSuccess: () => {
       toast.success('Settings updated successfully');
@@ -148,7 +178,7 @@ export function useSettings() {
     },
     onError: (error) => {
       console.error('Error updating settings:', error);
-      toast.error('Failed to update settings');
+      toast.error(error instanceof Error ? error.message : 'Failed to update settings');
     },
   });
 
