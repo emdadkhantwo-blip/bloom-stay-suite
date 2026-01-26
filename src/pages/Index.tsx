@@ -5,6 +5,8 @@ import { BeforeAfterSection } from "@/components/landing/BeforeAfterSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { PartnerHotelsSection } from "@/components/landing/PartnerHotelsSection";
+import { PricingSection } from "@/components/landing/PricingSection";
+import { FAQSection } from "@/components/landing/FAQSection";
 import { CTASection } from "@/components/landing/CTASection";
 import { Footer } from "@/components/landing/Footer";
 
@@ -19,6 +21,8 @@ export default function Index() {
         <HowItWorksSection />
         <TestimonialsSection />
         <PartnerHotelsSection />
+        <PricingSection />
+        <FAQSection />
         <CTASection />
       </main>
       <Footer />
