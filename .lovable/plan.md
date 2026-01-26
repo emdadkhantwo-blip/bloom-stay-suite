@@ -1,237 +1,189 @@
 
 
-# Implementation Plan: Guest ID Upload in New Reservation Form
+# Implementation Plan: Calendar Refresh Button and Date Display Fix
 
 ## Overview
-Add a dynamic ID document upload section to the New Reservation form that allows staff to upload identification documents (images/PDFs) for each guest. The number of required uploads adapts based on the total number of adults in the reservation.
+This plan addresses two issues:
+1. Add a **Refresh button** to the `/calendar` page to manually reload calendar data
+2. Fix the **reservation block width display** issue where a 3-night stay appears shorter than expected
 
-## Architecture Decisions
+---
 
-### Storage Approach
-- **Use Supabase Storage** with a new dedicated bucket `guest-documents` (private, not public - IDs contain sensitive PII)
-- Store file URLs in a new `reservation_guest_ids` table linked to reservations
+## Issue Analysis
 
-### Database Design
-Create a new table to store guest ID documents linked to reservations:
+### Current State
+From the database, the reservation "Amdur Reza" has:
+- **Check-In Date**: January 27, 2026 (Tuesday)
+- **Check-Out Date**: January 30, 2026 (Friday)  
+- **Duration**: 3 nights (27th, 28th, 29th)
 
-```text
-+------------------------+
-| reservation_guest_ids  |
-+------------------------+
-| id (uuid, PK)          |
-| tenant_id (uuid, FK)   |
-| reservation_id (uuid)  |
-| guest_number (integer) |  -- 1, 2, 3, etc.
-| document_url (text)    |
-| document_type (text)   |  -- "image" or "pdf"
-| file_name (text)       |
-| uploaded_by (uuid)     |
-| created_at (timestamp) |
-+------------------------+
+The Stay Details panel correctly shows "3 nights", but the calendar block appears to only span about 1-2 days instead of 3 days.
+
+### Root Cause Investigation
+Looking at the `CalendarTimeline.tsx` calculation:
+
+```typescript
+const left = startOffset * CELL_WIDTH;
+const width = duration * CELL_WIDTH - 4;
 ```
+
+The issue is that the reservation block is subtracting 4px from the width for a "gap", but the visual positioning may not be aligning correctly with the actual dates. The block should:
+- Start at column for Jan 27 (startOffset = 1 from Jan 26)
+- Span 3 columns (Jan 27, 28, 29) ending at Jan 30 checkout
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Database Migration
+### Step 1: Add Refresh Button to CalendarControls
 
-**Create storage bucket and table:**
+**File**: `src/components/calendar/CalendarControls.tsx`
 
-1. Create `guest-documents` storage bucket (NOT public for privacy)
-2. Create `reservation_guest_ids` table with proper structure
-3. Add RLS policies for tenant isolation and role-based access
-4. Create storage policies allowing authenticated uploads and authorized reads
+Add a new prop for refresh functionality and a Refresh button:
 
-**SQL Migration:**
-```sql
--- Create storage bucket for guest documents
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('guest-documents', 'guest-documents', false);
+**Changes**:
+1. Add `onRefresh` callback prop to the component interface
+2. Add `isRefreshing` boolean prop to show loading state
+3. Add a Refresh button with `RefreshCw` icon from lucide-react
+4. Position it alongside existing navigation controls
 
--- Create table for reservation guest IDs
-CREATE TABLE public.reservation_guest_ids (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL,
-  reservation_id uuid NOT NULL REFERENCES public.reservations(id) ON DELETE CASCADE,
-  guest_number integer NOT NULL DEFAULT 1,
-  document_url text NOT NULL,
-  document_type text NOT NULL DEFAULT 'image',
-  file_name text,
-  uploaded_by uuid,
-  created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
--- Enable RLS
-ALTER TABLE public.reservation_guest_ids ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies
-CREATE POLICY "Authorized staff can manage reservation_guest_ids"
-  ON public.reservation_guest_ids FOR ALL
-  USING (
-    tenant_id = current_tenant_id() AND (
-      has_role(auth.uid(), 'owner') OR
-      has_role(auth.uid(), 'manager') OR
-      has_role(auth.uid(), 'front_desk')
-    )
-  );
-
-CREATE POLICY "Superadmins full access to reservation_guest_ids"
-  ON public.reservation_guest_ids FOR ALL
-  USING (is_superadmin(auth.uid()));
-
-CREATE POLICY "Tenant users can view reservation_guest_ids"
-  ON public.reservation_guest_ids FOR SELECT
-  USING (tenant_id = current_tenant_id());
-
--- Storage policies for guest-documents bucket
-CREATE POLICY "Authenticated users can upload guest documents"
-  ON storage.objects FOR INSERT
-  TO authenticated
-  WITH CHECK (bucket_id = 'guest-documents');
-
-CREATE POLICY "Tenant users can view their guest documents"
-  ON storage.objects FOR SELECT
-  TO authenticated
-  USING (bucket_id = 'guest-documents');
-
-CREATE POLICY "Authorized staff can delete guest documents"
-  ON storage.objects FOR DELETE
-  TO authenticated
-  USING (bucket_id = 'guest-documents');
-```
-
----
-
-### Step 2: Update NewReservationDialog.tsx
-
-**Add ID upload UI section:**
-
-1. Add state to track uploaded files per guest
-2. Create dynamic upload slots based on `adults` count
-3. Add file validation (image/PDF, max 5MB)
-4. Show preview for images, file name for PDFs
-5. Allow removal of uploaded files
-
-**UI Design:**
 ```text
 +------------------------------------------+
-| Guest ID Documents                       |
-| Upload ID for each adult guest           |
-+------------------------------------------+
-| Guest 1 ID *                             |
-| [Upload Button] or [Image Preview + X]   |
-+------------------------------------------+
-| Guest 2 ID *                             |
-| [Upload Button] or [Image Preview + X]   |
-+------------------------------------------+
-| (dynamically adds more based on adults)  |
+| [<] [Today] [>]  |  [Date Picker]  |  [Days Select]  |  [Refresh] |
 +------------------------------------------+
 ```
 
-**Key code additions:**
-- Import `Upload`, `X`, `FileText` icons
-- Add `guestIdFiles` state: `Map<number, { file: File; preview: string; type: string }>`
-- Create `handleIdUpload(guestNumber, event)` function
-- Create `removeIdFile(guestNumber)` function
-- Render upload cards dynamically based on form's `adults` value
+### Step 2: Update Calendar Page to Handle Refresh
 
----
+**File**: `src/pages/Calendar.tsx`
 
-### Step 3: Update useCreateReservation.tsx
+Add refresh functionality using React Query's refetch:
 
-**Extend mutation to handle file uploads:**
+**Changes**:
+1. Destructure `refetch` and `isRefetching` from `useCalendarReservations` hook
+2. Create `handleRefresh` function that calls `refetch()`
+3. Pass `onRefresh` and `isRefreshing` props to `CalendarControls`
+4. Show toast on successful refresh
 
-1. Update `CreateReservationInput` interface to include optional `idFiles`
-2. After creating reservation, upload each file to storage
-3. Insert records into `reservation_guest_ids` table
-4. Handle upload errors gracefully (don't fail entire reservation)
+### Step 3: Fix Reservation Block Width Calculation
 
-**Updated interface:**
+**File**: `src/components/calendar/CalendarTimeline.tsx`
+
+The current width calculation appears correct mathematically, but there may be an edge case with how visible dates are clamped. Review and verify the calculation:
+
+**Current logic**:
 ```typescript
-export interface CreateReservationInput {
-  // ...existing fields...
-  idFiles?: Map<number, { file: File; type: string; fileName: string }>;
-}
+const visibleStart = checkIn < rangeStart ? rangeStart : checkIn;
+const visibleEnd = checkOut > rangeEnd ? rangeEnd : checkOut;
+
+const startOffset = differenceInDays(visibleStart, rangeStart);
+const duration = differenceInDays(visibleEnd, visibleStart);
+
+const width = duration * CELL_WIDTH - 4;
 ```
 
-**Upload logic in mutationFn:**
-```typescript
-// After reservation is created
-if (input.idFiles && input.idFiles.size > 0) {
-  for (const [guestNumber, fileData] of input.idFiles) {
-    const filePath = `${tenantId}/${reservation.id}/guest-${guestNumber}-${Date.now()}`;
-    
-    // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from('guest-documents')
-      .upload(filePath, fileData.file);
-    
-    if (!uploadError) {
-      // Get signed URL (private bucket)
-      const { data: urlData } = supabase.storage
-        .from('guest-documents')
-        .getPublicUrl(filePath);
-      
-      // Insert record
-      await supabase.from('reservation_guest_ids').insert({
-        tenant_id: tenantId,
-        reservation_id: reservation.id,
-        guest_number: guestNumber,
-        document_url: urlData.publicUrl,
-        document_type: fileData.type,
-        file_name: fileData.fileName,
-        uploaded_by: (await supabase.auth.getUser()).data.user?.id
-      });
-    }
-  }
-}
-```
+**Potential fix**: 
+Ensure that `rangeEnd` is correctly calculated as the last visible date PLUS one day (since checkOut is exclusive - guest leaves on checkout day). The current `rangeEnd = addDays(rangeStart, dateRange.length)` should be correct, but verify the comparison logic.
+
+If needed, add console logging temporarily to debug the actual values during rendering.
+
+### Step 4: Verify Date Parsing is Using Local Time
+
+The project memory indicates that `parseISO` from date-fns should be used for all date parsing to ensure local timezone interpretation. Verify all date operations in CalendarTimeline use this consistently.
 
 ---
 
-### Step 4: Form Reset and Cleanup
-
-**Update form reset logic:**
-- Clear `guestIdFiles` state when dialog closes
-- Clear previews when form resets
-- Revoke object URLs to prevent memory leaks
-
----
-
-## File Changes Summary
+## Files to Modify
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| SQL Migration | New | Create bucket, table, RLS policies |
-| `src/components/reservations/NewReservationDialog.tsx` | Modify | Add ID upload UI section |
-| `src/hooks/useCreateReservation.tsx` | Modify | Handle file uploads after reservation creation |
+| `src/components/calendar/CalendarControls.tsx` | Modify | Add Refresh button and props |
+| `src/pages/Calendar.tsx` | Modify | Add refresh handler and pass to CalendarControls |
+| `src/components/calendar/CalendarTimeline.tsx` | Modify | Review and fix block width calculation if needed |
 
 ---
 
-## Technical Considerations
+## UI Preview
 
-### Security
-- Storage bucket is **private** (guest IDs are PII)
-- RLS ensures only tenant staff can access documents
-- Files are organized by tenant and reservation ID
+### CalendarControls After Changes
+```text
++----------------------------------------------------------------------+
+| [<] [Today] [>]  [Jan 26 - Feb 8, 2026]  [14 Days v]  [Refresh ↻]   |
++----------------------------------------------------------------------+
+```
 
-### File Validation
-- Allowed types: JPEG, PNG, WebP, PDF
-- Max file size: 5MB per file
-- Client-side validation before upload
+### Refresh Button Behavior
+- Shows spinning animation when refreshing
+- Displays "Refreshing..." or changes icon state while loading
+- Shows success toast: "Calendar refreshed"
 
-### User Experience
-- Dynamic upload slots based on adult count
-- Image preview for uploaded images
-- PDF icon for uploaded PDFs
-- Easy removal with X button
-- Clear labels: "Guest 1 ID", "Guest 2 ID", etc.
-- Upload is optional but visible
+---
 
-### Edge Cases
-- Changing adult count after uploads: Keep existing uploads, add/remove slots
-- Form submission without all IDs: Allow (optional uploads)
-- Large files: Reject with toast message
-- Upload failure: Log error, continue with reservation creation
+## Technical Details
+
+### Refresh Button Implementation
+
+```typescript
+// CalendarControls.tsx
+interface CalendarControlsProps {
+  startDate: Date;
+  numDays: number;
+  onStartDateChange: (date: Date) => void;
+  onNumDaysChange: (days: number) => void;
+  onRefresh?: () => void;      // NEW
+  isRefreshing?: boolean;       // NEW
+}
+
+// Add button in the controls JSX:
+<Button 
+  variant="outline" 
+  size="icon" 
+  onClick={onRefresh}
+  disabled={isRefreshing}
+>
+  <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+</Button>
+```
+
+### Calendar Page Refresh Handler
+
+```typescript
+// Calendar.tsx
+const { data, isLoading, refetch, isRefetching } = useCalendarReservations(startDate, numDays);
+
+const handleRefresh = async () => {
+  await refetch();
+  toast.success("Calendar refreshed");
+};
+
+// Pass to CalendarControls:
+<CalendarControls
+  // ...existing props
+  onRefresh={handleRefresh}
+  isRefreshing={isRefetching}
+/>
+```
+
+### Block Width Fix Investigation
+
+The block width for a 3-night stay (Jan 27 - Jan 30) should be:
+- `duration = 3` (differenceInDays between Jan 30 and Jan 27)
+- `width = 3 * 48 - 4 = 140px`
+
+If the visual shows less than 3 columns, potential issues:
+1. The startDate/rangeEnd clamping logic may be cutting off the block
+2. There could be a CSS positioning issue with the left offset
+3. The parent container width may be constraining the block
+
+Debug approach: Add temporary console.log in the component to verify calculated values match expected values.
+
+---
+
+## Testing Checklist
+
+1. Click Refresh button - calendar data reloads with spinning icon
+2. Create a 3-night reservation (e.g., Jan 27-30) and verify block spans 3 columns
+3. Verify existing drag-and-drop functionality still works
+4. Verify Today button and navigation arrows still work
+5. Verify date picker still works for selecting start date
 
