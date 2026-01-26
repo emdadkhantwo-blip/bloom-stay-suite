@@ -82,13 +82,13 @@ export function useHousekeepingStats() {
     queryKey: ['housekeeping-stats', currentProperty?.id],
     queryFn: async () => {
       if (!currentProperty?.id) {
-        return { pending: 0, inProgress: 0, completed: 0, totalRooms: 0, dirtyRooms: 0 };
+        return { pending: 0, inProgress: 0, completed: 0, totalRooms: 0, dirtyRooms: 0, unassignedPending: 0 };
       }
 
-      // Get task counts
+      // Get task counts including assigned_to for unassigned count
       const { data: tasks, error: tasksError } = await supabase
         .from('housekeeping_tasks')
-        .select('status')
+        .select('status, assigned_to')
         .eq('property_id', currentProperty.id);
 
       if (tasksError) throw tasksError;
@@ -102,10 +102,12 @@ export function useHousekeepingStats() {
 
       if (roomsError) throw roomsError;
 
+      const pendingTasks = tasks?.filter(t => t.status === 'pending') || [];
       const taskCounts = {
-        pending: tasks?.filter(t => t.status === 'pending').length || 0,
+        pending: pendingTasks.length,
         inProgress: tasks?.filter(t => t.status === 'in_progress').length || 0,
         completed: tasks?.filter(t => t.status === 'completed').length || 0,
+        unassignedPending: pendingTasks.filter(t => !t.assigned_to).length,
       };
 
       return {
