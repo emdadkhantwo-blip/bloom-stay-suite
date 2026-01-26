@@ -1,5 +1,6 @@
-import { useMemo, forwardRef } from "react";
+import { useMemo, forwardRef, useState } from "react";
 import { format, differenceInDays, isToday, addDays } from "date-fns";
+import { motion, PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +11,12 @@ interface CalendarTimelineProps {
   rooms: CalendarRoom[];
   dateRange: Date[];
   onReservationClick?: (reservation: CalendarReservation) => void;
+  onReservationMove?: (
+    reservationId: string,
+    reservationRoomId: string,
+    newRoomId: string,
+    oldRoomId: string | null
+  ) => void;
 }
 
 const CELL_WIDTH = 48; // pixels per day
@@ -38,8 +45,17 @@ interface ReservationBlockProps {
   onClick?: (reservation: CalendarReservation) => void;
 }
 
-const ReservationBlock = forwardRef<HTMLButtonElement, ReservationBlockProps>(
-  ({ reservation, startDate, dateRange, onClick }, ref) => {
+interface DraggableReservationBlockProps extends ReservationBlockProps {
+  onDragEnd?: (info: PanInfo) => void;
+  roomIndex: number;
+  totalRooms: number;
+  isDragEnabled: boolean;
+}
+
+const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReservationBlockProps>(
+  ({ reservation, startDate, dateRange, onClick, onDragEnd, roomIndex, totalRooms, isDragEnabled }, ref) => {
+    const [isDragging, setIsDragging] = useState(false);
+    
     const rangeStart = startDate;
     const rangeEnd = addDays(rangeStart, dateRange.length);
 
@@ -64,16 +80,35 @@ const ReservationBlock = forwardRef<HTMLButtonElement, ReservationBlockProps>(
 
     const isVip = reservation.guest?.is_vip;
 
+    // Calculate drag constraints
+    const maxUp = -(roomIndex * ROW_HEIGHT);
+    const maxDown = (totalRooms - roomIndex - 1) * ROW_HEIGHT;
+
     return (
-      <button
-        ref={ref}
-        onClick={() => onClick?.(reservation)}
+      <motion.button
+        ref={ref as any}
+        drag={isDragEnabled ? "y" : false}
+        dragMomentum={false}
+        dragElastic={0}
+        dragConstraints={{ top: maxUp, bottom: maxDown }}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={(event, info) => {
+          setIsDragging(false);
+          onDragEnd?.(info);
+        }}
+        onClick={() => !isDragging && onClick?.(reservation)}
         className={cn(
-          "absolute top-1 h-10 rounded-md border px-2 flex items-center gap-1 overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-ring hover:ring-offset-1 hover:z-10",
+          "absolute top-1 h-10 rounded-md border px-2 flex items-center gap-1 overflow-hidden transition-all",
+          isDragging 
+            ? "cursor-grabbing z-50 shadow-lg ring-2 ring-primary" 
+            : isDragEnabled 
+              ? "cursor-grab hover:ring-2 hover:ring-ring hover:ring-offset-1 hover:z-10"
+              : "cursor-pointer hover:ring-2 hover:ring-ring hover:ring-offset-1 hover:z-10",
           STATUS_COLORS[reservation.status],
           STATUS_TEXT_COLORS[reservation.status]
         )}
         style={{ left: `${left}px`, width: `${width}px` }}
+        whileDrag={{ scale: 1.05, opacity: 0.9 }}
       >
         {isVip && <Crown className="h-3 w-3 flex-shrink-0 text-amber-300" />}
         {reservation.status === "checked_in" && (
@@ -83,18 +118,22 @@ const ReservationBlock = forwardRef<HTMLButtonElement, ReservationBlockProps>(
           <CalendarClock className="h-3 w-3 flex-shrink-0" />
         )}
         <span className="truncate text-xs font-medium">{guestName}</span>
-      </button>
+      </motion.button>
     );
   }
 );
-ReservationBlock.displayName = "ReservationBlock";
+DraggableReservationBlock.displayName = "DraggableReservationBlock";
 
 function ReservationBlockWithTooltip({
   reservation,
   startDate,
   dateRange,
   onClick,
-}: ReservationBlockProps) {
+  onDragEnd,
+  roomIndex,
+  totalRooms,
+  isDragEnabled,
+}: DraggableReservationBlockProps) {
   const checkIn = new Date(reservation.check_in_date);
   const checkOut = new Date(reservation.check_out_date);
   const guestName = reservation.guest
@@ -104,11 +143,15 @@ function ReservationBlockWithTooltip({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <ReservationBlock
+        <DraggableReservationBlock
           reservation={reservation}
           startDate={startDate}
           dateRange={dateRange}
           onClick={onClick}
+          onDragEnd={onDragEnd}
+          roomIndex={roomIndex}
+          totalRooms={totalRooms}
+          isDragEnabled={isDragEnabled}
         />
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
@@ -123,14 +166,33 @@ function ReservationBlockWithTooltip({
           <Badge variant="outline" className="text-xs capitalize">
             {reservation.status.replace("_", " ")}
           </Badge>
+          {isDragEnabled && (
+            <div className="text-xs text-muted-foreground italic pt-1">
+              Drag vertically to move to another room
+            </div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>
   );
 }
 
-export function CalendarTimeline({ rooms, dateRange, onReservationClick }: CalendarTimelineProps) {
+export function CalendarTimeline({ 
+  rooms, 
+  dateRange, 
+  onReservationClick,
+  onReservationMove,
+}: CalendarTimelineProps) {
   const startDate = dateRange[0];
+
+  // Create a flat list of rooms with their indices for drag calculations
+  const flatRoomList = useMemo(() => {
+    const list: { room: CalendarRoom; globalIndex: number }[] = [];
+    rooms.forEach((room) => {
+      list.push({ room, globalIndex: list.length });
+    });
+    return list;
+  }, [rooms]);
 
   // Group rooms by floor
   const groupedRooms = useMemo(() => {
@@ -144,6 +206,34 @@ export function CalendarTimeline({ rooms, dateRange, onReservationClick }: Calen
     return floors;
   }, [rooms]);
 
+  const handleDragEnd = (
+    reservation: CalendarReservation,
+    currentRoomId: string,
+    roomIndex: number,
+    info: PanInfo
+  ) => {
+    const deltaY = info.offset.y;
+    const rowsMoved = Math.round(deltaY / ROW_HEIGHT);
+
+    if (rowsMoved === 0) return; // No room change
+
+    const targetRoomIndex = roomIndex + rowsMoved;
+    if (targetRoomIndex < 0 || targetRoomIndex >= flatRoomList.length) return;
+
+    const targetRoom = flatRoomList[targetRoomIndex].room;
+    
+    // Can't move to unassigned row
+    if (targetRoom.id === "unassigned") return;
+
+    // Call the move handler
+    onReservationMove?.(
+      reservation.id,
+      reservation.reservation_room_id,
+      targetRoom.id,
+      currentRoomId === "unassigned" ? null : currentRoomId
+    );
+  };
+
   if (rooms.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border bg-card text-muted-foreground">
@@ -151,6 +241,9 @@ export function CalendarTimeline({ rooms, dateRange, onReservationClick }: Calen
       </div>
     );
   }
+
+  // Track the global row index for proper drag offset calculation
+  let globalRowIndex = 0;
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
@@ -194,57 +287,69 @@ export function CalendarTimeline({ rooms, dateRange, onReservationClick }: Calen
             {/* Floor Header */}
             <div className="flex border-b bg-muted/30">
               <div className="w-32 flex-shrink-0 border-r px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                Floor {floor}
+                {floor === "Other" ? "Unassigned" : `Floor ${floor}`}
               </div>
               <div className="flex-1" />
             </div>
 
             {/* Rooms in this floor */}
-            {floorRooms.map((room) => (
-              <div key={room.id} className="flex border-b hover:bg-muted/20">
-                {/* Room label */}
-                <div className="w-32 flex-shrink-0 border-r px-3 py-2 flex flex-col justify-center">
-                  <span className="font-medium text-sm">{room.room_number}</span>
-                  <span className="text-2xs text-muted-foreground">
-                    {room.room_type?.name || "—"}
-                  </span>
-                </div>
+            {floorRooms.map((room) => {
+              const currentGlobalIndex = globalRowIndex;
+              globalRowIndex++;
+              
+              // Enable drag only if move handler is provided and room is not unassigned
+              const isDragEnabled = !!onReservationMove && room.id !== "unassigned";
+              
+              return (
+                <div key={room.id} className="flex border-b hover:bg-muted/20">
+                  {/* Room label */}
+                  <div className="w-32 flex-shrink-0 border-r px-3 py-2 flex flex-col justify-center">
+                    <span className="font-medium text-sm">{room.room_number}</span>
+                    <span className="text-2xs text-muted-foreground">
+                      {room.room_type?.name || "—"}
+                    </span>
+                  </div>
 
-                {/* Timeline grid with reservations */}
-                <div
-                  className="relative"
-                  style={{
-                    width: `${dateRange.length * CELL_WIDTH}px`,
-                    height: `${ROW_HEIGHT}px`,
-                  }}
-                >
-                  {/* Grid lines */}
-                  <div className="absolute inset-0 flex">
-                    {dateRange.map((date, idx) => (
-                      <div
-                        key={idx}
-                        className={cn(
-                          "border-r h-full",
-                          isToday(date) && "bg-primary/5"
-                        )}
-                        style={{ width: `${CELL_WIDTH}px` }}
+                  {/* Timeline grid with reservations */}
+                  <div
+                    className="relative"
+                    style={{
+                      width: `${dateRange.length * CELL_WIDTH}px`,
+                      height: `${ROW_HEIGHT}px`,
+                    }}
+                  >
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 flex">
+                      {dateRange.map((date, idx) => (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "border-r h-full",
+                            isToday(date) && "bg-primary/5"
+                          )}
+                          style={{ width: `${CELL_WIDTH}px` }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Reservation blocks */}
+                    {room.reservations.map((res) => (
+                      <ReservationBlockWithTooltip
+                        key={`${res.id}-${res.reservation_room_id}`}
+                        reservation={res}
+                        startDate={startDate}
+                        dateRange={dateRange}
+                        onClick={onReservationClick}
+                        onDragEnd={(info) => handleDragEnd(res, room.id, currentGlobalIndex, info)}
+                        roomIndex={currentGlobalIndex}
+                        totalRooms={flatRoomList.length}
+                        isDragEnabled={isDragEnabled}
                       />
                     ))}
                   </div>
-
-                  {/* Reservation blocks */}
-                  {room.reservations.map((res) => (
-                    <ReservationBlockWithTooltip
-                      key={res.id}
-                      reservation={res}
-                      startDate={startDate}
-                      dateRange={dateRange}
-                      onClick={onReservationClick}
-                    />
-                  ))}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

@@ -191,6 +191,9 @@ export function useCheckIn() {
       queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["room-stats", currentPropertyId] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+      });
       toast.success("Guest checked in successfully");
     },
     onError: (error) => {
@@ -243,6 +246,9 @@ export function useCheckOut() {
       queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["room-stats", currentPropertyId] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+      });
       toast.success("Guest checked out successfully");
     },
     onError: (error) => {
@@ -272,6 +278,9 @@ export function useCancelReservation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+      });
       toast.success("Reservation cancelled");
     },
     onError: (error) => {
@@ -283,8 +292,6 @@ export function useCancelReservation() {
 
 export function useUpdateReservation() {
   const queryClient = useQueryClient();
-  const { currentProperty } = useTenant();
-  const currentPropertyId = currentProperty?.id;
 
   return useMutation({
     mutationFn: async ({ 
@@ -309,14 +316,80 @@ export function useUpdateReservation() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
-      queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
-      queryClient.invalidateQueries({ queryKey: ["calendar-reservations"] });
+      // Use predicate to invalidate all matching queries regardless of params
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === "calendar-reservations" ||
+          query.queryKey[0] === "reservations" ||
+          query.queryKey[0] === "reservation-stats"
+      });
       toast.success("Reservation updated successfully");
     },
     onError: (error) => {
       console.error("Update reservation error:", error);
       toast.error("Failed to update reservation");
+    },
+  });
+}
+
+export function useMoveReservationToRoom() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      reservationId,
+      reservationRoomId,
+      newRoomId,
+      oldRoomId,
+    }: {
+      reservationId: string;
+      reservationRoomId: string;
+      newRoomId: string;
+      oldRoomId: string | null;
+    }) => {
+      // Update reservation_rooms with new room_id
+      const { error } = await supabase
+        .from("reservation_rooms")
+        .update({ room_id: newRoomId, updated_at: new Date().toISOString() })
+        .eq("id", reservationRoomId);
+
+      if (error) throw error;
+
+      // If old room was occupied (checked in), mark it as dirty
+      if (oldRoomId) {
+        await supabase
+          .from("rooms")
+          .update({ status: "dirty", updated_at: new Date().toISOString() })
+          .eq("id", oldRoomId);
+      }
+
+      // Check if the reservation is checked in to update new room status
+      const { data: reservation } = await supabase
+        .from("reservations")
+        .select("status")
+        .eq("id", reservationId)
+        .single();
+
+      // Only mark new room as occupied if reservation is checked in
+      if (reservation?.status === "checked_in") {
+        await supabase
+          .from("rooms")
+          .update({ status: "occupied", updated_at: new Date().toISOString() })
+          .eq("id", newRoomId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "calendar-reservations" ||
+          query.queryKey[0] === "rooms" ||
+          query.queryKey[0] === "reservations",
+      });
+      toast.success("Reservation moved to new room");
+    },
+    onError: (error) => {
+      console.error("Move reservation error:", error);
+      toast.error("Failed to move reservation");
     },
   });
 }

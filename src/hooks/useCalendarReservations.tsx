@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
-import { addDays, format, startOfDay, endOfDay, differenceInDays } from "date-fns";
+import { addDays, format } from "date-fns";
 
 export interface CalendarReservation {
   id: string;
@@ -18,6 +18,7 @@ export interface CalendarReservation {
   room_id: string | null;
   room_number: string | null;
   room_type_name: string | null;
+  reservation_room_id: string; // Added for drag-and-drop
 }
 
 export interface CalendarRoom {
@@ -129,6 +130,7 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
               room_id: roomId,
               room_number: rr.room?.room_number || null,
               room_type_name: rr.room_type?.name || null,
+              reservation_room_id: rr.id, // Include the reservation_room id
             };
 
             const existing = roomReservationsMap.get(roomId) || [];
@@ -149,6 +151,7 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
             room_id: null,
             room_number: null,
             room_type_name: reservationRooms[0]?.room_type?.name || null,
+            reservation_room_id: reservationRooms[0]?.id || "", // Include the reservation_room id
           };
           unassignedReservations.push(calendarRes);
         }
