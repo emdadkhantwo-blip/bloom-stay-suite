@@ -74,7 +74,7 @@ export function ReservationListItem({
         <ReservationStatusBadge status={reservation.status} />
       </TableCell>
       <TableCell className="text-right font-medium">
-        ${reservation.total_amount.toLocaleString()}
+        ৳{reservation.total_amount.toLocaleString()}
       </TableCell>
       <TableCell>
         <DropdownMenu>

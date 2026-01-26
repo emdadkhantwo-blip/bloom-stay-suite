@@ -145,6 +145,9 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
       if (!data || data.length === 0) return "No staff members found.";
       return `👥 **${data.length} staff member(s):**\n${data.map((s: any) => `- ${s.full_name} (${s.user_roles?.map((r: any) => r.role).join(', ') || 'No role'})`).join('\n')}`;
     
+    case "create_staff":
+      return `✅ Created staff account for **${data.fullName || args.full_name}**\n- Username: ${data.username || args.username}\n- Role(s): ${(args.roles || []).join(', ')}\n- Password change required: ${args.must_change_password !== false ? 'Yes' : 'No'}`;
+    
     case "search_reservations":
       if (!data || data.length === 0) return "No reservations found.";
       return `📋 **${data.length} reservation(s):**\n${data.slice(0, 5).map((r: any) => `- ${r.confirmation_number}: ${r.guests?.first_name} ${r.guests?.last_name} (${r.status})`).join('\n')}`;
@@ -341,6 +344,7 @@ CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE EXACTLY:
    - "Record payment" → MUST call record_payment(folio_id, amount, payment_method)
    - "Create housekeeping task" → MUST call create_housekeeping_task(room_id, task_type)
    - "Create maintenance ticket" → MUST call create_maintenance_ticket(title, description)
+   - "Create staff/employee" → MUST call create_staff(username, password, full_name, roles[])
 
 3. **BEFORE creating/updating anything:**
    - First, gather ALL required information from the user
@@ -870,6 +874,32 @@ const tools = [
           role: { type: "string", enum: ["owner", "manager", "front_desk", "accountant", "housekeeping", "maintenance", "kitchen", "waiter", "night_auditor"], description: "Filter by role" }
         },
         required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_staff",
+      description: "Create a new staff member account with username and password",
+      parameters: {
+        type: "object",
+        properties: {
+          username: { type: "string", description: "Username for the staff (3-50 chars, alphanumeric and underscore)" },
+          password: { type: "string", description: "Password (min 8 characters)" },
+          full_name: { type: "string", description: "Staff member's full name" },
+          phone: { type: "string", description: "Phone number (optional)" },
+          roles: { 
+            type: "array", 
+            items: { 
+              type: "string", 
+              enum: ["manager", "front_desk", "accountant", "housekeeping", "maintenance", "kitchen", "waiter", "night_auditor"] 
+            },
+            description: "Role(s) to assign" 
+          },
+          must_change_password: { type: "boolean", description: "Require password change on first login (default true)" }
+        },
+        required: ["username", "password", "full_name", "roles"]
       }
     }
   },
@@ -1575,6 +1605,48 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         }
         
         return { success: true, data: staffList };
+      }
+
+      case "create_staff": {
+        // Get property IDs for this tenant
+        const { data: properties, error: propError } = await supabase
+          .from('properties')
+          .select('id')
+          .eq('tenant_id', tenantId);
+        
+        if (propError) throw propError;
+        
+        const propertyIds = properties?.map((p: any) => p.id) || [];
+        
+        if (propertyIds.length === 0) {
+          throw new Error('No properties found for this tenant');
+        }
+        
+        // Call the create-staff edge function
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-staff`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            username: args.username,
+            password: args.password,
+            fullName: args.full_name,
+            phone: args.phone || null,
+            roles: args.roles,
+            propertyIds: propertyIds,
+            mustChangePassword: args.must_change_password !== false
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to create staff');
+        }
+        
+        return { success: true, data: result.user };
       }
 
       case "get_occupancy_report": {

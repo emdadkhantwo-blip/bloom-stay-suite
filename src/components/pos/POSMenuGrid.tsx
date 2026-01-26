@@ -90,7 +90,7 @@ export function POSMenuGrid({ items, categories, onAddItem }: POSMenuGridProps) 
                           <p className="text-xs text-muted-foreground">{item.code}</p>
                         </div>
                         <Badge variant="secondary" className="ml-2 shrink-0">
-                          ${Number(item.price).toFixed(2)}
+                          ৳{Number(item.price).toFixed(2)}
                         </Badge>
                       </div>
                       {item.description && (

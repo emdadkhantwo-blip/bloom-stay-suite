@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Clock, DollarSign, Globe, Calendar, Save, Loader2, AlertTriangle } from 'lucide-react';
 
 const CURRENCIES = [
+  { code: 'BDT', name: 'Bangladeshi Taka', symbol: '৳' },
   { code: 'USD', name: 'US Dollar', symbol: '$' },
   { code: 'EUR', name: 'Euro', symbol: '€' },
   { code: 'GBP', name: 'British Pound', symbol: '£' },
@@ -21,6 +22,7 @@ const CURRENCIES = [
 ];
 
 const TIMEZONES = [
+  { value: 'Asia/Dhaka', label: 'Dhaka (BST)' },
   { value: 'UTC', label: 'UTC' },
   { value: 'America/New_York', label: 'Eastern Time (US)' },
   { value: 'America/Chicago', label: 'Central Time (US)' },
@@ -33,6 +35,7 @@ const TIMEZONES = [
   { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
   { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
   { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Kolkata', label: 'Kolkata (IST)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
 ];
 
@@ -49,8 +52,8 @@ export default function SystemDefaultsSettings() {
   // System defaults
   const [checkInTime, setCheckInTime] = useState(settings.defaults?.check_in_time || '14:00');
   const [checkOutTime, setCheckOutTime] = useState(settings.defaults?.check_out_time || '11:00');
-  const [defaultCurrency, setDefaultCurrency] = useState(settings.defaults?.default_currency || 'USD');
-  const [defaultTimezone, setDefaultTimezone] = useState(settings.defaults?.default_timezone || 'UTC');
+  const [defaultCurrency, setDefaultCurrency] = useState(settings.defaults?.default_currency || 'BDT');
+  const [defaultTimezone, setDefaultTimezone] = useState(settings.defaults?.default_timezone || 'Asia/Dhaka');
   const [dateFormat, setDateFormat] = useState(settings.defaults?.date_format || 'MM/DD/YYYY');
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>(settings.defaults?.time_format || '12h');
   const [cancellationHours, setCancellationHours] = useState(
@@ -63,9 +66,9 @@ export default function SystemDefaultsSettings() {
   useEffect(() => {
     setCheckInTime(settings.defaults?.check_in_time || '14:00');
     setCheckOutTime(settings.defaults?.check_out_time || '11:00');
-    setDefaultCurrency(settings.defaults?.default_currency || 'USD');
-    setDefaultTimezone(settings.defaults?.default_timezone || 'UTC');
-    setDateFormat(settings.defaults?.date_format || 'MM/DD/YYYY');
+    setDefaultCurrency(settings.defaults?.default_currency || 'BDT');
+    setDefaultTimezone(settings.defaults?.default_timezone || 'Asia/Dhaka');
+    setDateFormat(settings.defaults?.date_format || 'DD/MM/YYYY');
     setTimeFormat(settings.defaults?.time_format || '12h');
     setCancellationHours(settings.defaults?.cancellation_policy_hours?.toString() || '24');
     setNoShowCharge(settings.defaults?.no_show_charge_percent?.toString() || '100');

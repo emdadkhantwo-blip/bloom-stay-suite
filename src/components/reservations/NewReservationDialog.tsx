@@ -334,7 +334,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                           <SelectContent>
                             {roomTypes?.map((rt) => (
                               <SelectItem key={rt.id} value={rt.id}>
-                                {rt.name} - ${rt.base_rate}/night
+                                {rt.name} - ৳{rt.base_rate}/night
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -505,7 +505,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                     {nights !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <p className="text-2xl font-bold">${totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">৳{totalAmount.toLocaleString()}</p>
               </div>
 
               <DialogFooter>

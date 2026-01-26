@@ -36,7 +36,7 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
             tick={{ fontSize: 12 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => `$${value}`}
+            tickFormatter={(value) => `৳${value}`}
             className="text-muted-foreground"
           />
           <Tooltip
@@ -45,7 +45,7 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
               border: "1px solid hsl(var(--border))",
               borderRadius: "8px",
             }}
-            formatter={(value: number) => [`$${value.toLocaleString()}`, undefined]}
+            formatter={(value: number) => [`৳${value.toLocaleString()}`, undefined]}
           />
           <Legend />
           <Bar

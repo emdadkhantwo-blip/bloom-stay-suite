@@ -94,15 +94,15 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">Subtotal</p>
-                  <p className="text-lg font-semibold">${Number(displayFolio.subtotal).toLocaleString()}</p>
+                  <p className="text-lg font-semibold">৳{Number(displayFolio.subtotal).toLocaleString()}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">Tax</p>
-                  <p className="text-lg font-semibold">${Number(displayFolio.tax_amount).toLocaleString()}</p>
+                  <p className="text-lg font-semibold">৳{Number(displayFolio.tax_amount).toLocaleString()}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="text-lg font-semibold">${Number(displayFolio.total_amount).toLocaleString()}</p>
+                  <p className="text-lg font-semibold">৳{Number(displayFolio.total_amount).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -110,7 +110,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
                 <div className="text-center p-3 rounded-lg bg-emerald-500/10">
                   <p className="text-xs text-muted-foreground">Paid</p>
                   <p className="text-lg font-semibold text-emerald-600">
-                    ${Number(displayFolio.paid_amount).toLocaleString()}
+                    ৳{Number(displayFolio.paid_amount).toLocaleString()}
                   </p>
                 </div>
                 <div className={cn(
@@ -122,7 +122,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
                     "text-lg font-semibold",
                     hasBalance ? "text-amber-600" : "text-emerald-600"
                   )}>
-                    ${Number(displayFolio.balance).toLocaleString()}
+                    ৳{Number(displayFolio.balance).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            ${Number(item.total_price).toLocaleString()}
+                            ৳{Number(item.total_price).toLocaleString()}
                           </TableCell>
                           {isOpen && (
                             <TableCell>
@@ -190,7 +190,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
                     {voidedItems.map((item) => (
                       <div key={item.id} className="flex items-center justify-between py-2 text-sm text-muted-foreground line-through">
                         <span>{item.description}</span>
-                        <span>${Number(item.total_price).toLocaleString()}</span>
+                        <span>৳{Number(item.total_price).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -232,7 +232,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
                             {format(new Date(payment.created_at), "MMM d, HH:mm")}
                           </TableCell>
                           <TableCell className="text-right text-emerald-600">
-                            ${Number(payment.amount).toLocaleString()}
+                            ৳{Number(payment.amount).toLocaleString()}
                           </TableCell>
                         </TableRow>
                       ))}

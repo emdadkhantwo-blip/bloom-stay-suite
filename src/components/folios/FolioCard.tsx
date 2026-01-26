@@ -57,7 +57,7 @@ export function FolioCard({ folio, onClick }: FolioCardProps) {
         <div className="grid grid-cols-2 gap-2 pt-2 border-t">
           <div>
             <p className="text-xs text-muted-foreground">Total</p>
-            <p className="font-semibold">${Number(folio.total_amount).toLocaleString()}</p>
+            <p className="font-semibold">৳{Number(folio.total_amount).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Balance</p>
@@ -65,7 +65,7 @@ export function FolioCard({ folio, onClick }: FolioCardProps) {
               "font-semibold",
               hasBalance ? "text-amber-600" : "text-emerald-600"
             )}>
-              ${Number(folio.balance).toLocaleString()}
+              ৳{Number(folio.balance).toLocaleString()}
             </p>
           </div>
         </div>

@@ -267,29 +267,29 @@ export function ReservationDetailDrawer({
                   <Separator />
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>${folio.subtotal.toLocaleString()}</span>
+                    <span>৳{folio.subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
-                    <span>${folio.tax_amount.toLocaleString()}</span>
+                    <span>৳{folio.tax_amount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Service Charge</span>
-                    <span>${folio.service_charge.toLocaleString()}</span>
+                    <span>৳{folio.service_charge.toLocaleString()}</span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between text-sm font-medium">
                     <span>Total</span>
-                    <span>${folio.total_amount.toLocaleString()}</span>
+                    <span>৳{folio.total_amount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Paid</span>
-                    <span className="text-green-600">${folio.paid_amount.toLocaleString()}</span>
+                    <span className="text-green-600">৳{folio.paid_amount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>Balance Due</span>
                     <span className={folio.balance > 0 ? "text-red-600" : "text-green-600"}>
-                      ${folio.balance.toLocaleString()}
+                      ৳{folio.balance.toLocaleString()}
                     </span>
                   </div>
                 </div>

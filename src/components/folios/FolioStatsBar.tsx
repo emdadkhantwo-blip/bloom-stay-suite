@@ -36,14 +36,14 @@ export function FolioStatsBar({ stats, isLoading }: FolioStatsBarProps) {
     },
     {
       label: "Outstanding Balance",
-      value: `$${(stats?.total_balance || 0).toLocaleString()}`,
+      value: `৳${(stats?.total_balance || 0).toLocaleString()}`,
       icon: DollarSign,
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
     },
     {
       label: "Today's Revenue",
-      value: `$${(stats?.today_revenue || 0).toLocaleString()}`,
+      value: `৳${(stats?.today_revenue || 0).toLocaleString()}`,
       icon: TrendingUp,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
