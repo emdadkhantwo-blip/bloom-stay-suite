@@ -305,6 +305,7 @@ export function useUpdateReservation() {
         total_amount?: number;
       } 
     }) => {
+      // Update reservation
       const { error } = await supabase
         .from("reservations")
         .update({ 
@@ -314,6 +315,37 @@ export function useUpdateReservation() {
         .eq("id", reservationId);
 
       if (error) throw error;
+
+      // If total_amount is being updated, also update the associated folio
+      if (updates.total_amount !== undefined) {
+        // Get the folio for this reservation
+        const { data: folio, error: folioFetchError } = await supabase
+          .from("folios")
+          .select("id, paid_amount")
+          .eq("reservation_id", reservationId)
+          .maybeSingle();
+
+        if (folioFetchError) {
+          console.error("Error fetching folio:", folioFetchError);
+        }
+
+        if (folio) {
+          // Update folio total and recalculate balance
+          const newBalance = updates.total_amount - (folio.paid_amount || 0);
+          const { error: folioUpdateError } = await supabase
+            .from("folios")
+            .update({
+              total_amount: updates.total_amount,
+              balance: newBalance,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", folio.id);
+
+          if (folioUpdateError) {
+            console.error("Error updating folio:", folioUpdateError);
+          }
+        }
+      }
     },
     onSuccess: () => {
       // Use predicate to invalidate all matching queries regardless of params
@@ -321,7 +353,9 @@ export function useUpdateReservation() {
         predicate: (query) => 
           query.queryKey[0] === "calendar-reservations" ||
           query.queryKey[0] === "reservations" ||
-          query.queryKey[0] === "reservation-stats"
+          query.queryKey[0] === "reservation-stats" ||
+          query.queryKey[0] === "folios" ||
+          query.queryKey[0] === "folio"
       });
       toast.success("Reservation updated successfully");
     },
