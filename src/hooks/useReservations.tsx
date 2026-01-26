@@ -205,7 +205,7 @@ export function useCheckIn() {
 
 export function useCheckOut() {
   const queryClient = useQueryClient();
-  const { currentProperty } = useTenant();
+  const { currentProperty, tenant } = useTenant();
   const currentPropertyId = currentProperty?.id;
 
   return useMutation({
@@ -239,6 +239,29 @@ export function useCheckOut() {
           .in("id", roomIds);
 
         if (roomError) throw roomError;
+
+        // Create pending housekeeping tasks for each room
+        if (tenant?.id && currentPropertyId) {
+          const housekeepingTasks = roomIds.map((roomId) => ({
+            tenant_id: tenant.id,
+            property_id: currentPropertyId,
+            room_id: roomId,
+            task_type: 'cleaning',
+            priority: 2, // Medium priority for checkout cleaning
+            status: 'pending',
+            assigned_to: null, // Unassigned - can be assigned later
+            notes: 'Post-checkout cleaning',
+          }));
+
+          const { error: taskError } = await supabase
+            .from('housekeeping_tasks')
+            .insert(housekeepingTasks);
+
+          if (taskError) {
+            console.error('Failed to create housekeeping tasks:', taskError);
+            // Don't throw - checkout succeeded, task creation is secondary
+          }
+        }
       }
     },
     onSuccess: () => {
@@ -249,6 +272,9 @@ export function useCheckOut() {
       queryClient.invalidateQueries({ 
         predicate: (query) => query.queryKey[0] === "calendar-reservations" 
       });
+      // Invalidate housekeeping queries so new tasks appear immediately
+      queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["housekeeping-stats"] });
       toast.success("Guest checked out successfully");
     },
     onError: (error) => {
