@@ -22,7 +22,12 @@ export default function Calendar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isLoadingReservation, setIsLoadingReservation] = useState(false);
 
-  const { data, isLoading } = useCalendarReservations(startDate, numDays);
+  const { data, isLoading, refetch, isRefetching } = useCalendarReservations(startDate, numDays);
+
+  const handleRefresh = async () => {
+    await refetch();
+    toast.success("Calendar refreshed");
+  };
   
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
@@ -195,6 +200,8 @@ export default function Calendar() {
           numDays={numDays}
           onStartDateChange={setStartDate}
           onNumDaysChange={setNumDays}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefetching}
         />
         <CalendarLegend />
       </div>
