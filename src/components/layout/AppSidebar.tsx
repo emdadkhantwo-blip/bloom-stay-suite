@@ -50,41 +50,41 @@ import { cn } from '@/lib/utils';
 import { type AppRole } from '@/types/database';
 
 const mainNavItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Reservations', url: '/reservations', icon: Calendar },
-  { title: 'Calendar', url: '/calendar', icon: CalendarRange },
-  { title: 'Rooms', url: '/rooms', icon: BedDouble },
-  { title: 'Guests', url: '/guests', icon: Users },
-  { title: 'Corporate', url: '/corporate', icon: Building2 },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, color: 'text-vibrant-blue' },
+  { title: 'Reservations', url: '/reservations', icon: Calendar, color: 'text-vibrant-purple' },
+  { title: 'Calendar', url: '/calendar', icon: CalendarRange, color: 'text-vibrant-indigo' },
+  { title: 'Rooms', url: '/rooms', icon: BedDouble, color: 'text-vibrant-cyan' },
+  { title: 'Guests', url: '/guests', icon: Users, color: 'text-vibrant-green' },
+  { title: 'Corporate', url: '/corporate', icon: Building2, color: 'text-vibrant-purple' },
 ];
 
 const operationsItems = [
-  { title: 'Check-In/Out', url: '/front-desk', icon: Hotel },
-  { title: 'Housekeeping', url: '/housekeeping', icon: ClipboardList },
-  { title: 'Maintenance', url: '/maintenance', icon: Wrench },
+  { title: 'Check-In/Out', url: '/front-desk', icon: Hotel, color: 'text-vibrant-green' },
+  { title: 'Housekeeping', url: '/housekeeping', icon: ClipboardList, color: 'text-vibrant-amber' },
+  { title: 'Maintenance', url: '/maintenance', icon: Wrench, color: 'text-vibrant-rose' },
 ];
 
 const billingItems = [
-  { title: 'Folios', url: '/folios', icon: Receipt },
-  { title: 'Night Audit', url: '/night-audit', icon: Moon },
-  { title: 'Reports', url: '/reports', icon: BarChart3 },
+  { title: 'Folios', url: '/folios', icon: Receipt, color: 'text-vibrant-green' },
+  { title: 'Night Audit', url: '/night-audit', icon: Moon, color: 'text-vibrant-indigo' },
+  { title: 'Reports', url: '/reports', icon: BarChart3, color: 'text-vibrant-cyan' },
 ];
 
 const posItems = [
-  { title: 'POS Terminal', url: '/pos', icon: UtensilsCrossed },
-  { title: 'Kitchen Display', url: '/kitchen', icon: ChefHat },
-  { title: 'Waiter Dashboard', url: '/waiter', icon: Utensils },
+  { title: 'POS Terminal', url: '/pos', icon: UtensilsCrossed, color: 'text-vibrant-orange' },
+  { title: 'Kitchen Display', url: '/kitchen', icon: ChefHat, color: 'text-vibrant-amber' },
+  { title: 'Waiter Dashboard', url: '/waiter', icon: Utensils, color: 'text-vibrant-green' },
 ];
 
 const adminItems = [
-  { title: 'Staff', url: '/staff', icon: UserCircle },
-  { title: 'Properties', url: '/properties', icon: Building2 },
-  { title: 'Settings', url: '/settings', icon: Settings },
+  { title: 'Staff', url: '/staff', icon: UserCircle, color: 'text-vibrant-purple' },
+  { title: 'Properties', url: '/properties', icon: Building2, color: 'text-vibrant-blue' },
+  { title: 'Settings', url: '/settings', icon: Settings, color: 'text-vibrant-cyan' },
 ];
 
 const superAdminItems = [
-  { title: 'Tenants', url: '/admin/tenants', icon: Building2 },
-  { title: 'System Settings', url: '/admin/settings', icon: ShieldCheck },
+  { title: 'Tenants', url: '/admin/tenants', icon: Building2, color: 'text-vibrant-purple' },
+  { title: 'System Settings', url: '/admin/settings', icon: ShieldCheck, color: 'text-vibrant-rose' },
 ];
 
 // Define which routes each role can access
@@ -131,32 +131,88 @@ export function AppSidebar() {
   const canAccessPOS = hasAnyRole(['owner', 'manager']) || 
     (hasFeature('pos') && hasAnyRole(['kitchen', 'waiter']));
 
+  const NavSection = ({ 
+    items, 
+    label, 
+    labelColor 
+  }: { 
+    items: typeof mainNavItems; 
+    label: string;
+    labelColor?: string;
+  }) => (
+    <SidebarGroup>
+      <SidebarGroupLabel className={cn("text-sidebar-muted uppercase tracking-wider text-[10px] font-semibold", labelColor)}>
+        {label}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const active = isActive(item.url);
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  tooltip={collapsed ? item.title : undefined}
+                >
+                  <NavLink
+                    to={item.url}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                      active 
+                        ? "bg-gradient-to-r from-sidebar-primary/20 to-sidebar-primary/5 text-sidebar-primary border-l-2 border-sidebar-primary" 
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                    activeClassName=""
+                  >
+                    <div className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+                      active ? "bg-sidebar-primary/20" : "bg-sidebar-accent/50"
+                    )}>
+                      <item.icon className={cn("h-4 w-4", active ? "text-sidebar-primary" : item.color)} />
+                    </div>
+                    {!collapsed && (
+                      <span className={cn("font-medium", active && "text-sidebar-primary")}>
+                        {item.title}
+                      </span>
+                    )}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-<SidebarHeader className="border-b border-sidebar-border px-2 py-3">
-        <div className="flex items-center gap-2">
-          {/* Logo/Avatar */}
+      {/* Header with gradient accent */}
+      <SidebarHeader className="border-b border-sidebar-border px-3 py-4">
+        <div className="flex items-center gap-3">
+          {/* Logo/Avatar with gradient background */}
           {!isSuperAdmin && tenant?.logo_url ? (
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-background">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-white/10 to-white/5 p-0.5">
               <img 
                 src={tenant.logo_url} 
                 alt={tenant.name} 
-                className="h-full w-full object-cover"
+                className="h-full w-full rounded-[10px] object-cover"
               />
             </div>
           ) : (
             <div className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-md",
+              "flex h-10 w-10 items-center justify-center rounded-xl",
               isSuperAdmin 
-                ? "bg-gradient-to-br from-purple-600 to-indigo-600 text-white" 
-                : "bg-sidebar-primary text-sidebar-primary-foreground"
+                ? "bg-gradient-to-br from-vibrant-purple to-vibrant-pink text-white shadow-lg" 
+                : "bg-gradient-to-br from-vibrant-blue to-vibrant-purple text-white shadow-lg"
             )}>
-              {isSuperAdmin ? <ShieldCheck className="h-4 w-4" /> : <Hotel className="h-4 w-4" />}
+              {isSuperAdmin ? <ShieldCheck className="h-5 w-5" /> : <Hotel className="h-5 w-5" />}
             </div>
           )}
           {!collapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-sm font-semibold text-sidebar-foreground truncate">
+              <span className="text-sm font-bold text-sidebar-foreground truncate">
                 {isSuperAdmin ? 'Platform Admin' : (tenant?.name || 'Hotel PMS')}
               </span>
               <span className="text-2xs text-sidebar-muted truncate">
@@ -167,23 +223,24 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="scrollbar-thin">
+      <SidebarContent className="scrollbar-thin px-2 py-2">
         {/* Property Selector - Hide for superadmin */}
         {!collapsed && !isSuperAdmin && properties.length > 1 && (
-          <div className="px-2 py-2">
+          <div className="px-1 pb-3">
             <DropdownMenu>
                <DropdownMenuTrigger asChild>
-                 <button className="flex w-full items-center justify-between rounded-md bg-sidebar-accent px-2 py-1.5 text-xs text-sidebar-accent-foreground hover:bg-sidebar-accent/80">
+                 <button className="flex w-full items-center justify-between rounded-lg bg-sidebar-accent/50 px-3 py-2 text-xs font-medium text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors">
                 <span className="truncate">{currentProperty?.name}</span>
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-3 w-3 text-sidebar-muted" />
                  </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuContent align="start" className="w-52 bg-popover z-50">
                 {properties.map((property) => (
                   <DropdownMenuItem
                     key={property.id}
                     onClick={() => setCurrentProperty(property)}
                     className={cn(
+                      "cursor-pointer",
                       property.id === currentProperty?.id && 'bg-accent'
                     )}
                   >
@@ -195,192 +252,48 @@ export function AppSidebar() {
           </div>
         )}
 
-        {/* Main Navigation - Only show if user has access to any items and not a superadmin-only session */}
+        {/* Main Navigation */}
         {!isSuperAdmin && filteredMainNavItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-muted">Main</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredMainNavItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection items={filteredMainNavItems} label="Main" />
         )}
 
-        {/* Operations - Only show if user has access to any items */}
+        {/* Operations */}
         {!isSuperAdmin && filteredOperationsItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-muted">Operations</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredOperationsItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection items={filteredOperationsItems} label="Operations" />
         )}
 
-        {/* Billing - Only show if user has access to any items */}
+        {/* Billing */}
         {!isSuperAdmin && filteredBillingItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-muted">Billing</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredBillingItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection items={filteredBillingItems} label="Billing" />
         )}
 
         {/* POS (conditional) */}
         {!isSuperAdmin && canAccessPOS && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-muted">Restaurant</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {posItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection items={posItems} label="Restaurant" />
         )}
 
-        {/* Admin (conditional) - Hide for superadmin-only view */}
+        {/* Admin (conditional) */}
         {!isSuperAdmin && canAccessAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-muted">Admin</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {adminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection items={adminItems} label="Admin" />
         )}
 
         {/* Super Admin */}
         {isSuperAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-muted">Super Admin</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {superAdminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={collapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection items={superAdminItems} label="Super Admin" />
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarFooter className="border-t border-sidebar-border p-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-vibrant-blue/20 to-vibrant-purple/20 text-sidebar-primary">
                 <UserCircle className="h-4 w-4" />
               </div>
               {!collapsed && (
-                <div className="flex flex-1 flex-col items-start text-left">
-                  <span className="text-xs font-medium">{profile?.full_name || profile?.username}</span>
-                  <span className="text-2xs text-sidebar-muted capitalize">
+                <div className="flex flex-1 flex-col items-start text-left min-w-0">
+                  <span className="text-xs font-semibold truncate w-full">{profile?.full_name || profile?.username}</span>
+                  <span className="text-2xs text-sidebar-muted capitalize truncate w-full">
                     {roles[0]?.replace('_', ' ') || 'User'}
                   </span>
                 </div>
@@ -388,15 +301,15 @@ export function AppSidebar() {
               {!collapsed && <ChevronDown className="h-3 w-3 text-sidebar-muted" />}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" className="w-48">
+          <DropdownMenuContent side="top" align="start" className="w-52 bg-popover z-50">
             <DropdownMenuItem asChild>
-              <NavLink to="/profile" className="flex items-center gap-2">
+              <NavLink to="/profile" className="flex items-center gap-2 cursor-pointer">
                 <UserCircle className="h-4 w-4" />
                 Profile
               </NavLink>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut} className="text-destructive">
+            <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </DropdownMenuItem>

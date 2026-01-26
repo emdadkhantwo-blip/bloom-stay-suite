@@ -47,8 +47,37 @@ const statusActions: { status: RoomStatus; label: string; icon: React.ElementTyp
   { status: "out_of_order", label: "Mark Out of Order", icon: AlertTriangle },
 ];
 
+const statusStyles: Record<RoomStatus, { border: string; iconBg: string; iconColor: string }> = {
+  vacant: { 
+    border: "border-l-4 border-l-room-vacant", 
+    iconBg: "bg-vibrant-green-light",
+    iconColor: "text-vibrant-green"
+  },
+  occupied: { 
+    border: "border-l-4 border-l-room-occupied", 
+    iconBg: "bg-vibrant-blue-light",
+    iconColor: "text-vibrant-blue"
+  },
+  dirty: { 
+    border: "border-l-4 border-l-room-dirty", 
+    iconBg: "bg-vibrant-amber-light",
+    iconColor: "text-vibrant-amber"
+  },
+  maintenance: { 
+    border: "border-l-4 border-l-room-maintenance", 
+    iconBg: "bg-vibrant-purple-light",
+    iconColor: "text-vibrant-purple"
+  },
+  out_of_order: { 
+    border: "border-l-4 border-l-room-out-of-order", 
+    iconBg: "bg-vibrant-rose-light",
+    iconColor: "text-vibrant-rose"
+  },
+};
+
 export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const styles = statusStyles[room.status];
 
   const handleStatusChange = (newStatus: RoomStatus) => {
     onStatusChange(room.id, newStatus);
@@ -58,19 +87,27 @@ export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardP
   return (
     <Card
       className={cn(
-        "group relative cursor-pointer transition-all hover:shadow-md",
-        room.status === "occupied" && "border-l-4 border-l-room-occupied",
-        room.status === "vacant" && "border-l-4 border-l-room-vacant",
-        room.status === "dirty" && "border-l-4 border-l-room-dirty",
-        room.status === "maintenance" && "border-l-4 border-l-room-maintenance",
-        room.status === "out_of_order" && "border-l-4 border-l-room-out-of-order"
+        "group relative cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 overflow-hidden",
+        styles.border
       )}
       onClick={onClick}
     >
+      {/* Decorative background gradient */}
+      <div className={cn(
+        "absolute -right-8 -top-8 h-20 w-20 rounded-full opacity-30 transition-transform group-hover:scale-150",
+        room.status === "vacant" && "bg-gradient-to-br from-emerald-400 to-emerald-600",
+        room.status === "occupied" && "bg-gradient-to-br from-blue-400 to-blue-600",
+        room.status === "dirty" && "bg-gradient-to-br from-amber-400 to-amber-600",
+        room.status === "maintenance" && "bg-gradient-to-br from-purple-400 to-purple-600",
+        room.status === "out_of_order" && "bg-gradient-to-br from-rose-400 to-rose-600"
+      )} />
+
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2">
         <div className="flex items-center gap-2">
-          <BedDouble className="h-4 w-4 text-muted-foreground" />
-          <span className="text-lg font-bold">{room.room_number}</span>
+          <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", styles.iconBg)}>
+            <BedDouble className={cn("h-4 w-4", styles.iconColor)} />
+          </div>
+          <span className="text-xl font-bold">{room.room_number}</span>
         </div>
         <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -117,15 +154,15 @@ export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardP
             )}
             {room.floor && <p>Floor {room.floor}</p>}
             {guestName && room.status === "occupied" && (
-              <p className="flex items-center gap-1 text-foreground">
-                <User className="h-3 w-3" />
+              <p className="flex items-center gap-1 text-foreground font-medium">
+                <User className="h-3 w-3 text-vibrant-blue" />
                 {guestName}
               </p>
             )}
           </div>
           
           {room.room_type && (
-            <p className="text-sm font-semibold text-primary">
+            <p className="text-sm font-bold text-vibrant-green">
               ${room.room_type.base_rate.toFixed(0)}/night
             </p>
           )}
