@@ -143,27 +143,54 @@ export function useAdminChat() {
 
       const propertyId = properties?.[0]?.id || '';
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({
-            messages: recentMessages,
-            tenantId: tenant?.id || '',
-            propertyId
-          })
+      // Retry logic with exponential backoff
+      const maxRetries = 3;
+      let response: Response | null = null;
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-chat`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+              },
+              body: JSON.stringify({
+                messages: recentMessages,
+                tenantId: tenant?.id || '',
+                propertyId
+              })
+            }
+          );
+
+          // If not rate limited, break out of retry loop
+          if (response.status !== 429) {
+            break;
+          }
+
+          // Rate limited - wait with exponential backoff
+          const delay = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+          console.log(`Rate limited (attempt ${attempt + 1}/${maxRetries}), waiting ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } catch (err: any) {
+          lastError = err;
+          const delay = 1000 * Math.pow(2, attempt);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
-      );
+      }
+
+      if (!response) {
+        throw lastError || new Error('Failed to connect to chat service');
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
         if (response.status === 429) {
-          throw new Error('আমি এখন একটু ব্যস্ত। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন। (Rate limit exceeded)');
+          throw new Error('সার্ভার এখন ব্যস্ত। অনুগ্রহ করে ১০ সেকেন্ড পরে আবার চেষ্টা করুন। (Rate limit exceeded)');
         }
         if (response.status === 402) {
           throw new Error('AI credits exhausted. Please contact your administrator.');
