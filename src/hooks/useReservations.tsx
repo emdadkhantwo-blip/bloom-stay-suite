@@ -393,3 +393,85 @@ export function useMoveReservationToRoom() {
     },
   });
 }
+
+export function useDeleteReservation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (reservationId: string) => {
+      // First, get reservation rooms to release any assigned rooms
+      const { data: resRooms } = await supabase
+        .from("reservation_rooms")
+        .select("room_id")
+        .eq("reservation_id", reservationId);
+
+      // Get folio IDs first
+      const { data: folios } = await supabase
+        .from("folios")
+        .select("id")
+        .eq("reservation_id", reservationId);
+
+      const folioIds = folios?.map((f) => f.id) || [];
+
+      // Delete folio items if any folios exist
+      if (folioIds.length > 0) {
+        await supabase
+          .from("folio_items")
+          .delete()
+          .in("folio_id", folioIds);
+
+        // Delete payments
+        await supabase
+          .from("payments")
+          .delete()
+          .in("folio_id", folioIds);
+
+        // Delete folios
+        await supabase
+          .from("folios")
+          .delete()
+          .in("id", folioIds);
+      }
+
+      // Delete reservation_rooms (foreign key constraint)
+      const { error: rrError } = await supabase
+        .from("reservation_rooms")
+        .delete()
+        .eq("reservation_id", reservationId);
+
+      if (rrError) throw rrError;
+
+      // Delete the reservation
+      const { error } = await supabase
+        .from("reservations")
+        .delete()
+        .eq("id", reservationId);
+
+      if (error) throw error;
+
+      // Release any occupied rooms back to vacant
+      const roomIds = resRooms?.map((rr) => rr.room_id).filter(Boolean) as string[];
+      if (roomIds.length > 0) {
+        await supabase
+          .from("rooms")
+          .update({ status: "vacant", updated_at: new Date().toISOString() })
+          .in("id", roomIds);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "calendar-reservations" ||
+          query.queryKey[0] === "reservations" ||
+          query.queryKey[0] === "reservation-stats" ||
+          query.queryKey[0] === "rooms" ||
+          query.queryKey[0] === "room-stats",
+      });
+      toast.success("Reservation deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Delete reservation error:", error);
+      toast.error("Failed to delete reservation");
+    },
+  });
+}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
-import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, type Reservation } from "@/hooks/useReservations";
+import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, type Reservation } from "@/hooks/useReservations";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
@@ -27,6 +27,7 @@ export default function Calendar() {
   const checkOut = useCheckOut();
   const cancelReservation = useCancelReservation();
   const moveReservation = useMoveReservationToRoom();
+  const deleteReservation = useDeleteReservation();
 
   const handleReservationClick = async (calendarRes: CalendarReservation) => {
     setIsLoadingReservation(true);
@@ -101,6 +102,13 @@ export default function Calendar() {
     }
   };
 
+  const handleDelete = () => {
+    if (selectedReservation) {
+      deleteReservation.mutate(selectedReservation.id);
+      setSelectedReservation(null);
+    }
+  };
+
   const handleExtendStay = (updatedReservation: Reservation) => {
     // Update the selected reservation with new data
     setSelectedReservation(updatedReservation);
@@ -170,6 +178,7 @@ export default function Calendar() {
         onCheckOut={handleCheckOut}
         onCancel={handleCancel}
         onExtendStay={handleExtendStay}
+        onDelete={handleDelete}
       />
     </div>
   );
