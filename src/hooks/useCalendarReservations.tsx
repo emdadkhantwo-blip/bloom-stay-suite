@@ -18,7 +18,8 @@ export interface CalendarReservation {
   room_id: string | null;
   room_number: string | null;
   room_type_name: string | null;
-  reservation_room_id: string; // Added for drag-and-drop
+  reservation_room_id: string;
+  total_amount: number; // For price recalculation on date changes
 }
 
 export interface CalendarRoom {
@@ -91,6 +92,7 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
           check_in_date,
           check_out_date,
           status,
+          total_amount,
           guest:guests(id, first_name, last_name, is_vip),
           reservation_rooms(
             id,
@@ -130,7 +132,8 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
               room_id: roomId,
               room_number: rr.room?.room_number || null,
               room_type_name: rr.room_type?.name || null,
-              reservation_room_id: rr.id, // Include the reservation_room id
+              reservation_room_id: rr.id,
+              total_amount: res.total_amount,
             };
 
             const existing = roomReservationsMap.get(roomId) || [];
@@ -151,7 +154,8 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
             room_id: null,
             room_number: null,
             room_type_name: reservationRooms[0]?.room_type?.name || null,
-            reservation_room_id: reservationRooms[0]?.id || "", // Include the reservation_room id
+            reservation_room_id: reservationRooms[0]?.id || "",
+            total_amount: res.total_amount,
           };
           unassignedReservations.push(calendarRes);
         }
