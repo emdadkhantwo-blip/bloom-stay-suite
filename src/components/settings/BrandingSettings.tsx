@@ -43,7 +43,18 @@ export default function BrandingSettings() {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !tenant?.id) return;
+    if (!file || !tenant?.id) {
+      console.error('Upload failed: Missing file or tenant', { hasFile: !!file, tenantId: tenant?.id });
+      toast.error('Unable to upload: Missing tenant information');
+      return;
+    }
+
+    console.log('Starting file upload:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      tenantId: tenant.id
+    });
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
@@ -64,35 +75,46 @@ export default function BrandingSettings() {
       // Create a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${tenant.id}/logo-${Date.now()}.${fileExt}`;
+      
+      console.log('Uploading to path:', fileName);
 
       // Delete old logo if exists
       if (logoUrl) {
         const oldPath = logoUrl.split('/hotel-logos/')[1];
         if (oldPath) {
+          console.log('Removing old logo:', oldPath);
           await supabase.storage.from('hotel-logos').remove([oldPath]);
         }
       }
 
       // Upload new logo
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('hotel-logos')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+      
+      console.log('Upload successful:', uploadData);
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('hotel-logos')
         .getPublicUrl(fileName);
+      
+      console.log('Generated public URL:', urlData.publicUrl);
 
       setLogoUrl(urlData.publicUrl);
       toast.success('Logo uploaded successfully');
     } catch (error) {
       console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload logo';
+      toast.error(`Upload failed: ${errorMessage}`);
     } finally {
       setIsUploading(false);
       // Reset file input
