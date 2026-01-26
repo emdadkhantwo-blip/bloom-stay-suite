@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { differenceInDays, parseISO } from "date-fns";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
 import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, useUpdateReservation, type Reservation } from "@/hooks/useReservations";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
@@ -135,14 +136,36 @@ export default function Calendar() {
 
   const handleReservationDateChange = (
     reservationId: string,
+    originalCheckInDate: string,
+    originalCheckOutDate: string,
     newCheckInDate: string,
-    newCheckOutDate: string
+    newCheckOutDate: string,
+    originalTotalAmount: number
   ) => {
+    // Calculate nights difference and new price
+    const originalNights = differenceInDays(
+      parseISO(originalCheckOutDate),
+      parseISO(originalCheckInDate)
+    );
+    const newNights = differenceInDays(
+      parseISO(newCheckOutDate),
+      parseISO(newCheckInDate)
+    );
+
+    // Calculate rate per night from original reservation
+    const ratePerNight = originalNights > 0 
+      ? originalTotalAmount / originalNights 
+      : 0;
+
+    // Calculate new total
+    const newTotalAmount = ratePerNight * newNights;
+
     updateReservation.mutate({
       reservationId,
       updates: {
         check_in_date: newCheckInDate,
         check_out_date: newCheckOutDate,
+        total_amount: newTotalAmount,
       },
     });
   };

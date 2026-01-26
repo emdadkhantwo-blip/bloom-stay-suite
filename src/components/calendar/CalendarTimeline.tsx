@@ -19,8 +19,11 @@ interface CalendarTimelineProps {
   ) => void;
   onReservationDateChange?: (
     reservationId: string,
+    originalCheckInDate: string,
+    originalCheckOutDate: string,
     newCheckInDate: string,
-    newCheckOutDate: string
+    newCheckOutDate: string,
+    originalTotalAmount: number
   ) => void;
 }
 
@@ -244,8 +247,11 @@ export function CalendarTimeline({
       
       onReservationDateChange?.(
         reservation.id,
+        reservation.check_in_date,
+        reservation.check_out_date,
         format(newCheckIn, "yyyy-MM-dd"),
-        format(newCheckOut, "yyyy-MM-dd")
+        format(newCheckOut, "yyyy-MM-dd"),
+        reservation.total_amount
       );
     }
 
