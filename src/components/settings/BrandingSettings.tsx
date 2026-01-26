@@ -233,7 +233,7 @@ export default function BrandingSettings() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your Hotel Name"
-                  className="text-lg font-medium"
+                  className="text-lg font-medium bg-white dark:bg-background"
                 />
                 <p className="text-xs text-muted-foreground">
                   This name will appear in the sidebar and dashboard
@@ -251,6 +251,7 @@ export default function BrandingSettings() {
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
                 placeholder="contact@yourhotel.com"
+                className="bg-white dark:bg-background"
               />
             </div>
             <div className="grid gap-2">
@@ -260,6 +261,7 @@ export default function BrandingSettings() {
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
                 placeholder="+880 1XXX-XXXXXX"
+                className="bg-white dark:bg-background"
               />
             </div>
           </div>
