@@ -24,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ROOM_STATUS_CONFIG, type RoomStatus } from '@/types/database';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { AdminChatbot } from '@/components/admin/AdminChatbot';
 
 interface DashboardStats {
   totalRooms: number;
@@ -550,6 +551,10 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+      </div>
+
+      {/* Admin Chatbot */}
+      <AdminChatbot />
     </div>
   );
 }
