@@ -6,6 +6,52 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to call AI with retry logic for rate limits
+async function callAIWithRetry(
+  apiKey: string,
+  body: any,
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      // If successful or non-retryable error, return immediately
+      if (response.ok || (response.status !== 429 && response.status !== 503)) {
+        return response;
+      }
+
+      // Rate limit or service unavailable - wait and retry
+      if (response.status === 429 || response.status === 503) {
+        const delay = initialDelay * Math.pow(2, attempt); // Exponential backoff
+        console.log(`Rate limited (attempt ${attempt + 1}/${maxRetries}), waiting ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      const delay = initialDelay * Math.pow(2, attempt);
+      console.error(`API call failed (attempt ${attempt + 1}/${maxRetries}):`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  // All retries exhausted
+  throw lastError || new Error('Max retries exceeded for AI API call');
+}
+
 // Helper function to generate readable summaries for tool results
 function generateToolSummary(toolName: string, args: any, result: any): string {
   if (!result.success) {
@@ -1608,24 +1654,17 @@ serve(async (req) => {
     const hotelContext = await getHotelContext(supabase, tenantId);
     const fullSystemPrompt = baseSystemPrompt + hotelContext;
 
-    // Call Lovable AI Gateway
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: fullSystemPrompt },
-          ...messages
-        ],
-        tools,
-        tool_choice: "auto",
-        temperature: 0.7,
-        max_tokens: 2048
-      }),
+    // Call Lovable AI Gateway with retry logic
+    const response = await callAIWithRetry(LOVABLE_API_KEY, {
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: fullSystemPrompt },
+        ...messages
+      ],
+      tools,
+      tool_choice: "auto",
+      temperature: 0.7,
+      max_tokens: 2048
     });
 
     if (!response.ok) {
@@ -1687,24 +1726,17 @@ serve(async (req) => {
         });
       }
 
-      // Call AI again with tool results and summaries
-      const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: fullSystemPrompt + `\n\nIMPORTANT: The following tool(s) were executed. Use the _summary field from each result to create a detailed, friendly response that explains what was done:\n\n${toolSummaries.join('\n\n')}` },
-            ...messages,
-            assistantMessage,
-            ...toolResults
-          ],
-          temperature: 0.7,
-          max_tokens: 2048
-        }),
+      // Call AI again with tool results and summaries (with retry)
+      const followUpResponse = await callAIWithRetry(LOVABLE_API_KEY, {
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: fullSystemPrompt + `\n\nIMPORTANT: The following tool(s) were executed. Use the _summary field from each result to create a detailed, friendly response that explains what was done:\n\n${toolSummaries.join('\n\n')}` },
+          ...messages,
+          assistantMessage,
+          ...toolResults
+        ],
+        temperature: 0.7,
+        max_tokens: 2048
       });
 
       if (!followUpResponse.ok) {
