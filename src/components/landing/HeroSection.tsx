@@ -46,9 +46,9 @@ export function HeroSection() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.6 }}
-                className="mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl"
+                className="mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl text-white drop-shadow-lg"
               >
-                আপনার <span className="text-info">হোটেল ব্যবসা</span>
+                আপনার <span className="text-amber-300">হোটেল ব্যবসা</span>
                 <br />
                 রূপান্তর করুন
               </motion.h1>
@@ -57,7 +57,7 @@ export function HeroSection() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
-                className="mb-8 text-lg opacity-90 md:text-xl max-w-xl"
+                className="mb-8 text-lg md:text-xl max-w-xl text-white/95 drop-shadow-md"
               >
                 অল-ইন-ওয়ান ক্লাউড PMS সফটওয়্যার যা আপনার হোটেল অপারেশন সহজ করে তুলবে। 
                 রিজার্ভেশন থেকে হাউসকিপিং - সবকিছু এক প্ল্যাটফর্মে।
@@ -82,8 +82,7 @@ export function HeroSection() {
                 </Button>
                 <Button 
                   size="lg" 
-                  variant="outline"
-                  className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 gap-2"
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 gap-2 border-0"
                   onClick={() => setApplicationDialogOpen(true)}
                 >
                   <FileText className="h-4 w-4" />
@@ -109,8 +108,8 @@ export function HeroSection() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.7 + index * 0.1, duration: 0.4 }}
                 >
-                  <div className="text-3xl font-bold md:text-4xl">{stat.value}</div>
-                  <div className="text-sm opacity-80">{stat.label}</div>
+                  <div className="text-3xl font-bold md:text-4xl text-white drop-shadow-md">{stat.value}</div>
+                  <div className="text-sm text-white/90">{stat.label}</div>
                 </motion.div>
               ))}
             </motion.div>
