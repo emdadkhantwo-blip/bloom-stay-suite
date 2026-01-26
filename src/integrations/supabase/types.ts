@@ -1867,6 +1867,10 @@ export type Database = {
         Args: { outlet_code: string }
         Returns: string
       }
+      get_auth_email_by_username: {
+        Args: { lookup_username: string }
+        Returns: string
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_property_access: {
         Args: { _property_id: string; _user_id: string }

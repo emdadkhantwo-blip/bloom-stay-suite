@@ -136,24 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (username: string, password: string) => {
     let loginEmail = username;
 
-    // If not already an email, look up the auth_email from profiles table
+    // If not already an email, use RPC function to look up auth_email (bypasses RLS)
     if (!username.includes('@')) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, auth_email')
-        .eq('username', username)
-        .maybeSingle();
+      const { data: authEmail, error: rpcError } = await supabase
+        .rpc('get_auth_email_by_username', { lookup_username: username });
 
-      if (!profile) {
+      if (rpcError || !authEmail) {
         return { error: new Error('User not found') };
       }
 
-      // Use auth_email if available (for staff/approved admins), otherwise fallback to email
-      loginEmail = profile.auth_email || profile.email;
-      
-      if (!loginEmail) {
-        return { error: new Error('User not found') };
-      }
+      loginEmail = authEmail;
     }
 
     const { error } = await supabase.auth.signInWithPassword({
