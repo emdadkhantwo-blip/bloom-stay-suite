@@ -106,7 +106,23 @@ export function useCreateReservation() {
 
       if (folioNumError) throw folioNumError;
 
-      // Create folio
+      // Fetch property rates for tax and service charge
+      const { data: propertyRates } = await supabase
+        .from("properties")
+        .select("tax_rate, service_charge_rate")
+        .eq("id", propertyId)
+        .single();
+
+      const taxRate = propertyRates?.tax_rate || 0;
+      const serviceChargeRate = propertyRates?.service_charge_rate || 0;
+
+      // Calculate folio totals with tax and service charge applied to room cost
+      const folioSubtotal = totalAmount; // Room cost after discount
+      const folioTaxAmount = folioSubtotal * (taxRate / 100);
+      const folioServiceCharge = folioSubtotal * (serviceChargeRate / 100);
+      const folioTotalAmount = folioSubtotal + folioTaxAmount + folioServiceCharge;
+
+      // Create folio with properly initialized financial fields
       const { error: folioError } = await supabase
         .from("folios")
         .insert({
@@ -115,8 +131,11 @@ export function useCreateReservation() {
           guest_id: input.guest_id,
           reservation_id: reservation.id,
           folio_number: folioNumber,
-          total_amount: totalAmount,
-          balance: totalAmount,
+          subtotal: folioSubtotal,
+          tax_amount: folioTaxAmount,
+          service_charge: folioServiceCharge,
+          total_amount: folioTotalAmount,
+          balance: folioTotalAmount,
           status: "open",
         });
 

@@ -465,16 +465,10 @@ export function useNightAudit() {
             chargesPosted++;
             totalRevenue += roomRate + taxAmount;
 
-            // Update folio totals
-            await supabase
-              .from('folios')
-              .update({
-                subtotal: folio.subtotal + roomRate,
-                tax_amount: folio.tax_amount + taxAmount,
-                total_amount: folio.total_amount + roomRate + taxAmount,
-                balance: folio.balance + roomRate + taxAmount,
-              })
-              .eq('id', folio.id);
+            // NOTE: We no longer update folio totals here because they are
+            // already initialized correctly when the reservation is created.
+            // The folio_items entry serves as an audit trail for room charges.
+            // This prevents double-counting the room cost.
           }
         }
       }
