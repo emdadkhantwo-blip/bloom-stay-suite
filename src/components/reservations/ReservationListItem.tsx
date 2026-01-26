@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { MoreHorizontal, LogIn, LogOut, XCircle, Eye, Star } from "lucide-react";
+import { MoreHorizontal, LogIn, LogOut, XCircle, Eye, Star, Trash2 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ interface ReservationListItemProps {
   onCheckOut: (reservationId: string) => void;
   onCancel: (reservationId: string) => void;
   onView: (reservationId: string) => void;
+  onDelete?: (reservationId: string) => void;
 }
 
 export function ReservationListItem({
@@ -26,6 +27,7 @@ export function ReservationListItem({
   onCheckOut,
   onCancel,
   onView,
+  onDelete,
 }: ReservationListItemProps) {
   const guestName = reservation.guest
     ? `${reservation.guest.first_name} ${reservation.guest.last_name}`
@@ -43,6 +45,7 @@ export function ReservationListItem({
   const canCheckIn = reservation.status === "confirmed";
   const canCheckOut = reservation.status === "checked_in";
   const canCancel = reservation.status === "confirmed";
+  const canDelete = reservation.status === "confirmed" || reservation.status === "cancelled";
 
   return (
     <TableRow className="hover:bg-muted/50">
@@ -111,6 +114,18 @@ export function ReservationListItem({
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Cancel Reservation
+                </DropdownMenuItem>
+              </>
+            )}
+            {canDelete && onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => onDelete(reservation.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Reservation
                 </DropdownMenuItem>
               </>
             )}

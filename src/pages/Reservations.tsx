@@ -6,6 +6,7 @@ import {
   useCheckIn,
   useCheckOut,
   useCancelReservation,
+  useDeleteReservation,
   type ReservationStatus,
   type Reservation,
 } from "@/hooks/useReservations";
@@ -41,6 +42,7 @@ export default function Reservations() {
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   const cancelReservation = useCancelReservation();
+  const deleteReservation = useDeleteReservation();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -172,6 +174,13 @@ export default function Reservations() {
     }
   };
 
+  const handleDrawerDelete = () => {
+    if (selectedReservation) {
+      deleteReservation.mutate(selectedReservation.id);
+      setSelectedReservation(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -237,6 +246,7 @@ export default function Reservations() {
                   onCheckOut={handleCheckOut}
                   onCancel={handleCancel}
                   onView={handleView}
+                  onDelete={(id) => deleteReservation.mutate(id)}
                 />
               ))}
             </TableBody>
@@ -305,6 +315,7 @@ export default function Reservations() {
         onCheckIn={handleDrawerCheckIn}
         onCheckOut={handleDrawerCheckOut}
         onCancel={handleDrawerCancel}
+        onDelete={handleDrawerDelete}
       />
 
       {/* New Reservation Dialog */}

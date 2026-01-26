@@ -13,6 +13,7 @@ import {
   Clock,
   AlertCircle,
   CalendarDays,
+  Trash2,
 } from "lucide-react";
 import {
   Sheet,
@@ -23,6 +24,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReservationStatusBadge } from "./ReservationStatusBadge";
@@ -38,6 +50,7 @@ interface ReservationDetailDrawerProps {
   onCheckOut?: () => void;
   onCancel?: () => void;
   onExtendStay?: (updatedReservation: Reservation) => void;
+  onDelete?: () => void;
 }
 
 interface FolioSummary {
@@ -60,8 +73,10 @@ export function ReservationDetailDrawer({
   onCheckOut,
   onCancel,
   onExtendStay,
+  onDelete,
 }: ReservationDetailDrawerProps) {
   const [extendStayOpen, setExtendStayOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Fetch folio data for this reservation
   const { data: folio, isLoading: isFolioLoading } = useQuery({
@@ -93,6 +108,7 @@ export function ReservationDetailDrawer({
   const canCheckOut = reservation.status === "checked_in";
   const canExtendStay = reservation.status === "confirmed" || reservation.status === "checked_in";
   const canCancel = reservation.status === "confirmed";
+  const canDelete = reservation.status === "confirmed" || reservation.status === "cancelled";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -370,7 +386,37 @@ export function ReservationDetailDrawer({
                 Cancel
               </Button>
             )}
-            {!canCheckIn && !canCheckOut && !canCancel && !canExtendStay && (
+            {canDelete && onDelete && (
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Reservation</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this reservation ({reservation.confirmation_number})? 
+                      This action cannot be undone and will also remove any associated folios and payments.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        onDelete();
+                        onOpenChange(false);
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            {!canCheckIn && !canCheckOut && !canCancel && !canExtendStay && !canDelete && (
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
