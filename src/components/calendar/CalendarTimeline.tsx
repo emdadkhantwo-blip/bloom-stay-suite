@@ -1,5 +1,5 @@
 import { useMemo, forwardRef, useState } from "react";
-import { format, differenceInDays, isToday, addDays } from "date-fns";
+import { format, differenceInDays, isToday, addDays, parseISO } from "date-fns";
 import { motion, PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -59,8 +59,8 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
     const rangeStart = startDate;
     const rangeEnd = addDays(rangeStart, dateRange.length);
 
-    const checkIn = new Date(reservation.check_in_date);
-    const checkOut = new Date(reservation.check_out_date);
+    const checkIn = parseISO(reservation.check_in_date);
+    const checkOut = parseISO(reservation.check_out_date);
 
     // Clamp to visible range
     const visibleStart = checkIn < rangeStart ? rangeStart : checkIn;
@@ -134,8 +134,8 @@ function ReservationBlockWithTooltip({
   totalRooms,
   isDragEnabled,
 }: DraggableReservationBlockProps) {
-  const checkIn = new Date(reservation.check_in_date);
-  const checkOut = new Date(reservation.check_out_date);
+  const checkIn = parseISO(reservation.check_in_date);
+  const checkOut = parseISO(reservation.check_out_date);
   const guestName = reservation.guest
     ? `${reservation.guest.first_name} ${reservation.guest.last_name}`
     : "Unknown Guest";
