@@ -273,8 +273,49 @@ PERSONALITY:
 - Always confirm actions before executing them when it involves creating/modifying data
 - Provide helpful suggestions proactively
 
-CAPABILITIES:
-You can help administrators with:
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE EXACTLY:
+═══════════════════════════════════════════════════════════════════════════════
+
+1. **NEVER claim to have performed ANY action without ACTUALLY calling a tool**
+   - If a user asks you to CREATE something, you MUST call the appropriate tool
+   - If a user asks you to UPDATE something, you MUST call the appropriate tool
+   - If a user asks you to DELETE something, you MUST call the appropriate tool
+   - You CANNOT create, update, or delete ANYTHING without calling a tool
+   - Database changes ONLY happen when you call tools - there is NO other way
+
+2. **MANDATORY TOOL CALLS FOR ACTIONS:**
+   - "Create a room" → MUST call create_room(room_number, room_type_id)
+   - "Create reservation" → MUST call create_reservation(guest_id, check_in_date, check_out_date, room_type_id, adults)
+   - "Create guest" → MUST call create_guest(first_name, last_name)
+   - "Check in guest" → MUST call check_in_guest(reservation_id)
+   - "Check out guest" → MUST call check_out_guest(reservation_id)
+   - "Create room type" → MUST call create_room_type(name, code, base_rate, max_occupancy)
+   - "Add charge" → MUST call add_folio_charge(folio_id, item_type, description, amount)
+   - "Record payment" → MUST call record_payment(folio_id, amount, payment_method)
+   - "Create housekeeping task" → MUST call create_housekeeping_task(room_id, task_type)
+   - "Create maintenance ticket" → MUST call create_maintenance_ticket(title, description)
+
+3. **BEFORE creating/updating anything:**
+   - First, gather ALL required information from the user
+   - Ask clarifying questions if any required field is missing
+   - For create_room: you need room_number AND room_type_id (get from context or ask)
+   - For create_reservation: you need guest_id, check_in_date, check_out_date, room_type_id, adults
+
+4. **AFTER attempting an action:**
+   - Only report SUCCESS if the tool returned success: true
+   - If tool returned success: false, report the error and suggest alternatives
+   - Include specific details from the tool response (confirmation numbers, IDs, amounts)
+
+5. **ABSOLUTELY FORBIDDEN:**
+   - Saying "I have created..." without a tool call
+   - Fabricating confirmation numbers, IDs, or any data
+   - Pretending an action succeeded when no tool was called
+   - Making up room numbers, guest names, or any details not from context
+
+═══════════════════════════════════════════════════════════════════════════════
+
+CAPABILITIES - What you CAN do:
 - Creating and managing reservations (create_reservation, search_reservations, update_reservation_status)
 - Guest management (create_guest, search_guests, check_in_guest, check_out_guest)
 - Room management (create_room, get_rooms, update_room_status)
@@ -285,30 +326,21 @@ You can help administrators with:
 - Folios and payments (add_folio_charge, record_payment, get_folios)
 - Night audit (run_night_audit, get_night_audit_status)
 - POS operations (create_pos_outlet, create_pos_order, get_pos_orders)
-- Staff management (get_staff_list - note: for security, staff creation requires the dedicated staff creation flow)
+- Staff management (get_staff_list)
 - Reports and statistics (get_dashboard_stats, get_occupancy_report)
 
-RESPONSE STYLE - CRITICAL:
-- After executing ANY tool/action, you MUST provide a clear, detailed summary including:
-  * What action was performed with specific details
-  * Key details like names, room numbers, confirmation numbers, amounts
-  * The outcome (success/failure)
-  * Suggested next steps if applicable
-- NEVER just say "I completed the action" - always describe WHAT was done with specifics
+RESPONSE STYLE:
+- After executing ANY tool/action, provide a clear summary with specifics
 - Use bullet points for multiple items
-- Format numbers with proper currency (৳ for BDT)
-- Use markdown formatting for clarity (bold for important info, lists for multiple items)
+- Format amounts with ৳ for BDT
+- Use markdown formatting for clarity
 
 IMPORTANT RULES:
 - Always verify guest/room details before major actions
-- Ask for confirmation on destructive operations (cancellations, deletions)
-- If unsure about any parameter, ask clarifying questions
-- Never expose sensitive data like passwords or internal IDs unnecessarily
-- When creating records, always confirm the details with the user first
-- Use the current date for relative dates like "today", "tomorrow"
-- If a tool call fails, explain the error in a friendly way and suggest alternatives
-- When users ask about rooms, guests, or staff - USE the knowledge provided below to answer directly
-- You have access to ALL hotel data below - use it to answer questions without needing to call tools
+- Ask for confirmation on destructive operations
+- If unsure about any parameter, ASK FIRST before calling any tool
+- Never expose sensitive data unnecessarily
+- Use the current date for relative dates like "today"
 
 CONTEXT:
 - Current date: ${new Date().toISOString().split('T')[0]}
@@ -1707,9 +1739,38 @@ serve(async (req) => {
       });
     }
 
-    // No tool calls, just return the message
+    // No tool calls - check for hallucination (claiming to have done something without tools)
+    const responseContent = (assistantMessage.content || '').toLowerCase();
+    const creationPatterns = [
+      'i have created', 'i\'ve created', 'created successfully',
+      'i have added', 'i\'ve added', 'added successfully',
+      'i have made', 'i\'ve made', 'made successfully',
+      'room has been created', 'reservation has been created',
+      'guest has been created', 'successfully created',
+      'তৈরি করেছি', 'সম্পন্ন হয়েছে', 'করা হয়েছে'
+    ];
+    
+    const claimsAction = creationPatterns.some(pattern => responseContent.includes(pattern));
+    
+    if (claimsAction) {
+      console.warn('HALLUCINATION DETECTED: AI claimed action without tool calls. Original response:', assistantMessage.content);
+      
+      // Override with a corrective response
+      return new Response(JSON.stringify({
+        message: "I understand you want me to perform an action. However, I need to confirm the details first before I can proceed. Could you please confirm or provide:\n\n1. **What would you like me to create/do?**\n2. **All required details** (e.g., room number, guest name, dates)\n\nOnce you confirm, I'll execute the action for you.",
+        warning: "Action requires confirmation",
+        toolCalls: [],
+        toolResults: []
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // No tool calls needed, just return the informational message
     return new Response(JSON.stringify({
-      message: assistantMessage.content
+      message: assistantMessage.content,
+      toolCalls: [],
+      toolResults: []
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

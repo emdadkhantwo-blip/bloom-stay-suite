@@ -1,9 +1,10 @@
-import { Bot, User, CheckCircle, XCircle, Loader2, Copy, Check } from 'lucide-react';
+import { Bot, User, CheckCircle, XCircle, Loader2, Copy, Check, Wrench, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType } from '@/hooks/useAdminChat';
 import ReactMarkdown from 'react-markdown';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -133,9 +134,33 @@ export function ChatMessage({ message, showDate }: ChatMessageProps) {
             </div>
           )}
 
-          {/* Tool Results */}
+          {/* Tool Execution Indicator */}
+          {!isUser && !isLoading && message.toolCalls && message.toolCalls.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Badge variant="default" className="bg-green-600 hover:bg-green-600 text-white text-[10px] px-1.5 py-0.5">
+                <Wrench className="h-2.5 w-2.5 mr-1" />
+                {message.toolCalls.length} action{message.toolCalls.length > 1 ? 's' : ''} executed
+              </Badge>
+              {message.toolCalls.map((tc, idx) => (
+                <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                  {tc.name?.replace(/_/g, ' ')}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* No tools executed for assistant message (informational) */}
+          {!isUser && !isLoading && (!message.toolCalls || message.toolCalls.length === 0) && message.content.length > 50 && (
+            <div className="mt-2">
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 opacity-60">
+                ℹ️ Informational response
+              </Badge>
+            </div>
+          )}
+
+          {/* Tool Results with success/failure */}
           {message.toolResults && message.toolResults.length > 0 && (
-            <div className="mt-2 space-y-1">
+            <div className="mt-1 space-y-1">
               {message.toolResults.map((result, index) => (
                 <div 
                   key={index}
@@ -152,8 +177,7 @@ export function ChatMessage({ message, showDate }: ChatMessageProps) {
                     <XCircle className="h-3 w-3" />
                   )}
                   <span>
-                    {message.toolCalls?.[index]?.name?.replace(/_/g, ' ') || 'Action'}
-                    {result.success ? ' ✓' : ' ✗'}
+                    {result.success ? 'Success' : result.error || 'Failed'}
                   </span>
                 </div>
               ))}
