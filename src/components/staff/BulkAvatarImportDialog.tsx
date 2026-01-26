@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Upload, 
   ImageIcon, 
@@ -17,7 +24,8 @@ import {
   XCircle, 
   AlertCircle,
   Loader2,
-  FolderOpen
+  FolderOpen,
+  UserPlus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff, type StaffMember } from "@/hooks/useStaff";
@@ -33,6 +41,7 @@ interface UploadResult {
   matchedStaff: StaffMember | null;
   status: 'pending' | 'uploading' | 'success' | 'error' | 'no-match';
   error?: string;
+  manuallyMapped?: boolean;
 }
 
 export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportDialogProps) {
@@ -42,6 +51,15 @@ export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportD
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get staff members that are not already matched to any file
+  const getAvailableStaff = (currentIndex: number) => {
+    const matchedStaffIds = uploadResults
+      .filter((r, idx) => idx !== currentIndex && r.matchedStaff)
+      .map(r => r.matchedStaff!.id);
+    
+    return staff.filter(s => !matchedStaffIds.includes(s.id));
+  };
 
   const findMatchingStaff = (filename: string): StaffMember | null => {
     // Remove file extension
@@ -91,12 +109,30 @@ export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportD
       return {
         filename: file.name,
         matchedStaff,
-        status: matchedStaff ? 'pending' : 'no-match'
+        status: matchedStaff ? 'pending' : 'no-match',
+        manuallyMapped: false
       };
     });
     
     setUploadResults(results);
     setProgress(0);
+  };
+
+  const handleManualMap = (index: number, staffId: string) => {
+    if (staffId === 'none') {
+      // Clear mapping
+      setUploadResults(prev => prev.map((r, idx) => 
+        idx === index ? { ...r, matchedStaff: null, status: 'no-match' as const, manuallyMapped: false } : r
+      ));
+      return;
+    }
+
+    const selectedStaff = staff.find(s => s.id === staffId);
+    if (selectedStaff) {
+      setUploadResults(prev => prev.map((r, idx) => 
+        idx === index ? { ...r, matchedStaff: selectedStaff, status: 'pending' as const, manuallyMapped: true } : r
+      ));
+    }
   };
 
   const handleUpload = async () => {
@@ -199,6 +235,7 @@ export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportD
   const pendingCount = uploadResults.filter(r => r.status === 'pending').length;
   const successCount = uploadResults.filter(r => r.status === 'success').length;
   const errorCount = uploadResults.filter(r => r.status === 'error').length;
+  const unmatchedCount = uploadResults.filter(r => r.status === 'no-match').length;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -206,7 +243,8 @@ export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportD
         <DialogHeader>
           <DialogTitle>Bulk Avatar Import</DialogTitle>
           <DialogDescription>
-            Upload multiple images. Filenames should match staff usernames (e.g., john_doe.jpg for @john_doe).
+            Upload multiple images. Filenames should match staff usernames (e.g., john_doe.jpg for @john_doe). 
+            You can manually assign unmatched images.
           </DialogDescription>
         </DialogHeader>
 
@@ -247,6 +285,12 @@ export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportD
               <Badge variant={matchedCount > 0 ? "default" : "secondary"}>
                 {matchedCount} matched
               </Badge>
+              {unmatchedCount > 0 && (
+                <Badge variant="secondary">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {unmatchedCount} unmatched
+                </Badge>
+              )}
               {successCount > 0 && (
                 <Badge className="bg-green-500">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -274,37 +318,69 @@ export function BulkAvatarImportDialog({ open, onOpenChange }: BulkAvatarImportD
 
           {/* File List */}
           {uploadResults.length > 0 && (
-            <ScrollArea className="h-[200px] border rounded-md p-2">
+            <ScrollArea className="h-[280px] border rounded-md p-2">
               <div className="space-y-2">
                 {uploadResults.map((result, idx) => (
                   <div 
                     key={idx}
-                    className="flex items-center justify-between p-2 rounded bg-muted/50"
+                    className="flex items-center justify-between gap-2 p-2 rounded bg-muted/50"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <ImageIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <span className="text-sm truncate">{result.filename}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {result.status === 'pending' && result.matchedStaff && (
-                        <Badge variant="outline" className="text-xs">
-                          → @{result.matchedStaff.username}
-                        </Badge>
-                      )}
-                      {result.status === 'no-match' && (
-                        <Badge variant="secondary" className="text-xs">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          No match
-                        </Badge>
-                      )}
+                      {/* Show status for completed/in-progress uploads */}
                       {result.status === 'uploading' && (
                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
                       )}
                       {result.status === 'success' && (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            @{result.matchedStaff?.username}
+                          </Badge>
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        </div>
                       )}
                       {result.status === 'error' && (
-                        <XCircle className="h-4 w-4 text-destructive" />
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            @{result.matchedStaff?.username}
+                          </Badge>
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        </div>
+                      )}
+                      
+                      {/* Show matched staff or manual mapping select for pending/no-match */}
+                      {(result.status === 'pending' || result.status === 'no-match') && (
+                        <Select
+                          value={result.matchedStaff?.id || 'none'}
+                          onValueChange={(value) => handleManualMap(idx, value)}
+                          disabled={isUploading}
+                        >
+                          <SelectTrigger className="w-[160px] h-8 text-xs">
+                            <SelectValue placeholder="Select staff...">
+                              {result.matchedStaff ? (
+                                <span className="flex items-center gap-1">
+                                  {result.manuallyMapped && <UserPlus className="h-3 w-3" />}
+                                  @{result.matchedStaff.username}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Select staff...</span>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="none" className="text-xs text-muted-foreground">
+                              No assignment
+                            </SelectItem>
+                            {getAvailableStaff(idx).map((s) => (
+                              <SelectItem key={s.id} value={s.id} className="text-xs">
+                                @{s.username} {s.full_name && `(${s.full_name})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       )}
                     </div>
                   </div>
