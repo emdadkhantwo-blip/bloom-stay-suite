@@ -15,6 +15,8 @@ interface InvoiceData {
   taxAmount: number;
   serviceCharge: number;
   totalAmount: number;
+  paidAmount: number;
+  balance: number;
 }
 
 const formatAmount = (amount: number): string => {
@@ -206,6 +208,26 @@ export function openInvoicePrintView(data: InvoiceData) {
           color: #2563eb;
         }
 
+        .charges-table .paid-row td {
+          background: #dcfce7;
+          color: #166534;
+          font-weight: 600;
+        }
+
+        .charges-table .paid-row td:last-child {
+          color: #166534;
+        }
+
+        .charges-table .balance-row td {
+          background: #fef2f2;
+          color: #991b1b;
+          font-weight: 600;
+        }
+
+        .charges-table .balance-row td:last-child {
+          color: #991b1b;
+        }
+
         .footer {
           margin-top: 60px;
           text-align: center;
@@ -308,6 +330,14 @@ export function openInvoicePrintView(data: InvoiceData) {
             <tr class="total-row">
               <td>Total</td>
               <td>${formatAmount(data.totalAmount)}</td>
+            </tr>
+            <tr>
+              <td>Amount Paid</td>
+              <td>${formatAmount(data.paidAmount)}</td>
+            </tr>
+            <tr class="${data.balance <= 0 ? 'paid-row' : 'balance-row'}">
+              <td><strong>${data.balance <= 0 ? 'Payment Status' : 'Balance Due'}</strong></td>
+              <td><strong>${data.balance <= 0 ? '✓ PAID IN FULL' : formatAmount(data.balance)}</strong></td>
             </tr>
           </tbody>
         </table>
