@@ -19,6 +19,7 @@ export type GuestInsert = {
   city?: string;
   country?: string;
   notes?: string;
+  is_vip?: boolean;
 };
 
 export type GuestUpdate = Partial<GuestInsert> & {
