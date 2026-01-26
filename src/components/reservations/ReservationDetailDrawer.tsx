@@ -37,7 +37,7 @@ interface ReservationDetailDrawerProps {
   onCheckIn?: () => void;
   onCheckOut?: () => void;
   onCancel?: () => void;
-  onExtendStay?: () => void;
+  onExtendStay?: (updatedReservation: Reservation) => void;
 }
 
 interface FolioSummary {
@@ -382,8 +382,8 @@ export function ReservationDetailDrawer({
             reservation={reservation}
             open={extendStayOpen}
             onOpenChange={setExtendStayOpen}
-            onSuccess={() => {
-              onExtendStay?.();
+            onSuccess={(updatedReservation) => {
+              onExtendStay?.(updatedReservation);
             }}
           />
         </div>

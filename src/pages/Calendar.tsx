@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
-import { useCheckIn, useCheckOut, useCancelReservation, type Reservation } from "@/hooks/useReservations";
+import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, type Reservation } from "@/hooks/useReservations";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
@@ -26,6 +26,7 @@ export default function Calendar() {
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   const cancelReservation = useCancelReservation();
+  const moveReservation = useMoveReservationToRoom();
 
   const handleReservationClick = async (calendarRes: CalendarReservation) => {
     setIsLoadingReservation(true);
@@ -100,9 +101,27 @@ export default function Calendar() {
     }
   };
 
-  const handleExtendStay = () => {
-    // Refresh calendar data after extending stay
-    queryClient.invalidateQueries({ queryKey: ["calendar-reservations"] });
+  const handleExtendStay = (updatedReservation: Reservation) => {
+    // Update the selected reservation with new data
+    setSelectedReservation(updatedReservation);
+    // Refresh calendar data
+    queryClient.invalidateQueries({ 
+      predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+    });
+  };
+
+  const handleReservationMove = (
+    reservationId: string,
+    reservationRoomId: string,
+    newRoomId: string,
+    oldRoomId: string | null
+  ) => {
+    moveReservation.mutate({
+      reservationId,
+      reservationRoomId,
+      newRoomId,
+      oldRoomId,
+    });
   };
 
   if (isLoading) {
@@ -139,6 +158,7 @@ export default function Calendar() {
         rooms={data?.rooms || []}
         dateRange={data?.dateRange || []}
         onReservationClick={handleReservationClick}
+        onReservationMove={handleReservationMove}
       />
 
       {/* Reservation Detail Drawer */}

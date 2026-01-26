@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format, differenceInDays, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,12 +20,13 @@ import { cn } from "@/lib/utils";
 import { useUpdateReservation } from "@/hooks/useReservations";
 import type { Reservation } from "@/hooks/useReservations";
 import { formatCurrency } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ExtendStayDialogProps {
   reservation: Reservation;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (updatedReservation: Reservation) => void;
 }
 
 export function ExtendStayDialog({
@@ -39,6 +40,8 @@ export function ExtendStayDialog({
   
   const [newCheckInDate, setNewCheckInDate] = useState<Date | undefined>(originalCheckIn);
   const [newCheckOutDate, setNewCheckOutDate] = useState<Date | undefined>(originalCheckOut);
+  const [isChecking, setIsChecking] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
   
   const updateReservation = useUpdateReservation();
 
@@ -76,20 +79,92 @@ export function ExtendStayDialog({
     };
   }, [newCheckInDate, newCheckOutDate, originalCheckIn, originalCheckOut, averageRatePerNight, reservation.total_amount]);
 
+  // Check room availability for the new date range
+  const checkRoomAvailability = async (): Promise<{
+    available: boolean;
+    conflicts: string[];
+  }> => {
+    if (!newCheckInDate || !newCheckOutDate) {
+      return { available: false, conflicts: [] };
+    }
+
+    // Get the room_id from reservation_rooms
+    const roomId = reservation.reservation_rooms?.[0]?.room_id;
+    if (!roomId) {
+      // No room assigned, no conflict possible
+      return { available: true, conflicts: [] };
+    }
+
+    const newCheckIn = format(newCheckInDate, "yyyy-MM-dd");
+    const newCheckOut = format(newCheckOutDate, "yyyy-MM-dd");
+
+    // Query for overlapping reservations (excluding current)
+    const { data: conflicts, error } = await supabase
+      .from("reservations")
+      .select(`
+        id,
+        confirmation_number,
+        check_in_date,
+        check_out_date,
+        reservation_rooms!inner(room_id)
+      `)
+      .neq("id", reservation.id)
+      .eq("reservation_rooms.room_id", roomId)
+      .in("status", ["confirmed", "checked_in"])
+      .lte("check_in_date", newCheckOut)
+      .gt("check_out_date", newCheckIn);
+
+    if (error) {
+      console.error("Availability check error:", error);
+      return { available: true, conflicts: [] }; // Fail open
+    }
+
+    return {
+      available: conflicts.length === 0,
+      conflicts: conflicts.map((c) => c.confirmation_number),
+    };
+  };
+
   const handleConfirm = async () => {
     if (!newCheckInDate || !newCheckOutDate || newNights <= 0) return;
 
-    await updateReservation.mutateAsync({
-      reservationId: reservation.id,
-      updates: {
+    setIsChecking(true);
+    setConflictError(null);
+
+    // Check availability first
+    const { available, conflicts } = await checkRoomAvailability();
+
+    if (!available) {
+      setConflictError(`Room not available. Conflicts with: ${conflicts.join(", ")}`);
+      setIsChecking(false);
+      return;
+    }
+
+    try {
+      await updateReservation.mutateAsync({
+        reservationId: reservation.id,
+        updates: {
+          check_in_date: format(newCheckInDate, "yyyy-MM-dd"),
+          check_out_date: format(newCheckOutDate, "yyyy-MM-dd"),
+          total_amount: newTotal,
+        },
+      });
+
+      // Construct the updated reservation with new values
+      const updatedReservation: Reservation = {
+        ...reservation,
         check_in_date: format(newCheckInDate, "yyyy-MM-dd"),
         check_out_date: format(newCheckOutDate, "yyyy-MM-dd"),
         total_amount: newTotal,
-      },
-    });
+      };
 
-    onOpenChange(false);
-    onSuccess?.();
+      onOpenChange(false);
+      onSuccess?.(updatedReservation);
+    } catch (error) {
+      console.error("Update error:", error);
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   // Reset dates when dialog opens
@@ -97,6 +172,7 @@ export function ExtendStayDialog({
     if (isOpen) {
       setNewCheckInDate(originalCheckIn);
       setNewCheckOutDate(originalCheckOut);
+      setConflictError(null);
     }
     onOpenChange(isOpen);
   };
@@ -139,6 +215,14 @@ export function ExtendStayDialog({
             </div>
           </div>
 
+          {/* Conflict Error */}
+          {conflictError && (
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {conflictError}
+            </div>
+          )}
+
           {/* New Check-In Date Picker */}
           <div className="space-y-2">
             <label className="text-sm font-medium">New Check-In Date</label>
@@ -165,6 +249,7 @@ export function ExtendStayDialog({
                   selected={newCheckInDate}
                   onSelect={(date) => {
                     setNewCheckInDate(date);
+                    setConflictError(null);
                     // Ensure check-out is after check-in
                     if (date && newCheckOutDate && date >= newCheckOutDate) {
                       setNewCheckOutDate(undefined);
@@ -204,7 +289,10 @@ export function ExtendStayDialog({
                 <Calendar
                   mode="single"
                   selected={newCheckOutDate}
-                  onSelect={setNewCheckOutDate}
+                  onSelect={(date) => {
+                    setNewCheckOutDate(date);
+                    setConflictError(null);
+                  }}
                   disabled={(date) => 
                     (newCheckInDate ? date <= newCheckInDate : false)
                   }
@@ -271,9 +359,9 @@ export function ExtendStayDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!isValid || updateReservation.isPending}
+            disabled={!isValid || updateReservation.isPending || isChecking}
           >
-            {updateReservation.isPending ? "Updating..." : "Confirm Changes"}
+            {isChecking ? "Checking availability..." : updateReservation.isPending ? "Updating..." : "Confirm Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
