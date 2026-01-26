@@ -215,6 +215,8 @@ export interface CheckoutResult {
     taxAmount: number;
     serviceCharge: number;
     totalAmount: number;
+    paidAmount: number;
+    balance: number;
     invoiceNumber: string;
     reservationId: string;
   } | null;
@@ -255,7 +257,7 @@ export function useCheckOut() {
       // Get folio for financial data
       const { data: folio, error: folioError } = await supabase
         .from("folios")
-        .select("folio_number, subtotal, tax_amount, service_charge, total_amount")
+        .select("folio_number, subtotal, tax_amount, service_charge, total_amount, paid_amount, balance")
         .eq("reservation_id", reservationId)
         .maybeSingle();
 
@@ -401,6 +403,8 @@ export function useCheckOut() {
         taxAmount: folio?.tax_amount || 0,
         serviceCharge: folio?.service_charge || 0,
         totalAmount: folio?.total_amount || 0,
+        paidAmount: folio?.paid_amount || 0,
+        balance: folio?.balance || 0,
         invoiceNumber: folio?.folio_number || `INV-${reservationId.slice(0, 8)}`,
         reservationId,
       };

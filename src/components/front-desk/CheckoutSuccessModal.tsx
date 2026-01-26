@@ -23,6 +23,8 @@ export interface CheckoutData {
   taxAmount: number;
   serviceCharge: number;
   totalAmount: number;
+  paidAmount: number;
+  balance: number;
   invoiceNumber: string;
   reservationId: string;
 }
@@ -62,6 +64,8 @@ export function CheckoutSuccessModal({
       taxAmount: checkoutData.taxAmount,
       serviceCharge: checkoutData.serviceCharge,
       totalAmount: checkoutData.totalAmount,
+      paidAmount: checkoutData.paidAmount,
+      balance: checkoutData.balance,
     });
   };
 
