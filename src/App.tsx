@@ -29,6 +29,7 @@ import Waiter from "./pages/Waiter";
 import CorporateAccounts from "./pages/CorporateAccounts";
 import AdminTenants from "./pages/admin/Tenants";
 import AdminApplications from "./pages/admin/Applications";
+import Profile from "./pages/Profile";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const queryClient = new QueryClient();
@@ -354,6 +355,16 @@ const AppRoutes = () => (
             <AdminApplications />
           </DashboardLayout>
         </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/profile"
+      element={
+        <ProtectedRoute>
+          <DashboardLayout title="Profile">
+            <Profile />
+          </DashboardLayout>
+        </ProtectedRoute>
       }
     />
 
