@@ -1,0 +1,264 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create Supabase client with user's token
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify the user is a superadmin
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getUser(token);
+    
+    if (claimsError || !claimsData.user) {
+      console.error("Auth error:", claimsError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.user.id;
+
+    // Check if user is superadmin using service role
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: roleData, error: roleError } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "superadmin")
+      .maybeSingle();
+
+    if (roleError || !roleData) {
+      console.error("Role check error:", roleError);
+      return new Response(
+        JSON.stringify({ error: "Only superadmins can approve applications" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get the application ID from request body
+    const { applicationId } = await req.json();
+    
+    if (!applicationId) {
+      return new Response(
+        JSON.stringify({ error: "Application ID is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Approving application:", applicationId);
+
+    // Fetch the application
+    const { data: application, error: appError } = await adminClient
+      .from("admin_applications")
+      .select("*")
+      .eq("id", applicationId)
+      .single();
+
+    if (appError || !application) {
+      console.error("Application fetch error:", appError);
+      return new Response(
+        JSON.stringify({ error: "Application not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (application.status !== "pending") {
+      return new Response(
+        JSON.stringify({ error: "Application has already been processed" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Generate internal email for auth
+    const slug = application.hotel_name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    const internalEmail = `${application.username}@${slug}.hotel.local`;
+
+    console.log("Creating auth user with email:", internalEmail);
+
+    // Step 1: Create auth user
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email: internalEmail,
+      password: application.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: application.full_name,
+        username: application.username,
+      },
+    });
+
+    if (authError) {
+      console.error("Auth user creation error:", authError);
+      return new Response(
+        JSON.stringify({ error: `Failed to create user: ${authError.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const newUserId = authData.user.id;
+    console.log("Created auth user:", newUserId);
+
+    // Step 2: Create tenant
+    const tenantSlug = `tenant-${newUserId.substring(0, 8)}`;
+    const { data: tenant, error: tenantError } = await adminClient
+      .from("tenants")
+      .insert({
+        name: application.hotel_name,
+        slug: tenantSlug,
+        contact_email: application.email,
+        contact_phone: application.phone,
+        logo_url: application.logo_url,
+        status: "active",
+      })
+      .select()
+      .single();
+
+    if (tenantError) {
+      console.error("Tenant creation error:", tenantError);
+      // Rollback: delete auth user
+      await adminClient.auth.admin.deleteUser(newUserId);
+      return new Response(
+        JSON.stringify({ error: `Failed to create tenant: ${tenantError.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Created tenant:", tenant.id);
+
+    // Step 3: Create profile
+    const { error: profileError } = await adminClient
+      .from("profiles")
+      .insert({
+        id: newUserId,
+        username: application.username,
+        email: application.email,
+        full_name: application.full_name,
+        phone: application.phone,
+        tenant_id: tenant.id,
+        is_active: true,
+        must_change_password: false,
+      });
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError);
+      // Rollback
+      await adminClient.from("tenants").delete().eq("id", tenant.id);
+      await adminClient.auth.admin.deleteUser(newUserId);
+      return new Response(
+        JSON.stringify({ error: `Failed to create profile: ${profileError.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Created profile");
+
+    // Step 4: Assign owner role
+    const { error: roleAssignError } = await adminClient
+      .from("user_roles")
+      .insert({
+        user_id: newUserId,
+        role: "owner",
+      });
+
+    if (roleAssignError) {
+      console.error("Role assignment error:", roleAssignError);
+      // Continue anyway, can be fixed manually
+    }
+
+    console.log("Assigned owner role");
+
+    // Step 5: Create default property
+    const { data: property, error: propertyError } = await adminClient
+      .from("properties")
+      .insert({
+        tenant_id: tenant.id,
+        name: application.hotel_name,
+        code: "MAIN",
+        email: application.email,
+        phone: application.phone,
+        status: "active",
+      })
+      .select()
+      .single();
+
+    if (propertyError) {
+      console.error("Property creation error:", propertyError);
+      // Continue anyway
+    } else {
+      console.log("Created property:", property.id);
+
+      // Step 6: Grant property access
+      const { error: accessError } = await adminClient
+        .from("property_access")
+        .insert({
+          user_id: newUserId,
+          property_id: property.id,
+        });
+
+      if (accessError) {
+        console.error("Property access error:", accessError);
+      }
+    }
+
+    // Step 7: Update application status
+    const { error: updateError } = await adminClient
+      .from("admin_applications")
+      .update({
+        status: "approved",
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", applicationId);
+
+    if (updateError) {
+      console.error("Application update error:", updateError);
+    }
+
+    console.log("Application approved successfully");
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Application approved successfully",
+        userId: newUserId,
+        tenantId: tenant.id,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    console.error("Unexpected error:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
