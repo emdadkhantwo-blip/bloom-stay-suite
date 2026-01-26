@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { format, addDays, startOfWeek, startOfMonth, subDays } from "date-fns";
+import { ChevronLeft, ChevronRight, CalendarDays, RefreshCw } from "lucide-react";
+import { format, addDays, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface CalendarControlsProps {
@@ -11,6 +11,8 @@ interface CalendarControlsProps {
   numDays: number;
   onStartDateChange: (date: Date) => void;
   onNumDaysChange: (days: number) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function CalendarControls({
@@ -18,6 +20,8 @@ export function CalendarControls({
   numDays,
   onStartDateChange,
   onNumDaysChange,
+  onRefresh,
+  isRefreshing,
 }: CalendarControlsProps) {
   const endDate = addDays(startDate, numDays - 1);
 
@@ -84,6 +88,18 @@ export function CalendarControls({
           <SelectItem value="30">30 Days</SelectItem>
         </SelectContent>
       </Select>
+
+      {/* Refresh Button */}
+      {onRefresh && (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+        </Button>
+      )}
     </div>
   );
 }

@@ -67,6 +67,7 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
     const [isDragging, setIsDragging] = useState(false);
     
     const rangeStart = startDate;
+    // rangeEnd should be the day AFTER the last visible day (exclusive)
     const rangeEnd = addDays(rangeStart, dateRange.length);
 
     const checkIn = parseISO(reservation.check_in_date);
@@ -79,10 +80,11 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
     const startOffset = differenceInDays(visibleStart, rangeStart);
     const duration = differenceInDays(visibleEnd, visibleStart);
 
+    // Skip if no visible portion
     if (duration <= 0) return null;
 
-    const left = startOffset * CELL_WIDTH;
-    const width = duration * CELL_WIDTH - 4; // 4px gap
+    const left = startOffset * CELL_WIDTH + 2; // 2px padding from left edge
+    const width = duration * CELL_WIDTH - 4; // 4px total gap (2px on each side)
 
     const guestName = reservation.guest
       ? `${reservation.guest.first_name} ${reservation.guest.last_name}`
