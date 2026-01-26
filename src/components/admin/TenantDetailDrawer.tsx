@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import {
   Building2,
@@ -8,6 +9,7 @@ import {
   Calendar,
   CheckCircle2,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import {
   Sheet,
@@ -16,6 +18,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +40,7 @@ import {
   useTenantFeatureFlags,
   useToggleFeatureFlag,
   useUpdateTenantStatus,
+  useDeleteTenant,
   type TenantWithStats,
 } from "@/hooks/useAdminTenants";
 import { AuditLogViewer } from "./AuditLogViewer";
@@ -52,11 +65,22 @@ export function TenantDetailDrawer({
   open,
   onOpenChange,
 }: TenantDetailDrawerProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { data: featureFlags = [] } = useTenantFeatureFlags(tenant?.id);
   const toggleFeature = useToggleFeatureFlag();
   const updateStatus = useUpdateTenantStatus();
+  const deleteTenant = useDeleteTenant();
 
   if (!tenant) return null;
+
+  const handleDeleteTenant = () => {
+    deleteTenant.mutate(tenant.id, {
+      onSuccess: () => {
+        setShowDeleteDialog(false);
+        onOpenChange(false);
+      },
+    });
+  };
 
   const getFeatureEnabled = (featureName: string) => {
     const flag = featureFlags.find((f) => f.feature_name === featureName);
@@ -226,6 +250,24 @@ export function TenantDetailDrawer({
                       </Button>
                     )}
                   </div>
+                  
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-destructive">Danger Zone</p>
+                    <p className="text-xs text-muted-foreground">
+                      Permanently delete this tenant and all associated data. This action cannot be undone.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="w-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Tenant
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -295,6 +337,38 @@ export function TenantDetailDrawer({
           </ScrollArea>
         </Tabs>
       </SheetContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete <strong>{tenant.name}</strong>? 
+              This will remove all associated data including:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>{tenant.properties_count} properties</li>
+                <li>{tenant.staff_count} staff members</li>
+                <li>{tenant.rooms_count} rooms</li>
+                <li>All reservations, folios, and guest data</li>
+              </ul>
+              <p className="mt-3 text-destructive font-medium">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTenant}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTenant.isPending}
+            >
+              {deleteTenant.isPending ? "Deleting..." : "Delete Tenant"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
