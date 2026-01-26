@@ -107,12 +107,38 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
 
       // Map room_id to reservations
       const roomReservationsMap = new Map<string, CalendarReservation[]>();
+      const unassignedReservations: CalendarReservation[] = [];
 
       reservations?.forEach((res) => {
-        res.reservation_rooms?.forEach((rr: any) => {
+        const reservationRooms = res.reservation_rooms || [];
+        
+        // Track if this reservation has any room assignments
+        let hasRoomAssignment = false;
+        
+        reservationRooms.forEach((rr: any) => {
           const roomId = rr.room_id;
-          if (!roomId) return;
+          if (roomId) {
+            hasRoomAssignment = true;
+            const calendarRes: CalendarReservation = {
+              id: res.id,
+              confirmation_number: res.confirmation_number,
+              check_in_date: res.check_in_date,
+              check_out_date: res.check_out_date,
+              status: res.status as CalendarReservation["status"],
+              guest: res.guest as CalendarReservation["guest"],
+              room_id: roomId,
+              room_number: rr.room?.room_number || null,
+              room_type_name: rr.room_type?.name || null,
+            };
 
+            const existing = roomReservationsMap.get(roomId) || [];
+            existing.push(calendarRes);
+            roomReservationsMap.set(roomId, existing);
+          }
+        });
+
+        // If no room assignment, add to unassigned list
+        if (!hasRoomAssignment && reservationRooms.length > 0) {
           const calendarRes: CalendarReservation = {
             id: res.id,
             confirmation_number: res.confirmation_number,
@@ -120,15 +146,12 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
             check_out_date: res.check_out_date,
             status: res.status as CalendarReservation["status"],
             guest: res.guest as CalendarReservation["guest"],
-            room_id: roomId,
-            room_number: rr.room?.room_number || null,
-            room_type_name: rr.room_type?.name || null,
+            room_id: null,
+            room_number: null,
+            room_type_name: reservationRooms[0]?.room_type?.name || null,
           };
-
-          const existing = roomReservationsMap.get(roomId) || [];
-          existing.push(calendarRes);
-          roomReservationsMap.set(roomId, existing);
-        });
+          unassignedReservations.push(calendarRes);
+        }
       });
 
       // Build calendar rooms
@@ -139,6 +162,17 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
         room_type: room.room_type as CalendarRoom["room_type"],
         reservations: roomReservationsMap.get(room.id) || [],
       }));
+
+      // Add an "Unassigned" row if there are unassigned reservations
+      if (unassignedReservations.length > 0) {
+        calendarRooms.unshift({
+          id: "unassigned",
+          room_number: "Unassigned",
+          floor: null,
+          room_type: null,
+          reservations: unassignedReservations,
+        });
+      }
 
       // Calculate stats for today
       const todayStr = format(new Date(), "yyyy-MM-dd");

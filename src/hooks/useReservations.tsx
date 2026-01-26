@@ -280,3 +280,43 @@ export function useCancelReservation() {
     },
   });
 }
+
+export function useUpdateReservation() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const currentPropertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async ({ 
+      reservationId, 
+      updates 
+    }: { 
+      reservationId: string; 
+      updates: { 
+        check_out_date?: string; 
+        check_in_date?: string;
+        total_amount?: number;
+      } 
+    }) => {
+      const { error } = await supabase
+        .from("reservations")
+        .update({ 
+          ...updates,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", reservationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
+      queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-reservations"] });
+      toast.success("Reservation updated successfully");
+    },
+    onError: (error) => {
+      console.error("Update reservation error:", error);
+      toast.error("Failed to update reservation");
+    },
+  });
+}

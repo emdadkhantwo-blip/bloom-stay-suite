@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { format, differenceInDays, isSameDay, isToday, addDays } from "date-fns";
+import { useMemo, forwardRef } from "react";
+import { format, differenceInDays, isToday, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -31,64 +31,85 @@ const STATUS_TEXT_COLORS: Record<string, string> = {
   no_show: "text-white",
 };
 
-function ReservationBlock({
-  reservation,
-  startDate,
-  dateRange,
-  onClick,
-}: {
+interface ReservationBlockProps {
   reservation: CalendarReservation;
   startDate: Date;
   dateRange: Date[];
   onClick?: (reservation: CalendarReservation) => void;
-}) {
-  const rangeStart = startDate;
-  const rangeEnd = addDays(rangeStart, dateRange.length);
+}
 
+const ReservationBlock = forwardRef<HTMLButtonElement, ReservationBlockProps>(
+  ({ reservation, startDate, dateRange, onClick }, ref) => {
+    const rangeStart = startDate;
+    const rangeEnd = addDays(rangeStart, dateRange.length);
+
+    const checkIn = new Date(reservation.check_in_date);
+    const checkOut = new Date(reservation.check_out_date);
+
+    // Clamp to visible range
+    const visibleStart = checkIn < rangeStart ? rangeStart : checkIn;
+    const visibleEnd = checkOut > rangeEnd ? rangeEnd : checkOut;
+
+    const startOffset = differenceInDays(visibleStart, rangeStart);
+    const duration = differenceInDays(visibleEnd, visibleStart);
+
+    if (duration <= 0) return null;
+
+    const left = startOffset * CELL_WIDTH;
+    const width = duration * CELL_WIDTH - 4; // 4px gap
+
+    const guestName = reservation.guest
+      ? `${reservation.guest.first_name} ${reservation.guest.last_name}`
+      : "Unknown Guest";
+
+    const isVip = reservation.guest?.is_vip;
+
+    return (
+      <button
+        ref={ref}
+        onClick={() => onClick?.(reservation)}
+        className={cn(
+          "absolute top-1 h-10 rounded-md border px-2 flex items-center gap-1 overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-ring hover:ring-offset-1 hover:z-10",
+          STATUS_COLORS[reservation.status],
+          STATUS_TEXT_COLORS[reservation.status]
+        )}
+        style={{ left: `${left}px`, width: `${width}px` }}
+      >
+        {isVip && <Crown className="h-3 w-3 flex-shrink-0 text-amber-300" />}
+        {reservation.status === "checked_in" && (
+          <UserCheck className="h-3 w-3 flex-shrink-0" />
+        )}
+        {reservation.status === "confirmed" && (
+          <CalendarClock className="h-3 w-3 flex-shrink-0" />
+        )}
+        <span className="truncate text-xs font-medium">{guestName}</span>
+      </button>
+    );
+  }
+);
+ReservationBlock.displayName = "ReservationBlock";
+
+function ReservationBlockWithTooltip({
+  reservation,
+  startDate,
+  dateRange,
+  onClick,
+}: ReservationBlockProps) {
   const checkIn = new Date(reservation.check_in_date);
   const checkOut = new Date(reservation.check_out_date);
-
-  // Clamp to visible range
-  const visibleStart = checkIn < rangeStart ? rangeStart : checkIn;
-  const visibleEnd = checkOut > rangeEnd ? rangeEnd : checkOut;
-
-  const startOffset = differenceInDays(visibleStart, rangeStart);
-  const duration = differenceInDays(visibleEnd, visibleStart);
-
-  if (duration <= 0) return null;
-
-  const left = startOffset * CELL_WIDTH;
-  const width = duration * CELL_WIDTH - 4; // 4px gap
-
   const guestName = reservation.guest
     ? `${reservation.guest.first_name} ${reservation.guest.last_name}`
     : "Unknown Guest";
 
-  const isVip = reservation.guest?.is_vip;
-  const isArrival = checkIn >= rangeStart && checkIn < rangeEnd;
-  const isDeparture = checkOut > rangeStart && checkOut <= rangeEnd;
-
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          onClick={() => onClick?.(reservation)}
-          className={cn(
-            "absolute top-1 h-10 rounded-md border px-2 flex items-center gap-1 overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-ring hover:ring-offset-1 hover:z-10",
-            STATUS_COLORS[reservation.status],
-            STATUS_TEXT_COLORS[reservation.status]
-          )}
-          style={{ left: `${left}px`, width: `${width}px` }}
-        >
-          {isVip && <Crown className="h-3 w-3 flex-shrink-0 text-amber-300" />}
-          {reservation.status === "checked_in" && (
-            <UserCheck className="h-3 w-3 flex-shrink-0" />
-          )}
-          {reservation.status === "confirmed" && (
-            <CalendarClock className="h-3 w-3 flex-shrink-0" />
-          )}
-          <span className="truncate text-xs font-medium">{guestName}</span>
-        </button>
+        <ReservationBlock
+          reservation={reservation}
+          startDate={startDate}
+          dateRange={dateRange}
+          onClick={onClick}
+        />
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
         <div className="space-y-1">
@@ -213,7 +234,7 @@ export function CalendarTimeline({ rooms, dateRange, onReservationClick }: Calen
 
                   {/* Reservation blocks */}
                   {room.reservations.map((res) => (
-                    <ReservationBlock
+                    <ReservationBlockWithTooltip
                       key={res.id}
                       reservation={res}
                       startDate={startDate}

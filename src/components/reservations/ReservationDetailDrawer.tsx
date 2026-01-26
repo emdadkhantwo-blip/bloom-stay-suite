@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -10,8 +11,8 @@ import {
   CreditCard,
   FileText,
   Clock,
-  MapPin,
   AlertCircle,
+  CalendarPlus,
 } from "lucide-react";
 import {
   Sheet,
@@ -27,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReservationStatusBadge } from "./ReservationStatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import type { Reservation } from "@/hooks/useReservations";
+import { ExtendStayDialog } from "./ExtendStayDialog";
 
 interface ReservationDetailDrawerProps {
   reservation: Reservation | null;
@@ -35,6 +37,7 @@ interface ReservationDetailDrawerProps {
   onCheckIn?: () => void;
   onCheckOut?: () => void;
   onCancel?: () => void;
+  onExtendStay?: () => void;
 }
 
 interface FolioSummary {
@@ -56,7 +59,10 @@ export function ReservationDetailDrawer({
   onCheckIn,
   onCheckOut,
   onCancel,
+  onExtendStay,
 }: ReservationDetailDrawerProps) {
+  const [extendStayOpen, setExtendStayOpen] = useState(false);
+
   // Fetch folio data for this reservation
   const { data: folio, isLoading: isFolioLoading } = useQuery({
     queryKey: ["reservation-folio", reservation?.id],
@@ -85,6 +91,7 @@ export function ReservationDetailDrawer({
 
   const canCheckIn = reservation.status === "confirmed";
   const canCheckOut = reservation.status === "checked_in";
+  const canExtendStay = reservation.status === "confirmed" || reservation.status === "checked_in";
   const canCancel = reservation.status === "confirmed";
 
   return (
@@ -337,7 +344,7 @@ export function ReservationDetailDrawer({
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-2 pt-4">
+          <div className="flex flex-wrap gap-2 pt-4">
             {canCheckIn && onCheckIn && (
               <Button className="flex-1" onClick={onCheckIn}>
                 Check In
@@ -348,17 +355,37 @@ export function ReservationDetailDrawer({
                 Check Out
               </Button>
             )}
+            {canExtendStay && (
+              <Button 
+                variant="outline" 
+                className="flex-1" 
+                onClick={() => setExtendStayOpen(true)}
+              >
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Extend Stay
+              </Button>
+            )}
             {canCancel && onCancel && (
               <Button variant="destructive" className="flex-1" onClick={onCancel}>
                 Cancel
               </Button>
             )}
-            {!canCheckIn && !canCheckOut && !canCancel && (
+            {!canCheckIn && !canCheckOut && !canCancel && !canExtendStay && (
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
             )}
           </div>
+
+          {/* Extend Stay Dialog */}
+          <ExtendStayDialog
+            reservation={reservation}
+            open={extendStayOpen}
+            onOpenChange={setExtendStayOpen}
+            onSuccess={() => {
+              onExtendStay?.();
+            }}
+          />
         </div>
       </SheetContent>
     </Sheet>
