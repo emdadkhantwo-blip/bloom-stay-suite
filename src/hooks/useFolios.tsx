@@ -205,15 +205,21 @@ export function useAddFolioCharge() {
       // Update folio totals
       const { data: folio, error: fetchError } = await supabase
         .from("folios")
-        .select("subtotal, tax_amount, total_amount, paid_amount")
+        .select("subtotal, tax_amount, service_charge, total_amount, paid_amount")
         .eq("id", folioId)
         .single();
 
       if (fetchError) throw fetchError;
 
+      const serviceChargeRate = currentProperty?.service_charge_rate || 0;
+      
+      // Calculate incremental service charge for this item only
+      const serviceChargeForItem = totalPrice * (serviceChargeRate / 100);
+      
       const newSubtotal = Number(folio.subtotal) + totalPrice;
       const newTaxAmount = Number(folio.tax_amount) + taxAmount;
-      const newTotal = newSubtotal + newTaxAmount + (currentProperty?.service_charge_rate || 0) / 100 * newSubtotal;
+      const newServiceCharge = Number(folio.service_charge) + serviceChargeForItem;
+      const newTotal = newSubtotal + newTaxAmount + newServiceCharge;
       const newBalance = newTotal - Number(folio.paid_amount);
 
       const { error: updateError } = await supabase
@@ -221,6 +227,7 @@ export function useAddFolioCharge() {
         .update({
           subtotal: newSubtotal,
           tax_amount: newTaxAmount,
+          service_charge: newServiceCharge,
           total_amount: newTotal,
           balance: newBalance,
           updated_at: new Date().toISOString(),
@@ -385,15 +392,21 @@ export function useVoidFolioItem() {
       // Update folio totals
       const { data: folio, error: folioFetchError } = await supabase
         .from("folios")
-        .select("subtotal, tax_amount, total_amount, paid_amount")
+        .select("subtotal, tax_amount, service_charge, total_amount, paid_amount")
         .eq("id", folioId)
         .single();
 
       if (folioFetchError) throw folioFetchError;
 
+      const serviceChargeRate = currentProperty?.service_charge_rate || 0;
+      
+      // Calculate the service charge that was applied to the voided item
+      const serviceChargeForItem = Number(item.total_price) * (serviceChargeRate / 100);
+      
       const newSubtotal = Number(folio.subtotal) - Number(item.total_price);
       const newTaxAmount = Number(folio.tax_amount) - Number(item.tax_amount);
-      const newTotal = newSubtotal + newTaxAmount;
+      const newServiceCharge = Number(folio.service_charge) - serviceChargeForItem;
+      const newTotal = newSubtotal + newTaxAmount + newServiceCharge;
       const newBalance = newTotal - Number(folio.paid_amount);
 
       const { error: updateError } = await supabase
@@ -401,6 +414,7 @@ export function useVoidFolioItem() {
         .update({
           subtotal: newSubtotal,
           tax_amount: newTaxAmount,
+          service_charge: newServiceCharge,
           total_amount: newTotal,
           balance: newBalance,
           updated_at: new Date().toISOString(),
