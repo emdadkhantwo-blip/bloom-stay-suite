@@ -1,165 +1,223 @@
 
-## References Feature Implementation Plan
 
-### Overview
-This feature adds a "References" management system to the admin section, allowing owners/managers to create references (e.g., agents, travel partners, marketing channels) with associated discount percentages. These references can then be selected during reservation creation to automatically apply discounts.
+## Calendar Page Improvements Plan
+
+### Issues Identified
+
+After analyzing the codebase, I found three main issues:
+
+| Issue | Root Cause |
+|-------|-----------|
+| **1. Checked-in details not showing** | The calendar query filters `status` to only include `confirmed` and `checked_in`, but the stats calculation looks for departures with status `checked_in` on today's checkout date. The display works correctly, but checked-in reservations without assigned rooms don't show on the calendar timeline. |
+| **2. Room block click not showing details** | Currently, clicking a reservation block navigates to `/reservations?highlight={id}`, but the Reservations page doesn't parse this query parameter to auto-open the detail drawer. |
+| **3. Cannot extend checkout time** | There's no UI to modify reservation dates. The `ReservationDetailDrawer` only shows dates but doesn't allow editing them. |
 
 ---
 
-### Database Schema
+### Solution Overview
 
-#### New Table: `references`
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key |
-| `tenant_id` | UUID | Foreign key to tenants (required) |
-| `property_id` | UUID | Foreign key to properties (optional - null means all properties) |
-| `name` | TEXT | Reference name (e.g., "Agent Karim", "Local Travel", "Facebook Campaign") |
-| `code` | TEXT | Short unique code (e.g., "AGT-K", "LOC-T") |
-| `discount_percentage` | NUMERIC | Discount percentage (0-100) |
-| `discount_type` | TEXT | Either 'percentage' or 'fixed' (default: 'percentage') |
-| `fixed_discount` | NUMERIC | Fixed discount amount in BDT (when discount_type = 'fixed') |
-| `is_active` | BOOLEAN | Whether the reference is active |
-| `notes` | TEXT | Optional notes |
-| `created_at` | TIMESTAMPTZ | Creation timestamp |
-| `updated_at` | TIMESTAMPTZ | Last update timestamp |
-
-#### Reservations Table Changes
-Add a new column to link reservations to references:
-- `reference_id` (UUID, nullable) - Foreign key to references table
-- `discount_amount` (NUMERIC, default 0) - Stores the calculated discount
+```text
++------------------+     +----------------------+     +------------------------+
+|   Calendar Page  | --> | Click Reservation    | --> | Detail Drawer Opens    |
+|                  |     | Block                |     | with Edit Capability   |
++------------------+     +----------------------+     +------------------------+
+                                                              |
+                                                              v
+                                                      +------------------------+
+                                                      | Extend Stay Dialog     |
+                                                      | (Change checkout date) |
+                                                      +------------------------+
+```
 
 ---
 
 ### Technical Implementation
 
-#### 1. Database Migration
-```sql
-CREATE TABLE public.references (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  property_id UUID REFERENCES public.properties(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  code TEXT NOT NULL,
-  discount_percentage NUMERIC DEFAULT 0,
-  discount_type TEXT DEFAULT 'percentage' CHECK (discount_type IN ('percentage', 'fixed')),
-  fixed_discount NUMERIC DEFAULT 0,
-  is_active BOOLEAN DEFAULT true,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (tenant_id, code)
-);
+#### 1. Fix "Checked-In Details Not Showing"
 
--- RLS Policies (following existing patterns)
-ALTER TABLE public.references ENABLE ROW LEVEL SECURITY;
+**File: `src/hooks/useCalendarReservations.tsx`**
 
--- Add reference_id and discount_amount to reservations
-ALTER TABLE public.reservations 
-  ADD COLUMN reference_id UUID REFERENCES public.references(id),
-  ADD COLUMN discount_amount NUMERIC DEFAULT 0;
+The issue is that reservations without room assignments don't appear on the calendar. Update the query to also show unassigned reservations.
+
+Changes:
+- Include reservations even if `room_id` is null in `reservation_rooms`
+- Create a special "Unassigned" row to display reservations without room assignments
+- Alternatively, show a badge or indicator for unassigned checked-in reservations
+
+#### 2. Fix "Room Block Click Not Showing Details"
+
+**Approach A: Open Detail Drawer Directly on Calendar Page (Recommended)**
+
+Instead of navigating to `/reservations?highlight=...`, open a detail drawer directly on the Calendar page.
+
+**Files to modify:**
+- `src/pages/Calendar.tsx` - Add state for selected reservation and drawer
+- Import and use `ReservationDetailDrawer` directly
+- Fetch full reservation details when a block is clicked
+
+**Changes:**
+```typescript
+// Calendar.tsx - Add drawer state and handlers
+const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+const [drawerOpen, setDrawerOpen] = useState(false);
+
+const handleReservationClick = async (calendarRes: CalendarReservation) => {
+  // Fetch full reservation details
+  const { data } = await supabase
+    .from("reservations")
+    .select("*, guest:guests(*), reservation_rooms(*, room:rooms(*), room_type:room_types(*))")
+    .eq("id", calendarRes.id)
+    .single();
+  
+  if (data) {
+    setSelectedReservation(data);
+    setDrawerOpen(true);
+  }
+};
 ```
 
-#### 2. New Files to Create
+#### 3. Add "Extend Stay" / "Modify Dates" Functionality
+
+**New Files:**
+- `src/components/reservations/ExtendStayDialog.tsx` - Dialog to modify check-in/check-out dates
+
+**Files to modify:**
+- `src/hooks/useReservations.tsx` - Add `useUpdateReservation` mutation
+- `src/components/reservations/ReservationDetailDrawer.tsx` - Add "Extend Stay" button
+
+**New hook in `useReservations.tsx`:**
+```typescript
+export function useUpdateReservation() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+
+  return useMutation({
+    mutationFn: async ({ 
+      reservationId, 
+      updates 
+    }: { 
+      reservationId: string; 
+      updates: { check_out_date?: string; check_in_date?: string } 
+    }) => {
+      const { error } = await supabase
+        .from("reservations")
+        .update({ 
+          ...updates,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", reservationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-reservations"] });
+      toast.success("Reservation updated successfully");
+    },
+  });
+}
+```
+
+**ExtendStayDialog component:**
+```typescript
+// Shows a date picker to select new check-out date
+// Validates that new date is after current date
+// Calculates additional nights and cost
+// Updates reservation via useUpdateReservation hook
+```
+
+#### 4. Fix forwardRef Console Warnings
+
+**File: `src/components/calendar/CalendarTimeline.tsx`**
+
+The `TooltipTrigger` from Radix expects the child to accept refs, but `ReservationBlock` is a regular function component.
+
+**Fix:**
+```typescript
+const ReservationBlock = forwardRef<HTMLButtonElement, ReservationBlockProps>(
+  ({ reservation, startDate, dateRange, onClick }, ref) => {
+    // ... component logic
+    return (
+      <button ref={ref} ...>
+        {/* content */}
+      </button>
+    );
+  }
+);
+ReservationBlock.displayName = "ReservationBlock";
+```
+
+Also wrap `CalendarTimeline` with `forwardRef` if needed.
+
+---
+
+### Files to Create
 
 | File | Purpose |
 |------|---------|
-| `src/pages/References.tsx` | References management page |
-| `src/hooks/useReferences.tsx` | Hook for CRUD operations on references |
-| `src/components/references/CreateReferenceDialog.tsx` | Dialog for creating new references |
-| `src/components/references/ReferenceCard.tsx` | Card component for displaying a reference |
-| `src/components/references/ReferenceDetailDrawer.tsx` | Drawer for viewing/editing reference details |
+| `src/components/reservations/ExtendStayDialog.tsx` | Dialog for changing check-in/check-out dates |
 
-#### 3. Files to Modify
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/layout/AppSidebar.tsx` | Add "References" nav item under Admin section |
-| `src/App.tsx` | Add route for `/references` page |
-| `src/components/reservations/NewReservationDialog.tsx` | Add reference selector with discount preview |
-| `src/hooks/useCreateReservation.tsx` | Update to accept `reference_id` and calculate/store discount |
+| `src/pages/Calendar.tsx` | Add drawer state, fetch full reservation on click, include extend stay functionality |
+| `src/components/calendar/CalendarTimeline.tsx` | Fix forwardRef warnings |
+| `src/hooks/useReservations.tsx` | Add `useUpdateReservation` mutation |
+| `src/hooks/useCalendarReservations.tsx` | Include checked-in reservations without room assignments |
+| `src/components/reservations/ReservationDetailDrawer.tsx` | Add "Extend Stay" button and dialog trigger |
 
 ---
 
-### UI/UX Design
+### UI/UX Changes
 
-#### References Page (`/references`)
-- Header with "References" title and "Add Reference" button
-- Stats bar showing: Total References, Active, Average Discount
-- Grid/list of reference cards with:
-  - Name and code
-  - Discount percentage or fixed amount
-  - Active/inactive status toggle
-  - Edit/Delete actions
+#### Calendar Page
+When clicking a reservation block:
+1. Detail drawer slides in from the right
+2. Shows full reservation details (guest info, room assignments, folio, etc.)
+3. Has action buttons: Check In, Check Out, Cancel, **Extend Stay** (new)
 
-#### Reference in Reservation Form
-Add a new section after "Booking Source":
-```
+#### Extend Stay Dialog
+```text
 ┌─────────────────────────────────────────────────────────┐
-│ Reference (Optional)                                     │
+│ Extend Stay                                         [X] │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Current Check-Out: Tue, Jan 28, 2026                   │
+│                                                         │
+│ New Check-Out Date:                                     │
 │ ┌─────────────────────────────────────────────────────┐ │
-│ │ Select Reference...                              ▼  │ │
+│ │ [Calendar Picker]                               📅  │ │
 │ └─────────────────────────────────────────────────────┘ │
 │                                                         │
-│ ✓ Apply 10% discount: -৳500                            │
-└─────────────────────────────────────────────────────────┘
-```
-
-#### Updated Total Section
-When a reference with discount is selected:
-```
-┌─────────────────────────────────────────────────────────┐
-│ Estimated Total                                         │
-│ 2 rooms x 3 nights                                      │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Additional Nights: 2                                │ │
+│ │ Room Rate: ৳3,000/night                             │ │
+│ │ Additional Cost: ৳6,000                             │ │
+│ └─────────────────────────────────────────────────────┘ │
 │                                                         │
-│ Subtotal                              ৳15,000          │
-│ Reference Discount (Agent Karim 10%)  -৳1,500          │
-│ ─────────────────────────────────────────────────────  │
-│ Total                                 ৳13,500          │
+│           [Cancel]                    [Confirm Extension]│
 └─────────────────────────────────────────────────────────┘
 ```
-
----
-
-### Sidebar Navigation Update
-
-Add to `adminItems` array in `AppSidebar.tsx`:
-```typescript
-{ title: 'References', url: '/references', icon: Tags, color: 'text-vibrant-amber' }
-```
-
----
-
-### Security & Access Control
-
-- **RLS Policies**:
-  - Owners/Managers: Full CRUD access to references in their tenant
-  - Front Desk: Read-only access to active references (for reservation form)
-  - Superadmins: Full access to all references
-
-- **Role-based access** for the References page:
-  - Only `owner` and `manager` roles can access `/references`
-  - `front_desk` can see the reference selector in reservation form
 
 ---
 
 ### Implementation Steps
 
-1. **Create database migration** for `references` table and update `reservations` table
-2. **Create `useReferences` hook** with fetch, create, update, delete operations
-3. **Create References page** with CRUD UI
-4. **Update sidebar** to include References link
-5. **Update App.tsx** routing
-6. **Modify NewReservationDialog** to include reference selector
-7. **Update useCreateReservation** to handle reference_id and discount calculation
-8. **Update ReservationDetailDrawer** to show reference and discount info
+1. **Fix forwardRef warnings** in `CalendarTimeline.tsx`
+2. **Add `useUpdateReservation` hook** to `useReservations.tsx`
+3. **Create `ExtendStayDialog` component** for modifying dates
+4. **Update `ReservationDetailDrawer`** to include "Extend Stay" button
+5. **Update `Calendar.tsx`** to open detail drawer on click instead of navigating
+6. **Update `useCalendarReservations`** to show unassigned checked-in reservations
 
 ---
 
-### Validation Rules
+### Edge Cases Handled
 
-- Reference name: Required, max 100 characters
-- Reference code: Required, unique per tenant, uppercase, max 20 characters
-- Discount percentage: 0-100 range
-- Fixed discount: Non-negative number
-- Only one discount type can be active at a time
+- Validation that new checkout date is after check-in date
+- Validation that new checkout date is after current date
+- Room availability check for extended dates (optional)
+- Recalculation of total amount for additional nights
+- Adding additional room charges to folio for extended stay
+
