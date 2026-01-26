@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hotel, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Shield } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, getRoleDashboard } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import beehotelLogo from '@/assets/beehotel-logo.png';
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required').max(100),
@@ -29,7 +29,6 @@ export default function Auth() {
   // Redirect if already logged in with roles loaded
   useEffect(() => {
     if (user && !waitingForRoles) {
-      // If we have roles, redirect based on them
       if (roles.length > 0) {
         const dashboard = getRoleDashboard(roles);
         navigate(dashboard);
@@ -65,7 +64,6 @@ export default function Auth() {
           : error.message,
       });
     } else {
-      // Wait for roles to load before redirecting
       setWaitingForRoles(true);
       toast({
         title: 'Login Successful',
@@ -75,33 +73,86 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="mb-8 flex flex-col items-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Hotel className="h-7 w-7" />
-          </div>
-          <h1 className="mt-4 text-2xl font-bold text-foreground">Cloud Hotel PMS</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Multi-Tenant Property Management</p>
+    <div className="flex min-h-screen">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 relative overflow-hidden">
+        {/* Decorative Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-3xl" />
+        </div>
+        
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }} />
         </div>
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your dashboard
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-white">
+          <img 
+            src={beehotelLogo} 
+            alt="BeeHotel Logo" 
+            className="h-32 w-32 mb-8 drop-shadow-2xl"
+          />
+          <h1 className="text-5xl font-bold mb-4 tracking-tight">BeeHotel</h1>
+          <p className="text-xl text-white/80 text-center max-w-md">
+            Multi-Tenant Property Management System
+          </p>
+          
+          {/* Features List */}
+          <div className="mt-12 space-y-4">
+            {[
+              'Streamlined Front Desk Operations',
+              'Real-time Room Management',
+              'Comprehensive Reporting',
+              'Multi-Property Support'
+            ].map((feature, index) => (
+              <div key={index} className="flex items-center gap-3 text-white/90">
+                <div className="h-2 w-2 rounded-full bg-white/80" />
+                <span className="text-sm">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="flex-1 flex items-center justify-center bg-background p-4 lg:p-8">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden mb-8 flex flex-col items-center">
+            <img 
+              src={beehotelLogo} 
+              alt="BeeHotel Logo" 
+              className="h-24 w-24 mb-4"
+            />
+            <h1 className="text-3xl font-bold text-foreground">BeeHotel</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Property Management System</p>
+          </div>
+
+          {/* Login Card */}
+          <div className="rounded-2xl border bg-card p-8 shadow-xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
+              <p className="mt-1 text-muted-foreground">
+                Enter your credentials to access your dashboard
+              </p>
+            </div>
+
+            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="username">Username or Email</Label>
+                <Label htmlFor="username" className="text-sm font-medium">
+                  Username or Email
+                </Label>
                 <Input
                   id="username"
                   placeholder="Enter your username"
                   {...loginForm.register('username')}
-                  className="h-10"
+                  className="h-12 rounded-xl border-muted-foreground/20 bg-muted/50 px-4 transition-all focus:bg-background focus:ring-2 focus:ring-primary/20"
                 />
                 {loginForm.formState.errors.username && (
                   <p className="text-xs text-destructive">
@@ -111,21 +162,23 @@ export default function Auth() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
                     {...loginForm.register('password')}
-                    className="h-10 pr-10"
+                    className="h-12 rounded-xl border-muted-foreground/20 bg-muted/50 px-4 pr-12 transition-all focus:bg-background focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
                 {loginForm.formState.errors.password && (
@@ -135,10 +188,14 @@ export default function Auth() {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full h-12 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all" 
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Signing in...
                   </>
                 ) : (
@@ -146,12 +203,28 @@ export default function Auth() {
                 )}
               </Button>
             </form>
-          </CardContent>
-        </Card>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Demo credentials: admin@demo.com / demo123
-        </p>
+            {/* Security Badge */}
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Shield className="h-4 w-4" />
+              <span>Secured with enterprise-grade encryption</span>
+            </div>
+          </div>
+
+          {/* Demo Credentials */}
+          <div className="mt-6 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-4">
+            <p className="text-center text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Demo credentials:</span>
+              <br />
+              admin@demo.com / demo123
+            </p>
+          </div>
+
+          {/* Footer */}
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            © 2024 BeeHotel. All rights reserved.
+          </p>
+        </div>
       </div>
     </div>
   );
