@@ -1,7 +1,8 @@
+import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, ArrowRight, Star, CheckCircle, CircleDollarSign, TrendingUp } from "lucide-react";
+import { Phone, ArrowRight, Star, CheckCircle } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
 export function HeroSection() {
@@ -19,24 +20,50 @@ export function HeroSection() {
       <div className="container relative mx-auto px-4 py-20 md:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left Content */}
-          <div className="text-primary-foreground">
-            <Badge className="mb-6 bg-success/20 text-success border-0 px-4 py-2">
-              <span className="mr-2 h-2 w-2 rounded-full bg-success animate-pulse inline-block" />
-              ২০০০+ হোটেল বিশ্বস্ত সফটওয়্যার
-            </Badge>
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-primary-foreground"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              <Badge className="mb-6 bg-success/20 text-success border-0 px-4 py-2">
+                <span className="mr-2 h-2 w-2 rounded-full bg-success animate-pulse inline-block" />
+                ২০০০+ হোটেল বিশ্বস্ত সফটওয়্যার
+              </Badge>
+            </motion.div>
             
-            <h1 className="mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+              className="mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl"
+            >
               আপনার <span className="text-info">হোটেল ব্যবসা</span>
               <br />
               রূপান্তর করুন
-            </h1>
+            </motion.h1>
             
-            <p className="mb-8 text-lg opacity-90 md:text-xl max-w-xl">
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+              className="mb-8 text-lg opacity-90 md:text-xl max-w-xl"
+            >
               অল-ইন-ওয়ান ক্লাউড PMS সফটওয়্যার যা আপনার হোটেল অপারেশন সহজ করে তুলবে। 
               রিজার্ভেশন থেকে হাউসকিপিং - সবকিছু এক প্ল্যাটফর্মে।
-            </p>
+            </motion.p>
             
-            <div className="flex flex-col gap-4 sm:flex-row">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+              className="flex flex-col gap-4 sm:flex-row"
+            >
               <Button 
                 size="lg" 
                 className="bg-info hover:bg-info/90 text-info-foreground gap-2"
@@ -56,30 +83,47 @@ export function HeroSection() {
               >
                 <Link to="/auth">ডেমো দেখুন</Link>
               </Button>
-            </div>
+            </motion.div>
 
             {/* Stats */}
-            <div className="mt-12 flex flex-wrap gap-8">
-              <div>
-                <div className="text-3xl font-bold md:text-4xl">২০০০+</div>
-                <div className="text-sm opacity-80">সন্তুষ্ট হোটেল</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold md:text-4xl">৯৯.৯%</div>
-                <div className="text-sm opacity-80">আপটাইম</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold md:text-4xl">২৪/৭</div>
-                <div className="text-sm opacity-80">সাপোর্ট</div>
-              </div>
-            </div>
-          </div>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="mt-12 flex flex-wrap gap-8"
+            >
+              {[
+                { value: "২০০০+", label: "সন্তুষ্ট হোটেল" },
+                { value: "৯৯.৯%", label: "আপটাইম" },
+                { value: "২৪/৭", label: "সাপোর্ট" },
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.7 + index * 0.1, duration: 0.4 }}
+                >
+                  <div className="text-3xl font-bold md:text-4xl">{stat.value}</div>
+                  <div className="text-sm opacity-80">{stat.label}</div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
 
           {/* Right Content - Dashboard Preview */}
-          <div className="hidden lg:block">
+          <motion.div 
+            initial={{ opacity: 0, x: 50, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+            className="hidden lg:block"
+          >
             <div className="relative">
               {/* Main Dashboard Card */}
-              <div className="rounded-2xl bg-card/95 backdrop-blur-sm p-6 shadow-2xl border">
+              <motion.div 
+                className="rounded-2xl bg-card/95 backdrop-blur-sm p-6 shadow-2xl border"
+                whileHover={{ y: -5 }}
+                transition={{ duration: 0.3 }}
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="font-semibold text-card-foreground">Dashboard</h3>
@@ -114,17 +158,24 @@ export function HeroSection() {
                 {/* Chart Bars */}
                 <div className="flex items-end gap-2 h-24">
                   {[60, 80, 45, 90, 70, 85, 95].map((height, i) => (
-                    <div 
+                    <motion.div 
                       key={i}
+                      initial={{ height: 0 }}
+                      animate={{ height: `${height}%` }}
+                      transition={{ delay: 0.8 + i * 0.1, duration: 0.5, ease: "easeOut" }}
                       className="flex-1 rounded-t-md bg-gradient-to-t from-info to-room-maintenance"
-                      style={{ height: `${height}%` }}
                     />
                   ))}
                 </div>
-              </div>
+              </motion.div>
 
               {/* Floating Notification */}
-              <div className="absolute -left-8 top-1/3 bg-card rounded-xl p-4 shadow-xl border flex items-center gap-3 animate-fade-in">
+              <motion.div 
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.2, duration: 0.5 }}
+                className="absolute -left-8 top-1/3 bg-card rounded-xl p-4 shadow-xl border flex items-center gap-3"
+              >
                 <div className="h-10 w-10 rounded-full bg-info/20 flex items-center justify-center">
                   <CheckCircle className="h-5 w-5 text-info" />
                 </div>
@@ -133,10 +184,15 @@ export function HeroSection() {
                   <div className="text-xs text-muted-foreground">Room 204 confirmed</div>
                 </div>
                 <ArrowRight className="h-5 w-5 text-info bg-info/20 rounded-full p-1 ml-2" />
-              </div>
+              </motion.div>
 
               {/* Guest Rating Badge */}
-              <div className="absolute -right-4 bottom-16 bg-card rounded-xl p-3 shadow-xl border animate-fade-in">
+              <motion.div 
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.4, duration: 0.5 }}
+                className="absolute -right-4 bottom-16 bg-card rounded-xl p-3 shadow-xl border"
+              >
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center">
                     <Star className="h-4 w-4 text-warning fill-warning" />
@@ -146,9 +202,9 @@ export function HeroSection() {
                     <div className="text-xs text-muted-foreground">4.9/5 Average</div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
