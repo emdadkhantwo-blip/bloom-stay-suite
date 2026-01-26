@@ -6,8 +6,9 @@ import { StaffCard } from "@/components/staff/StaffCard";
 import { StaffDetailDrawer } from "@/components/staff/StaffDetailDrawer";
 import { InviteStaffDialog } from "@/components/staff/InviteStaffDialog";
 import { CreateStaffDialog } from "@/components/staff/CreateStaffDialog";
+import { BulkAvatarImportDialog } from "@/components/staff/BulkAvatarImportDialog";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Mail } from "lucide-react";
+import { UserPlus, Mail, ImageIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { StaffMember } from "@/hooks/useStaff";
 import type { AppRole } from "@/types/database";
@@ -19,6 +20,7 @@ export default function Staff() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,6 +95,10 @@ export default function Staff() {
             <Mail className="mr-2 h-4 w-4" />
             Invite Staff
           </Button>
+          <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+            <ImageIcon className="mr-2 h-4 w-4" />
+            Bulk Avatars
+          </Button>
         </div>
       </div>
 
@@ -150,6 +156,9 @@ export default function Staff() {
 
       {/* Create Staff Dialog */}
       <CreateStaffDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+
+      {/* Bulk Avatar Import Dialog */}
+      <BulkAvatarImportDialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen} />
     </div>
   );
 }
