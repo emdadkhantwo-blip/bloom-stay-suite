@@ -1,103 +1,75 @@
 
 
-## Problem Analysis
+## Problem Identified
 
-The login is failing with "User not found" because of an email mismatch between the `profiles` table and `auth.users` table:
+The admin cannot login with username because of a **Row-Level Security (RLS) policy issue**.
 
-| Table | Email Value |
-|-------|-------------|
-| `auth.users` | `arshadcto@formzed.hotel.local` (internal auth email) |
-| `profiles` | `shaikarshadrahman02@gmail.com` (public email from application) |
+### What's Happening
+1. When the admin enters their username on the login page
+2. The app tries to look up the username in the `profiles` table to find the email for authentication
+3. But the user is **not logged in yet**, so they have no authentication session
+4. The RLS policies on `profiles` require authentication - no policy allows anonymous/public access
+5. The query returns empty, causing "User not found" error
 
-### Current Login Flow (Broken)
-1. User enters username `arshadcto`
-2. `signIn()` function queries `profiles` table to find email
-3. It finds `shaikarshadrahman02@gmail.com` 
-4. Tries to authenticate with Supabase using this email
-5. **Fails** because Supabase expects `arshadcto@formzed.hotel.local`
+### Current RLS Policies on `profiles` Table
+| Policy | Requirement |
+|--------|-------------|
+| Users can view own profile | Must be logged in (`id = auth.uid()`) |
+| Owners can view tenant profiles | Must be logged in with owner role |
+| Superadmins can manage all profiles | Must be logged in with superadmin role |
 
-### Solution
-We need to store the **internal auth email** (used for Supabase authentication) in the profiles table, rather than the public email. The public email can be stored in a separate field if needed for display/contact purposes.
-
----
-
-## Implementation Plan
-
-### Step 1: Modify the Profile Table Structure
-Add a new column `auth_email` to store the internal authentication email separately from the contact email.
-
-```sql
-ALTER TABLE profiles ADD COLUMN auth_email TEXT;
-```
-
-### Step 2: Update the `approve-application` Edge Function
-Modify the profile upsert to store both emails:
-- `auth_email`: The internal email used for Supabase auth (e.g., `username@hotel-slug.hotel.local`)
-- `email`: The public contact email from the application (e.g., `user@gmail.com`)
-
-### Step 3: Update the `useAuth.tsx` Login Logic
-Modify the `signIn` function to:
-1. Look up the profile by username
-2. Use `auth_email` (if available) or fallback to `email` for authentication
-3. This ensures backward compatibility with existing users
+**None of these allow an unauthenticated user to look up a profile by username!**
 
 ---
 
-## Technical Details
+## Solution
 
-### Database Migration
+We need to add a minimal RLS policy that allows **public read access to only the username and auth_email fields** needed for login lookup. Alternatively, we can create a database function with `SECURITY DEFINER` that bypasses RLS.
+
+### Recommended Approach: Security Definer Function
+
+Create a database function that can look up the auth email by username without requiring authentication:
+
 ```sql
--- Add auth_email column for internal authentication email
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS auth_email TEXT;
-
--- Update existing staff profiles to use the email as auth_email where applicable
-UPDATE profiles 
-SET auth_email = email 
-WHERE auth_email IS NULL 
-  AND email LIKE '%@%.hotel.local';
+CREATE OR REPLACE FUNCTION public.get_auth_email_by_username(lookup_username TEXT)
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(auth_email, email)
+  FROM public.profiles
+  WHERE username = lookup_username
+    AND is_active = true
+  LIMIT 1
+$$;
 ```
 
-### Edge Function Changes (`supabase/functions/approve-application/index.ts`)
-```typescript
-// Update the profile with correct tenant and both emails
-const { error: profileError } = await adminClient
-  .from("profiles")
-  .upsert({
-    id: newUserId,
-    username: application.username,
-    email: application.email,           // Public email for contact
-    auth_email: internalEmail,           // NEW: Auth email for login
-    full_name: application.full_name,
-    phone: application.phone,
-    tenant_id: tenant.id,
-    is_active: true,
-    must_change_password: false,
-  }, { onConflict: "id" });
-```
+This function:
+- Uses `SECURITY DEFINER` to bypass RLS
+- Only returns the email needed for authentication (no other sensitive data)
+- Only returns data for active users
+- Can be called via Supabase RPC without authentication
 
-### useAuth.tsx Changes
+### Code Changes
+
+Update `useAuth.tsx` to use this function instead of a direct table query:
+
 ```typescript
 const signIn = async (username: string, password: string) => {
   let loginEmail = username;
 
-  // If not already an email, look up the actual auth email from profiles table
   if (!username.includes('@')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email, auth_email')  // Select both emails
-      .eq('username', username)
-      .maybeSingle();
+    // Use RPC function that bypasses RLS
+    const { data: authEmail, error } = await supabase
+      .rpc('get_auth_email_by_username', { lookup_username: username });
 
-    if (!profile) {
+    if (error || !authEmail) {
       return { error: new Error('User not found') };
     }
 
-    // Use auth_email if available, otherwise fallback to email
-    loginEmail = profile.auth_email || profile.email;
-    
-    if (!loginEmail) {
-      return { error: new Error('User not found') };
-    }
+    loginEmail = authEmail;
   }
 
   // Continue with authentication...
@@ -108,17 +80,15 @@ const signIn = async (username: string, password: string) => {
 
 ## Files to Modify
 
-1. **Database Migration** - Add `auth_email` column to profiles table
-2. **`supabase/functions/approve-application/index.ts`** - Store internal auth email in `auth_email` field
-3. **`src/hooks/useAuth.tsx`** - Use `auth_email` for authentication lookup
-4. **`src/integrations/supabase/types.ts`** - Will auto-update after migration
+1. **Database Migration** - Create the `get_auth_email_by_username` function
+2. **`src/hooks/useAuth.tsx`** - Use RPC call instead of direct table query
 
 ---
 
-## Testing Plan
+## Why This Is Secure
 
-1. Apply the database migration
-2. Update existing approved user (`arshadcto`) to have correct `auth_email`
-3. Deploy updated edge function
-4. Test login with username `arshadcto` and password `965874213`
+1. The function only returns the email needed for authentication - no other user data
+2. Only works for active users
+3. Does not expose any sensitive information (username is already known by the person logging in)
+4. This is a common pattern for login lookups in multi-tenant systems
 
