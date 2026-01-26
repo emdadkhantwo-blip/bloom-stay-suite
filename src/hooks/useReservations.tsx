@@ -242,15 +242,21 @@ export function useCheckOut() {
 
         // Create pending housekeeping tasks for each room with auto-assignment
         if (tenant?.id && currentPropertyId) {
-          // Get housekeeping staff for auto-assignment
+          // Get housekeeping staff for auto-assignment (with names for toast message)
           const { data: profiles } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, full_name, username')
             .eq('tenant_id', tenant.id)
             .eq('is_active', true);
 
           const userIds = profiles?.map(p => p.id) || [];
           let housekeepingStaffIds: string[] = [];
+          const staffNameMap = new Map<string, string>();
+
+          // Build a map of staff ID to display name
+          profiles?.forEach(p => {
+            staffNameMap.set(p.id, p.full_name || p.username || 'Staff');
+          });
 
           if (userIds.length > 0) {
             // Get only users with housekeeping role (not owner/manager who shouldn't be auto-assigned)
@@ -290,6 +296,9 @@ export function useCheckOut() {
               .sort((a, b) => a.workload - b.workload);
           }
 
+          // Track assigned staff names for the toast message
+          const assignedStaffNames = new Set<string>();
+
           // Create tasks with auto-assignment based on workload
           const housekeepingTasks = roomIds.map((roomId, index) => {
             // Round-robin assignment starting from least busy staff
@@ -297,6 +306,9 @@ export function useCheckOut() {
             if (staffWorkloads.length > 0) {
               const staffIndex = index % staffWorkloads.length;
               assignedTo = staffWorkloads[staffIndex].staffId;
+              // Track the name for the toast
+              const staffName = staffNameMap.get(assignedTo);
+              if (staffName) assignedStaffNames.add(staffName);
               // Increment workload for next assignment consideration
               staffWorkloads[staffIndex].workload++;
               // Re-sort to maintain lowest-first order
@@ -323,10 +335,15 @@ export function useCheckOut() {
             console.error('Failed to create housekeeping tasks:', taskError);
             // Don't throw - checkout succeeded, task creation is secondary
           }
+
+          // Return assigned staff names for the success message
+          return { assignedStaffNames: Array.from(assignedStaffNames) };
         }
       }
+
+      return { assignedStaffNames: [] };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
@@ -337,7 +354,17 @@ export function useCheckOut() {
       // Invalidate housekeeping queries so new tasks appear immediately
       queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["housekeeping-stats"] });
-      toast.success("Guest checked out successfully");
+      
+      // Show success message with assigned staff names
+      const staffNames = data?.assignedStaffNames || [];
+      if (staffNames.length > 0) {
+        const namesText = staffNames.length === 1 
+          ? staffNames[0] 
+          : staffNames.slice(0, -1).join(', ') + ' & ' + staffNames[staffNames.length - 1];
+        toast.success(`Guest checked out successfully. Cleaning assigned to ${namesText}`);
+      } else {
+        toast.success("Guest checked out successfully");
+      }
     },
     onError: (error) => {
       console.error("Check-out error:", error);
