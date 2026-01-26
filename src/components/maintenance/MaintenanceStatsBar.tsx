@@ -1,6 +1,7 @@
 import { AlertCircle, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface MaintenanceStatsBarProps {
   openCount: number;
@@ -22,29 +23,29 @@ export function MaintenanceStatsBar({
       label: "Open Tickets",
       value: openCount,
       icon: AlertCircle,
-      color: "text-warning",
-      bgColor: "bg-warning/10",
+      gradient: "from-amber-500 to-orange-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "In Progress",
       value: inProgressCount,
       icon: Clock,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      gradient: "from-blue-500 to-indigo-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "Resolved",
       value: resolvedCount,
       icon: CheckCircle,
-      color: "text-success",
-      bgColor: "bg-success/10",
+      gradient: "from-emerald-500 to-teal-600",
+      iconBg: "bg-white/20",
     },
     {
       label: "High Priority",
       value: highPriorityCount,
       icon: AlertTriangle,
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
+      gradient: "from-rose-500 to-red-600",
+      iconBg: "bg-white/20",
     },
   ];
 
@@ -52,15 +53,7 @@ export function MaintenanceStatsBar({
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="flex items-center gap-4 p-4">
-              <Skeleton className="h-10 w-10 rounded-lg" />
-              <div className="space-y-1">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-8" />
-              </div>
-            </CardContent>
-          </Card>
+          <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
       </div>
     );
@@ -69,14 +62,24 @@ export function MaintenanceStatsBar({
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
-        <Card key={stat.label}>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bgColor}`}>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
+        <Card 
+          key={stat.label}
+          className={cn(
+            "relative overflow-hidden border-none shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5",
+            `bg-gradient-to-br ${stat.gradient}`
+          )}
+        >
+          {/* Decorative circles */}
+          <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+          <div className="absolute -bottom-2 -left-2 h-12 w-12 rounded-full bg-white/5" />
+          
+          <CardContent className="relative z-10 flex items-center gap-4 p-5">
+            <div className={cn("rounded-xl p-3", stat.iconBg)}>
+              <stat.icon className="h-6 w-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className="text-xl font-semibold">{stat.value}</p>
+              <p className="text-sm text-white/80 font-medium">{stat.label}</p>
+              <p className="text-3xl font-bold text-white">{stat.value}</p>
             </div>
           </CardContent>
         </Card>
