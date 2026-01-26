@@ -126,14 +126,17 @@ export function CreateTicketDialog({ open, onOpenChange }: CreateTicketDialogPro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Room (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(val) => field.onChange(val === "none" ? "" : val)} 
+                      value={field.value || "none"}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select room" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="bg-popover">
-                        <SelectItem value="">No specific room</SelectItem>
+                        <SelectItem value="none">No specific room</SelectItem>
                         {rooms.map((room) => (
                           <SelectItem key={room.id} value={room.id}>
                             Room {room.room_number}
