@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { differenceInCalendarDays, parseISO, startOfDay } from "date-fns";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
-import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, useUpdateReservation, type Reservation } from "@/hooks/useReservations";
+import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, useUpdateReservation, type Reservation, type CheckoutResult } from "@/hooks/useReservations";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
+import { CheckoutSuccessModal, type CheckoutData } from "@/components/front-desk/CheckoutSuccessModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ export default function Calendar() {
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isLoadingReservation, setIsLoadingReservation] = useState(false);
+  const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useCalendarReservations(startDate, numDays);
 
@@ -100,8 +103,15 @@ export default function Calendar() {
 
   const handleCheckOut = () => {
     if (selectedReservation) {
-      checkOut.mutate(selectedReservation.id);
-      setDrawerOpen(false);
+      checkOut.mutate(selectedReservation.id, {
+        onSuccess: (data: CheckoutResult) => {
+          setDrawerOpen(false);
+          if (data.checkoutData) {
+            setCheckoutData(data.checkoutData);
+            setCheckoutSuccessOpen(true);
+          }
+        },
+      });
     }
   };
 
@@ -228,6 +238,13 @@ export default function Calendar() {
         onCancel={handleCancel}
         onExtendStay={handleExtendStay}
         onDelete={handleDelete}
+      />
+
+      {/* Checkout Success Modal with Invoice */}
+      <CheckoutSuccessModal
+        open={checkoutSuccessOpen}
+        onOpenChange={setCheckoutSuccessOpen}
+        checkoutData={checkoutData}
       />
     </div>
   );

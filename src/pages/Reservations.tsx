@@ -9,6 +9,7 @@ import {
   useDeleteReservation,
   type ReservationStatus,
   type Reservation,
+  type CheckoutResult,
 } from "@/hooks/useReservations";
 import { ReservationStatsBar } from "@/components/reservations/ReservationStatsBar";
 import { ReservationFilters } from "@/components/reservations/ReservationFilters";
@@ -16,6 +17,7 @@ import { ReservationListItem } from "@/components/reservations/ReservationListIt
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
 import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDialog";
+import { CheckoutSuccessModal, type CheckoutData } from "@/components/front-desk/CheckoutSuccessModal";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -66,6 +68,8 @@ export default function Reservations() {
   // Dialogs
   const [checkOutDialog, setCheckOutDialog] = useState<string | null>(null);
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
+  const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
 
   // Filter reservations
   const filteredReservations = useMemo(() => {
@@ -128,8 +132,15 @@ export default function Reservations() {
 
   const confirmCheckOut = () => {
     if (checkOutDialog) {
-      checkOut.mutate(checkOutDialog);
-      setCheckOutDialog(null);
+      checkOut.mutate(checkOutDialog, {
+        onSuccess: (data: CheckoutResult) => {
+          setCheckOutDialog(null);
+          if (data.checkoutData) {
+            setCheckoutData(data.checkoutData);
+            setCheckoutSuccessOpen(true);
+          }
+        },
+      });
     }
   };
 
@@ -322,6 +333,13 @@ export default function Reservations() {
       <NewReservationDialog
         open={newReservationOpen}
         onOpenChange={setNewReservationOpen}
+      />
+
+      {/* Checkout Success Modal with Invoice */}
+      <CheckoutSuccessModal
+        open={checkoutSuccessOpen}
+        onOpenChange={setCheckoutSuccessOpen}
+        checkoutData={checkoutData}
       />
     </div>
   );

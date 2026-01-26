@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { LogIn, LogOut, Hotel, Clock } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useTodayArrivals, useTodayDepartures, useInHouseGuests } from "@/hooks/useFrontDesk";
-import { useCheckIn, useCheckOut } from "@/hooks/useReservations";
+import { useCheckIn, useCheckOut, type CheckoutResult } from "@/hooks/useReservations";
 import { useRoomStats } from "@/hooks/useRooms";
 import { FrontDeskStatsBar } from "@/components/front-desk/FrontDeskStatsBar";
 import { GuestListCard } from "@/components/front-desk/GuestListCard";
@@ -12,6 +12,7 @@ import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDial
 import { GuestSearchDialog } from "@/components/front-desk/GuestSearchDialog";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
+import { CheckoutSuccessModal, type CheckoutData } from "@/components/front-desk/CheckoutSuccessModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +51,8 @@ export default function FrontDesk() {
   const [guestSearchOpen, setGuestSearchOpen] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<FrontDeskReservation | null>(null);
   const [pendingCheckOut, setPendingCheckOut] = useState<FrontDeskReservation | null>(null);
+  const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
 
   // Update time every minute
   useEffect(() => {
@@ -88,10 +91,17 @@ export default function FrontDesk() {
 
   const confirmCheckOut = () => {
     if (pendingCheckOut) {
-      checkOutMutation.mutate(pendingCheckOut.id);
+      checkOutMutation.mutate(pendingCheckOut.id, {
+        onSuccess: (data: CheckoutResult) => {
+          setCheckOutDialogOpen(false);
+          setPendingCheckOut(null);
+          if (data.checkoutData) {
+            setCheckoutData(data.checkoutData);
+            setCheckoutSuccessOpen(true);
+          }
+        },
+      });
     }
-    setCheckOutDialogOpen(false);
-    setPendingCheckOut(null);
   };
 
   const handleGuestSelect = (guestId: string) => {
@@ -249,6 +259,13 @@ export default function FrontDesk() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Checkout Success Modal with Invoice */}
+      <CheckoutSuccessModal
+        open={checkoutSuccessOpen}
+        onOpenChange={setCheckoutSuccessOpen}
+        checkoutData={checkoutData}
+      />
     </div>
   );
 }

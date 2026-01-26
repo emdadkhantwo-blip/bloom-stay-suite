@@ -203,20 +203,63 @@ export function useCheckIn() {
   });
 }
 
+export interface CheckoutResult {
+  assignedStaffNames: string[];
+  checkoutData: {
+    guestName: string;
+    guestPhone: string | null;
+    roomNumbers: string[];
+    checkInDate: string;
+    checkOutDate: string;
+    subtotal: number;
+    taxAmount: number;
+    serviceCharge: number;
+    totalAmount: number;
+    invoiceNumber: string;
+    reservationId: string;
+  } | null;
+}
+
 export function useCheckOut() {
   const queryClient = useQueryClient();
   const { currentProperty, tenant } = useTenant();
   const currentPropertyId = currentProperty?.id;
 
   return useMutation({
-    mutationFn: async (reservationId: string) => {
-      // Get reservation rooms to update room statuses
+    mutationFn: async (reservationId: string): Promise<CheckoutResult> => {
+      // First, fetch all data needed for the invoice BEFORE updating status
+      const { data: reservation, error: reservationError } = await supabase
+        .from("reservations")
+        .select(`
+          id,
+          check_in_date,
+          check_out_date,
+          guest:guests(first_name, last_name, phone)
+        `)
+        .eq("id", reservationId)
+        .single();
+
+      if (reservationError) throw reservationError;
+
+      // Get reservation rooms with room numbers
       const { data: resRooms, error: fetchError } = await supabase
         .from("reservation_rooms")
-        .select("room_id")
+        .select(`
+          room_id,
+          room:rooms(room_number)
+        `)
         .eq("reservation_id", reservationId);
 
       if (fetchError) throw fetchError;
+
+      // Get folio for financial data
+      const { data: folio, error: folioError } = await supabase
+        .from("folios")
+        .select("folio_number, subtotal, tax_amount, service_charge, total_amount")
+        .eq("reservation_id", reservationId)
+        .maybeSingle();
+
+      if (folioError) throw folioError;
 
       // Update reservation status
       const { error: resError } = await supabase
@@ -232,6 +275,12 @@ export function useCheckOut() {
 
       // Update room statuses to dirty
       const roomIds = resRooms?.map((rr) => rr.room_id).filter(Boolean) as string[];
+      const roomNumbers = resRooms
+        ?.map((rr: any) => rr.room?.room_number)
+        .filter(Boolean) as string[];
+
+      let assignedStaffNames: string[] = [];
+
       if (roomIds.length > 0) {
         const { error: roomError } = await supabase
           .from("rooms")
@@ -297,7 +346,7 @@ export function useCheckOut() {
           }
 
           // Track assigned staff names for the toast message
-          const assignedStaffNames = new Set<string>();
+          const assignedStaffNamesSet = new Set<string>();
 
           // Create tasks with auto-assignment based on workload
           const housekeepingTasks = roomIds.map((roomId, index) => {
@@ -308,7 +357,7 @@ export function useCheckOut() {
               assignedTo = staffWorkloads[staffIndex].staffId;
               // Track the name for the toast
               const staffName = staffNameMap.get(assignedTo);
-              if (staffName) assignedStaffNames.add(staffName);
+              if (staffName) assignedStaffNamesSet.add(staffName);
               // Increment workload for next assignment consideration
               staffWorkloads[staffIndex].workload++;
               // Re-sort to maintain lowest-first order
@@ -336,12 +385,27 @@ export function useCheckOut() {
             // Don't throw - checkout succeeded, task creation is secondary
           }
 
-          // Return assigned staff names for the success message
-          return { assignedStaffNames: Array.from(assignedStaffNames) };
+          assignedStaffNames = Array.from(assignedStaffNamesSet);
         }
       }
 
-      return { assignedStaffNames: [] };
+      // Build checkout data for the invoice
+      const guest = reservation?.guest as { first_name: string; last_name: string; phone: string | null } | null;
+      const checkoutData = {
+        guestName: guest ? `${guest.first_name} ${guest.last_name}` : "Guest",
+        guestPhone: guest?.phone || null,
+        roomNumbers,
+        checkInDate: reservation.check_in_date,
+        checkOutDate: reservation.check_out_date,
+        subtotal: folio?.subtotal || 0,
+        taxAmount: folio?.tax_amount || 0,
+        serviceCharge: folio?.service_charge || 0,
+        totalAmount: folio?.total_amount || 0,
+        invoiceNumber: folio?.folio_number || `INV-${reservationId.slice(0, 8)}`,
+        reservationId,
+      };
+
+      return { assignedStaffNames, checkoutData };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
@@ -355,16 +419,8 @@ export function useCheckOut() {
       queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["housekeeping-stats"] });
       
-      // Show success message with assigned staff names
-      const staffNames = data?.assignedStaffNames || [];
-      if (staffNames.length > 0) {
-        const namesText = staffNames.length === 1 
-          ? staffNames[0] 
-          : staffNames.slice(0, -1).join(', ') + ' & ' + staffNames[staffNames.length - 1];
-        toast.success(`Guest checked out successfully. Cleaning assigned to ${namesText}`);
-      } else {
-        toast.success("Guest checked out successfully");
-      }
+      // Note: We don't show the toast here anymore because we show the success modal instead
+      // The modal provides a better UX with invoice download capability
     },
     onError: (error) => {
       console.error("Check-out error:", error);
