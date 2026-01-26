@@ -1,133 +1,237 @@
 
 
-## Automatic Housekeeping Task Creation on Checkout
+# Implementation Plan: Guest ID Upload in New Reservation Form
 
-### Problem
+## Overview
+Add a dynamic ID document upload section to the New Reservation form that allows staff to upload identification documents (images/PDFs) for each guest. The number of required uploads adapts based on the total number of adults in the reservation.
 
-When a guest checks out, the room status correctly changes to "dirty", but no housekeeping task is automatically created. Staff must manually create cleaning tasks, which is inefficient and can lead to rooms being overlooked.
+## Architecture Decisions
 
-### Solution
+### Storage Approach
+- **Use Supabase Storage** with a new dedicated bucket `guest-documents` (private, not public - IDs contain sensitive PII)
+- Store file URLs in a new `reservation_guest_ids` table linked to reservations
 
-Automatically create a pending housekeeping task (with `task_type: 'cleaning'`) for each room when a guest checks out. The task will be unassigned, allowing managers or front desk staff to assign housekeeping personnel later.
+### Database Design
+Create a new table to store guest ID documents linked to reservations:
+
+```text
++------------------------+
+| reservation_guest_ids  |
++------------------------+
+| id (uuid, PK)          |
+| tenant_id (uuid, FK)   |
+| reservation_id (uuid)  |
+| guest_number (integer) |  -- 1, 2, 3, etc.
+| document_url (text)    |
+| document_type (text)   |  -- "image" or "pdf"
+| file_name (text)       |
+| uploaded_by (uuid)     |
+| created_at (timestamp) |
++------------------------+
+```
 
 ---
 
-### Implementation Details
+## Implementation Steps
 
-#### Update `useCheckOut` Hook
+### Step 1: Database Migration
 
-**File: `src/hooks/useReservations.tsx`**
+**Create storage bucket and table:**
 
-Add logic to create a housekeeping task for each room after setting the room status to "dirty":
+1. Create `guest-documents` storage bucket (NOT public for privacy)
+2. Create `reservation_guest_ids` table with proper structure
+3. Add RLS policies for tenant isolation and role-based access
+4. Create storage policies allowing authenticated uploads and authorized reads
 
+**SQL Migration:**
+```sql
+-- Create storage bucket for guest documents
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('guest-documents', 'guest-documents', false);
+
+-- Create table for reservation guest IDs
+CREATE TABLE public.reservation_guest_ids (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  reservation_id uuid NOT NULL REFERENCES public.reservations(id) ON DELETE CASCADE,
+  guest_number integer NOT NULL DEFAULT 1,
+  document_url text NOT NULL,
+  document_type text NOT NULL DEFAULT 'image',
+  file_name text,
+  uploaded_by uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.reservation_guest_ids ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Authorized staff can manage reservation_guest_ids"
+  ON public.reservation_guest_ids FOR ALL
+  USING (
+    tenant_id = current_tenant_id() AND (
+      has_role(auth.uid(), 'owner') OR
+      has_role(auth.uid(), 'manager') OR
+      has_role(auth.uid(), 'front_desk')
+    )
+  );
+
+CREATE POLICY "Superadmins full access to reservation_guest_ids"
+  ON public.reservation_guest_ids FOR ALL
+  USING (is_superadmin(auth.uid()));
+
+CREATE POLICY "Tenant users can view reservation_guest_ids"
+  ON public.reservation_guest_ids FOR SELECT
+  USING (tenant_id = current_tenant_id());
+
+-- Storage policies for guest-documents bucket
+CREATE POLICY "Authenticated users can upload guest documents"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'guest-documents');
+
+CREATE POLICY "Tenant users can view their guest documents"
+  ON storage.objects FOR SELECT
+  TO authenticated
+  USING (bucket_id = 'guest-documents');
+
+CREATE POLICY "Authorized staff can delete guest documents"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'guest-documents');
+```
+
+---
+
+### Step 2: Update NewReservationDialog.tsx
+
+**Add ID upload UI section:**
+
+1. Add state to track uploaded files per guest
+2. Create dynamic upload slots based on `adults` count
+3. Add file validation (image/PDF, max 5MB)
+4. Show preview for images, file name for PDFs
+5. Allow removal of uploaded files
+
+**UI Design:**
+```text
++------------------------------------------+
+| Guest ID Documents                       |
+| Upload ID for each adult guest           |
++------------------------------------------+
+| Guest 1 ID *                             |
+| [Upload Button] or [Image Preview + X]   |
++------------------------------------------+
+| Guest 2 ID *                             |
+| [Upload Button] or [Image Preview + X]   |
++------------------------------------------+
+| (dynamically adds more based on adults)  |
++------------------------------------------+
+```
+
+**Key code additions:**
+- Import `Upload`, `X`, `FileText` icons
+- Add `guestIdFiles` state: `Map<number, { file: File; preview: string; type: string }>`
+- Create `handleIdUpload(guestNumber, event)` function
+- Create `removeIdFile(guestNumber)` function
+- Render upload cards dynamically based on form's `adults` value
+
+---
+
+### Step 3: Update useCreateReservation.tsx
+
+**Extend mutation to handle file uploads:**
+
+1. Update `CreateReservationInput` interface to include optional `idFiles`
+2. After creating reservation, upload each file to storage
+3. Insert records into `reservation_guest_ids` table
+4. Handle upload errors gracefully (don't fail entire reservation)
+
+**Updated interface:**
 ```typescript
-export function useCheckOut() {
-  const queryClient = useQueryClient();
-  const { currentProperty, tenant } = useTenant(); // Add tenant
-  const currentPropertyId = currentProperty?.id;
+export interface CreateReservationInput {
+  // ...existing fields...
+  idFiles?: Map<number, { file: File; type: string; fileName: string }>;
+}
+```
 
-  return useMutation({
-    mutationFn: async (reservationId: string) => {
-      // Get reservation rooms to update room statuses
-      const { data: resRooms, error: fetchError } = await supabase
-        .from("reservation_rooms")
-        .select("room_id")
-        .eq("reservation_id", reservationId);
-
-      if (fetchError) throw fetchError;
-
-      // Update reservation status
-      const { error: resError } = await supabase
-        .from("reservations")
-        .update({ 
-          status: "checked_out", 
-          actual_check_out: new Date().toISOString(),
-          updated_at: new Date().toISOString() 
-        })
-        .eq("id", reservationId);
-
-      if (resError) throw resError;
-
-      // Update room statuses to dirty
-      const roomIds = resRooms?.map((rr) => rr.room_id).filter(Boolean) as string[];
-      if (roomIds.length > 0) {
-        const { error: roomError } = await supabase
-          .from("rooms")
-          .update({ status: "dirty", updated_at: new Date().toISOString() })
-          .in("id", roomIds);
-
-        if (roomError) throw roomError;
-
-        // NEW: Create pending housekeeping tasks for each room
-        if (tenant?.id && currentPropertyId) {
-          const housekeepingTasks = roomIds.map((roomId) => ({
-            tenant_id: tenant.id,
-            property_id: currentPropertyId,
-            room_id: roomId,
-            task_type: 'cleaning',
-            priority: 2, // Medium priority for checkout cleaning
-            status: 'pending',
-            assigned_to: null, // Unassigned - can be assigned later
-            notes: 'Post-checkout cleaning',
-          }));
-
-          const { error: taskError } = await supabase
-            .from('housekeeping_tasks')
-            .insert(housekeepingTasks);
-
-          if (taskError) {
-            console.error('Failed to create housekeeping tasks:', taskError);
-            // Don't throw - checkout succeeded, task creation is secondary
-          }
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
-      queryClient.invalidateQueries({ queryKey: ["reservation-stats", currentPropertyId] });
-      queryClient.invalidateQueries({ queryKey: ["rooms", currentPropertyId] });
-      queryClient.invalidateQueries({ queryKey: ["room-stats", currentPropertyId] });
-      queryClient.invalidateQueries({ 
-        predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+**Upload logic in mutationFn:**
+```typescript
+// After reservation is created
+if (input.idFiles && input.idFiles.size > 0) {
+  for (const [guestNumber, fileData] of input.idFiles) {
+    const filePath = `${tenantId}/${reservation.id}/guest-${guestNumber}-${Date.now()}`;
+    
+    // Upload to storage
+    const { error: uploadError } = await supabase.storage
+      .from('guest-documents')
+      .upload(filePath, fileData.file);
+    
+    if (!uploadError) {
+      // Get signed URL (private bucket)
+      const { data: urlData } = supabase.storage
+        .from('guest-documents')
+        .getPublicUrl(filePath);
+      
+      // Insert record
+      await supabase.from('reservation_guest_ids').insert({
+        tenant_id: tenantId,
+        reservation_id: reservation.id,
+        guest_number: guestNumber,
+        document_url: urlData.publicUrl,
+        document_type: fileData.type,
+        file_name: fileData.fileName,
+        uploaded_by: (await supabase.auth.getUser()).data.user?.id
       });
-      // NEW: Invalidate housekeeping queries
-      queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["housekeeping-stats"] });
-      toast.success("Guest checked out successfully");
-    },
-    // ... rest unchanged
-  });
+    }
+  }
 }
 ```
 
 ---
 
-### Key Design Decisions
+### Step 4: Form Reset and Cleanup
 
-| Decision | Rationale |
-|----------|-----------|
-| `task_type: 'cleaning'` | Standard cleaning after checkout |
-| `priority: 2` | Medium priority (not urgent, but important) |
-| `assigned_to: null` | Allows managers/front desk to assign staff later |
-| `status: 'pending'` | Ready to be assigned and worked on |
-| Non-blocking error handling | Checkout should succeed even if task creation fails |
-| Invalidate housekeeping queries | Ensures the Housekeeping page shows new tasks immediately |
+**Update form reset logic:**
+- Clear `guestIdFiles` state when dialog closes
+- Clear previews when form resets
+- Revoke object URLs to prevent memory leaks
 
 ---
 
-### Files to Modify
+## File Changes Summary
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useReservations.tsx` | Add housekeeping task creation in `useCheckOut`, add `tenant` from useTenant, invalidate housekeeping queries |
+| File | Change Type | Description |
+|------|-------------|-------------|
+| SQL Migration | New | Create bucket, table, RLS policies |
+| `src/components/reservations/NewReservationDialog.tsx` | Modify | Add ID upload UI section |
+| `src/hooks/useCreateReservation.tsx` | Modify | Handle file uploads after reservation creation |
 
 ---
 
-### Expected Result
+## Technical Considerations
 
-After checkout:
-1. Room status changes to "dirty" (existing behavior)
-2. A new "Pending" cleaning task appears in the Housekeeping section
-3. The task is unassigned and ready for a manager to assign to housekeeping staff
-4. Task includes "Post-checkout cleaning" note for context
+### Security
+- Storage bucket is **private** (guest IDs are PII)
+- RLS ensures only tenant staff can access documents
+- Files are organized by tenant and reservation ID
+
+### File Validation
+- Allowed types: JPEG, PNG, WebP, PDF
+- Max file size: 5MB per file
+- Client-side validation before upload
+
+### User Experience
+- Dynamic upload slots based on adult count
+- Image preview for uploaded images
+- PDF icon for uploaded PDFs
+- Easy removal with X button
+- Clear labels: "Guest 1 ID", "Guest 2 ID", etc.
+- Upload is optional but visible
+
+### Edge Cases
+- Changing adult count after uploads: Keep existing uploads, add/remove slots
+- Form submission without all IDs: Allow (optional uploads)
+- Large files: Reject with toast message
+- Upload failure: Log error, continue with reservation creation
 
