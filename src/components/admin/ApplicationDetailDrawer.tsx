@@ -13,6 +13,9 @@ import {
   Trash2,
   Loader2,
   AtSign,
+  Crown,
+  Zap,
+  Rocket,
 } from "lucide-react";
 import {
   Sheet,
@@ -26,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,12 +47,19 @@ import {
   useDeleteApplication,
   type AdminApplication,
 } from "@/hooks/useAdminApplications";
+import { usePlans, getPlanDisplayInfo } from "@/hooks/usePlans";
 
 interface ApplicationDetailDrawerProps {
   application: AdminApplication | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const planIcons = {
+  starter: Zap,
+  growth: Rocket,
+  pro: Crown,
+};
 
 export function ApplicationDetailDrawer({
   application,
@@ -59,7 +70,9 @@ export function ApplicationDetailDrawer({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
+  const { data: plans, isLoading: plansLoading } = usePlans();
   const approveApplication = useApproveApplication();
   const rejectApplication = useRejectApplication();
   const deleteApplication = useDeleteApplication();
@@ -84,7 +97,12 @@ export function ApplicationDetailDrawer({
   const config = statusConfig[application.status];
 
   const handleApprove = async () => {
-    await approveApplication.mutateAsync(application.id);
+    if (!selectedPlanId) return;
+    await approveApplication.mutateAsync({ 
+      applicationId: application.id,
+      planId: selectedPlanId 
+    });
+    setSelectedPlanId("");
     onOpenChange(false);
   };
 
@@ -267,6 +285,75 @@ export function ApplicationDetailDrawer({
               )}
             </div>
 
+            {/* Plan Selection - Only for pending applications */}
+            {application.status === "pending" && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                    Select Subscription Plan
+                  </h3>
+
+                  {plansLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <RadioGroup
+                      value={selectedPlanId}
+                      onValueChange={setSelectedPlanId}
+                      className="grid gap-3"
+                    >
+                      {plans?.map((plan) => {
+                        const displayInfo = getPlanDisplayInfo(plan.plan_type);
+                        const PlanIcon = planIcons[plan.plan_type as keyof typeof planIcons] || Zap;
+                        
+                        return (
+                          <Label
+                            key={plan.id}
+                            htmlFor={plan.id}
+                            className={cn(
+                              "flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all",
+                              selectedPlanId === plan.id
+                                ? cn(displayInfo.borderColor, displayInfo.bgColor)
+                                : "border-border hover:border-muted-foreground/30"
+                            )}
+                          >
+                            <RadioGroupItem value={plan.id} id={plan.id} className="mt-1" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <PlanIcon className={cn("h-4 w-4", displayInfo.color)} />
+                                <span className={cn("font-semibold", displayInfo.color)}>
+                                  {displayInfo.label}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  ${plan.price_monthly}/mo
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {displayInfo.description}
+                              </p>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {plan.max_properties === 999 ? "Unlimited" : plan.max_properties} properties
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {plan.max_rooms === 999 ? "Unlimited" : plan.max_rooms} rooms
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {plan.max_staff === 999 ? "Unlimited" : plan.max_staff} staff
+                                </Badge>
+                              </div>
+                            </div>
+                          </Label>
+                        );
+                      })}
+                    </RadioGroup>
+                  )}
+                </div>
+              </>
+            )}
+
             {/* Actions */}
             {application.status === "pending" && (
               <>
@@ -275,14 +362,14 @@ export function ApplicationDetailDrawer({
                   <Button
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
                     onClick={handleApprove}
-                    disabled={approveApplication.isPending}
+                    disabled={approveApplication.isPending || !selectedPlanId}
                   >
                     {approveApplication.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <CheckCircle className="mr-2 h-4 w-4" />
                     )}
-                    Approve Application
+                    {selectedPlanId ? "Approve Application" : "Select a Plan to Approve"}
                   </Button>
                   <Button
                     variant="outline"

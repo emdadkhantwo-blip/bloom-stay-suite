@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get the application ID from request body
-    const { applicationId } = await req.json();
+    // Get the application ID and plan ID from request body
+    const { applicationId, planId } = await req.json();
     
     if (!applicationId) {
       return new Response(
@@ -71,7 +71,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("Approving application:", applicationId);
+    if (!planId) {
+      return new Response(
+        JSON.stringify({ error: "Plan ID is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Approving application:", applicationId, "with plan:", planId);
+
+    // Verify plan exists
+    const { data: plan, error: planError } = await adminClient
+      .from("plans")
+      .select("*")
+      .eq("id", planId)
+      .single();
+
+    if (planError || !plan) {
+      console.error("Plan fetch error:", planError);
+      return new Response(
+        JSON.stringify({ error: "Invalid plan selected" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Selected plan:", plan.name);
 
     // Fetch the application
     const { data: application, error: appError } = await adminClient
@@ -153,7 +177,24 @@ Deno.serve(async (req) => {
 
     console.log("Created tenant:", tenant.id);
 
-    // Step 3: Create profile
+    // Step 3: Create subscription with selected plan
+    const { error: subscriptionError } = await adminClient
+      .from("subscriptions")
+      .insert({
+        tenant_id: tenant.id,
+        plan_id: planId,
+        status: "active",
+        started_at: new Date().toISOString(),
+      });
+
+    if (subscriptionError) {
+      console.error("Subscription creation error:", subscriptionError);
+      // Continue anyway, can be fixed manually
+    } else {
+      console.log("Created subscription with plan:", plan.name);
+    }
+
+    // Step 4: Create profile
     const { error: profileError } = await adminClient
       .from("profiles")
       .insert({
@@ -170,6 +211,7 @@ Deno.serve(async (req) => {
     if (profileError) {
       console.error("Profile creation error:", profileError);
       // Rollback
+      await adminClient.from("subscriptions").delete().eq("tenant_id", tenant.id);
       await adminClient.from("tenants").delete().eq("id", tenant.id);
       await adminClient.auth.admin.deleteUser(newUserId);
       return new Response(
@@ -180,7 +222,7 @@ Deno.serve(async (req) => {
 
     console.log("Created profile");
 
-    // Step 4: Assign owner role
+    // Step 5: Assign owner role
     const { error: roleAssignError } = await adminClient
       .from("user_roles")
       .insert({
@@ -195,7 +237,7 @@ Deno.serve(async (req) => {
 
     console.log("Assigned owner role");
 
-    // Step 5: Create default property
+    // Step 6: Create default property
     const { data: property, error: propertyError } = await adminClient
       .from("properties")
       .insert({
@@ -215,7 +257,7 @@ Deno.serve(async (req) => {
     } else {
       console.log("Created property:", property.id);
 
-      // Step 6: Grant property access
+      // Step 7: Grant property access
       const { error: accessError } = await adminClient
         .from("property_access")
         .insert({
@@ -228,7 +270,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 7: Update application status
+    // Step 8: Update application status
     const { error: updateError } = await adminClient
       .from("admin_applications")
       .update({
@@ -242,7 +284,7 @@ Deno.serve(async (req) => {
       console.error("Application update error:", updateError);
     }
 
-    console.log("Application approved successfully");
+    console.log("Application approved successfully with", plan.name, "plan");
 
     return new Response(
       JSON.stringify({
@@ -250,6 +292,7 @@ Deno.serve(async (req) => {
         message: "Application approved successfully",
         userId: newUserId,
         tenantId: tenant.id,
+        planName: plan.name,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
