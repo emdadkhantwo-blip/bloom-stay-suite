@@ -240,18 +240,80 @@ export function useCheckOut() {
 
         if (roomError) throw roomError;
 
-        // Create pending housekeeping tasks for each room
+        // Create pending housekeeping tasks for each room with auto-assignment
         if (tenant?.id && currentPropertyId) {
-          const housekeepingTasks = roomIds.map((roomId) => ({
-            tenant_id: tenant.id,
-            property_id: currentPropertyId,
-            room_id: roomId,
-            task_type: 'cleaning',
-            priority: 2, // Medium priority for checkout cleaning
-            status: 'pending',
-            assigned_to: null, // Unassigned - can be assigned later
-            notes: 'Post-checkout cleaning',
-          }));
+          // Get housekeeping staff for auto-assignment
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('tenant_id', tenant.id)
+            .eq('is_active', true);
+
+          const userIds = profiles?.map(p => p.id) || [];
+          let housekeepingStaffIds: string[] = [];
+
+          if (userIds.length > 0) {
+            // Get only users with housekeeping role (not owner/manager who shouldn't be auto-assigned)
+            const { data: roles } = await supabase
+              .from('user_roles')
+              .select('user_id')
+              .in('user_id', userIds)
+              .eq('role', 'housekeeping');
+
+            housekeepingStaffIds = roles?.map(r => r.user_id) || [];
+          }
+
+          // Calculate workload for each housekeeping staff member
+          let staffWorkloads: { staffId: string; workload: number }[] = [];
+
+          if (housekeepingStaffIds.length > 0) {
+            // Get current pending/in-progress tasks for each staff member
+            const { data: existingTasks } = await supabase
+              .from('housekeeping_tasks')
+              .select('assigned_to')
+              .eq('property_id', currentPropertyId)
+              .in('assigned_to', housekeepingStaffIds)
+              .in('status', ['pending', 'in_progress']);
+
+            // Count tasks per staff member
+            const taskCounts = new Map<string, number>();
+            housekeepingStaffIds.forEach(id => taskCounts.set(id, 0));
+            existingTasks?.forEach(task => {
+              if (task.assigned_to) {
+                taskCounts.set(task.assigned_to, (taskCounts.get(task.assigned_to) || 0) + 1);
+              }
+            });
+
+            // Convert to sorted array (lowest workload first)
+            staffWorkloads = Array.from(taskCounts.entries())
+              .map(([staffId, workload]) => ({ staffId, workload }))
+              .sort((a, b) => a.workload - b.workload);
+          }
+
+          // Create tasks with auto-assignment based on workload
+          const housekeepingTasks = roomIds.map((roomId, index) => {
+            // Round-robin assignment starting from least busy staff
+            let assignedTo: string | null = null;
+            if (staffWorkloads.length > 0) {
+              const staffIndex = index % staffWorkloads.length;
+              assignedTo = staffWorkloads[staffIndex].staffId;
+              // Increment workload for next assignment consideration
+              staffWorkloads[staffIndex].workload++;
+              // Re-sort to maintain lowest-first order
+              staffWorkloads.sort((a, b) => a.workload - b.workload);
+            }
+
+            return {
+              tenant_id: tenant.id,
+              property_id: currentPropertyId,
+              room_id: roomId,
+              task_type: 'cleaning',
+              priority: 2, // Medium priority for checkout cleaning
+              status: 'pending',
+              assigned_to: assignedTo,
+              notes: assignedTo ? 'Post-checkout cleaning (auto-assigned)' : 'Post-checkout cleaning',
+            };
+          });
 
           const { error: taskError } = await supabase
             .from('housekeeping_tasks')
