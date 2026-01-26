@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.delete-staff]
 verify_jwt = false
+
+[functions.admin-chat]
+verify_jwt = false
