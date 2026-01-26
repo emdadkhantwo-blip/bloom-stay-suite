@@ -20,7 +20,7 @@ export function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <img src={beehotelLogo} alt="BeeHotel" className="h-10 w-auto" />
+          <img src={beehotelLogo} alt="BeeHotel" className="h-20 w-auto" />
         </Link>
 
         {/* Desktop Navigation */}

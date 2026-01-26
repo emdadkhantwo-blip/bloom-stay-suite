@@ -25,7 +25,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <img src={beehotelLogo} alt="BeeHotel" className="h-12 w-auto bg-white rounded-lg p-1" />
+              <img src={beehotelLogo} alt="BeeHotel" className="h-24 w-auto bg-white rounded-lg p-1" />
             </div>
             <p className="text-primary-foreground/70 mb-6">
               বাংলাদেশের রিসোর্ট ও হোটেলের জন্য স্মার্ট হোটেল ম্যানেজমেন্ট সিস্টেম।

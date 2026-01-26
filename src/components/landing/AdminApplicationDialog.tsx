@@ -188,7 +188,7 @@ export function AdminApplicationDialog({ open, onOpenChange }: AdminApplicationD
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4">
           <div className="flex items-center gap-3 mb-2">
-            <img src={beehotelLogo} alt="BeeHotel" className="h-12 w-auto" />
+            <img src={beehotelLogo} alt="BeeHotel" className="h-24 w-auto" />
             <div>
               <DialogTitle className="text-xl">হোটেল ম্যানেজমেন্ট আবেদন</DialogTitle>
               <DialogDescription>
