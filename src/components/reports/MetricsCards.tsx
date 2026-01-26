@@ -30,7 +30,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
     },
     {
       label: "ADR",
-      value: `$${metrics?.adr || 0}`,
+      value: `৳${metrics?.adr || 0}`,
       subLabel: "Average Daily Rate",
       icon: DollarSign,
       color: "text-emerald-500",
@@ -38,7 +38,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
     },
     {
       label: "RevPAR",
-      value: `$${metrics?.revPar || 0}`,
+      value: `৳${metrics?.revPar || 0}`,
       subLabel: "Revenue per Available Room",
       icon: TrendingUp,
       color: "text-purple-500",
@@ -46,8 +46,8 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
     },
     {
       label: "Total Revenue",
-      value: `$${(metrics?.totalRevenue || 0).toLocaleString()}`,
-      subLabel: `Room: $${(metrics?.roomRevenue || 0).toLocaleString()} • Services: $${(metrics?.serviceRevenue || 0).toLocaleString()}`,
+      value: `৳${(metrics?.totalRevenue || 0).toLocaleString()}`,
+      subLabel: `Room: ৳${(metrics?.roomRevenue || 0).toLocaleString()} • Services: ৳${(metrics?.serviceRevenue || 0).toLocaleString()}`,
       icon: DollarSign,
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",

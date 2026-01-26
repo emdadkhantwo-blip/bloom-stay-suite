@@ -135,7 +135,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
             Split Bill - {order.order_number}
           </DialogTitle>
           <DialogDescription>
-            Total: ${totalAmount.toFixed(2)}
+            Total: ৳{totalAmount.toFixed(2)}
           </DialogDescription>
         </DialogHeader>
 
@@ -184,7 +184,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
               <CardContent className="pt-4">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Each person pays</p>
-                  <p className="text-3xl font-bold text-primary">${equalSplitAmount.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-primary">৳{equalSplitAmount.toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -267,13 +267,13 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
                 <div className="flex justify-between text-sm">
                   <span>Total assigned:</span>
                   <span className={customRemaining !== 0 ? "text-destructive" : "text-green-600"}>
-                    ${customTotal.toFixed(2)}
+                    ৳{customTotal.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Remaining:</span>
                   <span className={customRemaining !== 0 ? "text-destructive font-bold" : ""}>
-                    ${customRemaining.toFixed(2)}
+                    ৳{customRemaining.toFixed(2)}
                   </span>
                 </div>
 
@@ -323,7 +323,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
                     <CardContent className="pt-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-medium">Person {personIndex + 1}</span>
-                        <Badge variant="secondary">${getPersonTotal(personIndex).toFixed(2)}</Badge>
+                        <Badge variant="secondary">৳{getPersonTotal(personIndex).toFixed(2)}</Badge>
                       </div>
                       <div className="space-y-2">
                         {items.map((item) => {
@@ -348,7 +348,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
                                 {item.quantity}x {item.item_name}
                               </span>
                               <span className="text-sm text-muted-foreground">
-                                ${Number(item.total_price).toFixed(2)}
+                                ৳{Number(item.total_price).toFixed(2)}
                               </span>
                             </div>
                           );
@@ -365,7 +365,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
             <div className="flex justify-between text-sm">
               <span>Total assigned:</span>
               <span>
-                ${Array.from({ length: itemSplitPeople }, (_, i) => getPersonTotal(i))
+                ৳{Array.from({ length: itemSplitPeople }, (_, i) => getPersonTotal(i))
                   .reduce((sum, amt) => sum + amt, 0)
                   .toFixed(2)}
               </span>

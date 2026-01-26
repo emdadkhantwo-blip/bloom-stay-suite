@@ -119,7 +119,7 @@ export function GuestHistoryTab({ reservations, isLoading }: GuestHistoryTabProp
                 <div className="flex items-center justify-between pt-2 border-t">
                   <span className="text-sm text-muted-foreground">Total</span>
                   <span className="text-lg font-semibold text-success">
-                    ${reservation.total_amount.toLocaleString()}
+                    ৳{reservation.total_amount.toLocaleString()}
                   </span>
                 </div>
 

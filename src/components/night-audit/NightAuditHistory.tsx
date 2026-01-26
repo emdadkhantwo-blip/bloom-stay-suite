@@ -13,11 +13,7 @@ interface NightAuditHistoryProps {
 
 export function NightAuditHistory({ audits, isLoading }: NightAuditHistoryProps) {
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(value);
+    return `৳${value.toLocaleString()}`;
   };
 
   const getStatusBadge = (status: string) => {

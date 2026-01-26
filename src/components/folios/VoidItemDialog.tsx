@@ -39,7 +39,7 @@ export function VoidItemDialog({ item, folioId, open, onOpenChange }: VoidItemDi
         <AlertDialogHeader>
           <AlertDialogTitle>Void Charge</AlertDialogTitle>
           <AlertDialogDescription>
-            You are about to void "{item.description}" for ${Number(item.total_price).toFixed(2)}.
+            You are about to void "{item.description}" for ৳{Number(item.total_price).toFixed(2)}.
             This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>

@@ -59,9 +59,9 @@ const DEFAULT_SETTINGS: TenantSettings = {
   defaults: {
     check_in_time: '14:00',
     check_out_time: '11:00',
-    default_currency: 'USD',
-    default_timezone: 'UTC',
-    date_format: 'MM/DD/YYYY',
+    default_currency: 'BDT',
+    default_timezone: 'Asia/Dhaka',
+    date_format: 'DD/MM/YYYY',
     time_format: '12h',
     cancellation_policy_hours: 24,
     no_show_charge_percent: 100,

@@ -115,7 +115,7 @@ export default function SubscriptionInfo() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-muted/50">
             <div>
               <p className="text-2xl font-bold">
-                ${(plan as { price_monthly?: number })?.price_monthly || 0}
+                ৳{(plan as { price_monthly?: number })?.price_monthly || 0}
                 <span className="text-sm font-normal text-muted-foreground">/month</span>
               </p>
               {(subscription as unknown as { expires_at?: string })?.expires_at && (

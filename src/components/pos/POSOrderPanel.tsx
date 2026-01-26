@@ -179,15 +179,15 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
                   key={cartItem.item.id}
                   className="rounded-lg border bg-card p-3"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium">{cartItem.item.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        ${Number(cartItem.item.price).toFixed(2)} each
-                      </p>
-                    </div>
-                    <p className="font-semibold">
-                      ${(cartItem.item.price * cartItem.quantity).toFixed(2)}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium">{cartItem.item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          ৳{Number(cartItem.item.price).toFixed(2)} each
+                        </p>
+                      </div>
+                      <p className="font-semibold">
+                        ৳{(cartItem.item.price * cartItem.quantity).toFixed(2)}
                     </p>
                   </div>
                   <div className="mt-2 flex items-center gap-2">
@@ -243,20 +243,20 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
         <div className="w-full space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>৳{subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-            <span>${taxAmount.toFixed(2)}</span>
+            <span>৳{taxAmount.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Service ({serviceChargeRate}%)</span>
-            <span>${serviceCharge.toFixed(2)}</span>
+            <span>৳{serviceCharge.toFixed(2)}</span>
           </div>
           <Separator className="my-2" />
           <div className="flex justify-between text-lg font-bold">
             <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+            <span>৳{total.toFixed(2)}</span>
           </div>
         </div>
 

@@ -132,7 +132,7 @@ export function POSOrdersTable({ orders, outletId }: POSOrdersTableProps) {
                         {order.items?.length || 0} items
                       </TableCell>
                       <TableCell className="font-medium">
-                        ${Number(order.total_amount).toFixed(2)}
+                        ৳{Number(order.total_amount).toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={config.variant} className="gap-1">
@@ -256,7 +256,7 @@ export function POSOrdersTable({ orders, outletId }: POSOrdersTableProps) {
                           <p className="text-xs text-muted-foreground">{item.notes}</p>
                         )}
                       </div>
-                      <p className="font-medium">${Number(item.total_price).toFixed(2)}</p>
+                      <p className="font-medium">৳{Number(item.total_price).toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
@@ -265,19 +265,19 @@ export function POSOrdersTable({ orders, outletId }: POSOrdersTableProps) {
               <div className="space-y-1 border-t pt-4 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${Number(selectedOrder.subtotal).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax</span>
-                  <span>${Number(selectedOrder.tax_amount).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.tax_amount).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Service Charge</span>
-                  <span>${Number(selectedOrder.service_charge).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.service_charge).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>${Number(selectedOrder.total_amount).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.total_amount).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -317,7 +317,7 @@ export function POSOrdersTable({ orders, outletId }: POSOrdersTableProps) {
               <div className="rounded-lg bg-muted p-3 text-center">
                 <p className="text-sm text-muted-foreground">Amount to Post</p>
                 <p className="text-2xl font-bold">
-                  ${Number(selectedOrder.total_amount).toFixed(2)}
+                  ৳{Number(selectedOrder.total_amount).toFixed(2)}
                 </p>
               </div>
             )}
