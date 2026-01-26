@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 
 export interface CalendarReservation {
   id: string;
@@ -49,7 +49,9 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
   const { currentProperty } = useTenant();
   const currentPropertyId = currentProperty?.id;
 
-  const endDate = addDays(startDate, numDays - 1);
+  // Normalize the base date to start of day for consistent calculations
+  const baseDate = startOfDay(startDate);
+  const endDate = addDays(baseDate, numDays - 1);
 
   return useQuery({
     queryKey: ["calendar-reservations", currentPropertyId, format(startDate, "yyyy-MM-dd"), numDays],
@@ -58,10 +60,10 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
         return { rooms: [], dateRange: [], stats: { arrivals: 0, departures: 0, inHouse: 0, available: 0 } };
       }
 
-      // Generate date range
+      // Generate date range using normalized base date
       const dateRange: Date[] = [];
       for (let i = 0; i < numDays; i++) {
-        dateRange.push(addDays(startDate, i));
+        dateRange.push(addDays(baseDate, i));
       }
 
       // Fetch all rooms for the property
@@ -81,7 +83,7 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
 
       // Fetch reservations that overlap with our date range
       // A reservation overlaps if: check_in_date <= endDate AND check_out_date > startDate
-      const startDateStr = format(startDate, "yyyy-MM-dd");
+      const startDateStr = format(baseDate, "yyyy-MM-dd");
       const endDateStr = format(endDate, "yyyy-MM-dd");
 
       const { data: reservations, error: resError } = await supabase

@@ -1,5 +1,5 @@
 import { useMemo, forwardRef, useState } from "react";
-import { format, differenceInDays, isToday, addDays, parseISO } from "date-fns";
+import { format, differenceInCalendarDays, isToday, addDays, parseISO, startOfDay } from "date-fns";
 import { motion, PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +66,8 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
   ({ reservation, startDate, dateRange, onClick, onDragEnd, roomIndex, totalRooms, isDragEnabled, maxLeftOffset, maxRightOffset }, ref) => {
     const [isDragging, setIsDragging] = useState(false);
     
-    const rangeStart = startDate;
+    // Normalize rangeStart to start of day for consistent calculations
+    const rangeStart = startOfDay(startDate);
     // rangeEnd should be the day AFTER the last visible day (exclusive)
     const rangeEnd = addDays(rangeStart, dateRange.length);
 
@@ -77,8 +78,9 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
     const visibleStart = checkIn < rangeStart ? rangeStart : checkIn;
     const visibleEnd = checkOut > rangeEnd ? rangeEnd : checkOut;
 
-    const startOffset = differenceInDays(visibleStart, rangeStart);
-    const duration = differenceInDays(visibleEnd, visibleStart);
+    // Use differenceInCalendarDays to ignore time components
+    const startOffset = differenceInCalendarDays(visibleStart, rangeStart);
+    const duration = differenceInCalendarDays(visibleEnd, visibleStart);
 
     // Skip if no visible portion
     if (duration <= 0) return null;
@@ -380,8 +382,9 @@ export function CalendarTimeline({
                       // Calculate horizontal constraints for this reservation
                       const checkIn = parseISO(res.check_in_date);
                       const checkOut = parseISO(res.check_out_date);
-                      const startOffset = differenceInDays(checkIn < startDate ? startDate : checkIn, startDate);
-                      const duration = differenceInDays(checkOut, checkIn);
+                      const normalizedStartDate = startOfDay(startDate);
+                      const startOffset = differenceInCalendarDays(checkIn < normalizedStartDate ? normalizedStartDate : checkIn, normalizedStartDate);
+                      const duration = differenceInCalendarDays(checkOut, checkIn);
                       
                       // Max left: can't go before the start of visible range
                       const maxLeftOffset = -startOffset * CELL_WIDTH;

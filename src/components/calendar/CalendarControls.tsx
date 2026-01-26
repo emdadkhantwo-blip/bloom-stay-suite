@@ -3,7 +3,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, CalendarDays, RefreshCw } from "lucide-react";
-import { format, addDays, subDays } from "date-fns";
+import { format, addDays, subDays, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface CalendarControlsProps {
@@ -26,15 +26,15 @@ export function CalendarControls({
   const endDate = addDays(startDate, numDays - 1);
 
   const goToPrevious = () => {
-    onStartDateChange(subDays(startDate, numDays));
+    onStartDateChange(startOfDay(subDays(startDate, numDays)));
   };
 
   const goToNext = () => {
-    onStartDateChange(addDays(startDate, numDays));
+    onStartDateChange(startOfDay(addDays(startDate, numDays)));
   };
 
   const goToToday = () => {
-    onStartDateChange(new Date());
+    onStartDateChange(startOfDay(new Date()));
   };
 
   return (
@@ -66,7 +66,7 @@ export function CalendarControls({
           <Calendar
             mode="single"
             selected={startDate}
-            onSelect={(date) => date && onStartDateChange(date)}
+            onSelect={(date) => date && onStartDateChange(startOfDay(date))}
             initialFocus
             className={cn("p-3 pointer-events-auto")}
           />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, parseISO } from "date-fns";
 import {
   User,
   Phone,
@@ -128,9 +128,10 @@ export function ReservationDetailDrawer({
   if (!reservation) return null;
 
   const guest = reservation.guest;
-  const nights = Math.ceil(
-    (new Date(reservation.check_out_date).getTime() - new Date(reservation.check_in_date).getTime()) /
-      (1000 * 60 * 60 * 24)
+  // Use differenceInCalendarDays for consistent night count calculation
+  const nights = differenceInCalendarDays(
+    parseISO(reservation.check_out_date),
+    parseISO(reservation.check_in_date)
   );
 
   const canCheckIn = reservation.status === "confirmed";
