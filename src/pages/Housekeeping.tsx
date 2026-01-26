@@ -181,7 +181,17 @@ export default function Housekeeping() {
 
       {/* Actions Bar */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Housekeeping Management</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-foreground">Housekeeping Management</h2>
+          {!isHousekeepingStaff && (stats?.unassignedPending ?? 0) > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="animate-pulse"
+            >
+              {stats?.unassignedPending} unassigned
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {/* My Tasks Notification Button */}
           <Popover open={notificationOpen} onOpenChange={setNotificationOpen}>
