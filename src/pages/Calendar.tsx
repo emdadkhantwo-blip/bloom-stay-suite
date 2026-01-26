@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
-import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, type Reservation } from "@/hooks/useReservations";
+import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, useUpdateReservation, type Reservation } from "@/hooks/useReservations";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
@@ -28,6 +28,7 @@ export default function Calendar() {
   const cancelReservation = useCancelReservation();
   const moveReservation = useMoveReservationToRoom();
   const deleteReservation = useDeleteReservation();
+  const updateReservation = useUpdateReservation();
 
   const handleReservationClick = async (calendarRes: CalendarReservation) => {
     setIsLoadingReservation(true);
@@ -132,6 +133,20 @@ export default function Calendar() {
     });
   };
 
+  const handleReservationDateChange = (
+    reservationId: string,
+    newCheckInDate: string,
+    newCheckOutDate: string
+  ) => {
+    updateReservation.mutate({
+      reservationId,
+      updates: {
+        check_in_date: newCheckInDate,
+        check_out_date: newCheckOutDate,
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -167,6 +182,7 @@ export default function Calendar() {
         dateRange={data?.dateRange || []}
         onReservationClick={handleReservationClick}
         onReservationMove={handleReservationMove}
+        onReservationDateChange={handleReservationDateChange}
       />
 
       {/* Reservation Detail Drawer */}

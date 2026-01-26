@@ -17,6 +17,11 @@ interface CalendarTimelineProps {
     newRoomId: string,
     oldRoomId: string | null
   ) => void;
+  onReservationDateChange?: (
+    reservationId: string,
+    newCheckInDate: string,
+    newCheckOutDate: string
+  ) => void;
 }
 
 const CELL_WIDTH = 48; // pixels per day
@@ -50,10 +55,12 @@ interface DraggableReservationBlockProps extends ReservationBlockProps {
   roomIndex: number;
   totalRooms: number;
   isDragEnabled: boolean;
+  maxLeftOffset: number;
+  maxRightOffset: number;
 }
 
 const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReservationBlockProps>(
-  ({ reservation, startDate, dateRange, onClick, onDragEnd, roomIndex, totalRooms, isDragEnabled }, ref) => {
+  ({ reservation, startDate, dateRange, onClick, onDragEnd, roomIndex, totalRooms, isDragEnabled, maxLeftOffset, maxRightOffset }, ref) => {
     const [isDragging, setIsDragging] = useState(false);
     
     const rangeStart = startDate;
@@ -80,17 +87,22 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
 
     const isVip = reservation.guest?.is_vip;
 
-    // Calculate drag constraints
+    // Calculate drag constraints (vertical for rooms, horizontal for dates)
     const maxUp = -(roomIndex * ROW_HEIGHT);
     const maxDown = (totalRooms - roomIndex - 1) * ROW_HEIGHT;
 
     return (
       <motion.button
         ref={ref as any}
-        drag={isDragEnabled ? "y" : false}
+        drag={isDragEnabled}
         dragMomentum={false}
         dragElastic={0}
-        dragConstraints={{ top: maxUp, bottom: maxDown }}
+        dragConstraints={{ 
+          top: maxUp, 
+          bottom: maxDown,
+          left: maxLeftOffset,
+          right: maxRightOffset
+        }}
         onDragStart={() => setIsDragging(true)}
         onDragEnd={(event, info) => {
           setIsDragging(false);
@@ -133,6 +145,8 @@ function ReservationBlockWithTooltip({
   roomIndex,
   totalRooms,
   isDragEnabled,
+  maxLeftOffset,
+  maxRightOffset,
 }: DraggableReservationBlockProps) {
   const checkIn = parseISO(reservation.check_in_date);
   const checkOut = parseISO(reservation.check_out_date);
@@ -152,6 +166,8 @@ function ReservationBlockWithTooltip({
           roomIndex={roomIndex}
           totalRooms={totalRooms}
           isDragEnabled={isDragEnabled}
+          maxLeftOffset={maxLeftOffset}
+          maxRightOffset={maxRightOffset}
         />
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
@@ -168,7 +184,7 @@ function ReservationBlockWithTooltip({
           </Badge>
           {isDragEnabled && (
             <div className="text-xs text-muted-foreground italic pt-1">
-              Drag vertically to move to another room
+              Drag to move dates or change room
             </div>
           )}
         </div>
@@ -182,6 +198,7 @@ export function CalendarTimeline({
   dateRange, 
   onReservationClick,
   onReservationMove,
+  onReservationDateChange,
 }: CalendarTimelineProps) {
   const startDate = dateRange[0];
 
@@ -213,25 +230,43 @@ export function CalendarTimeline({
     info: PanInfo
   ) => {
     const deltaY = info.offset.y;
+    const deltaX = info.offset.x;
     const rowsMoved = Math.round(deltaY / ROW_HEIGHT);
+    const daysMoved = Math.round(deltaX / CELL_WIDTH);
 
-    if (rowsMoved === 0) return; // No room change
+    // Handle horizontal date change
+    if (daysMoved !== 0) {
+      const checkIn = parseISO(reservation.check_in_date);
+      const checkOut = parseISO(reservation.check_out_date);
+      
+      const newCheckIn = addDays(checkIn, daysMoved);
+      const newCheckOut = addDays(checkOut, daysMoved);
+      
+      onReservationDateChange?.(
+        reservation.id,
+        format(newCheckIn, "yyyy-MM-dd"),
+        format(newCheckOut, "yyyy-MM-dd")
+      );
+    }
 
-    const targetRoomIndex = roomIndex + rowsMoved;
-    if (targetRoomIndex < 0 || targetRoomIndex >= flatRoomList.length) return;
+    // Handle vertical room change (only if not changing dates to avoid double-update confusion)
+    if (rowsMoved !== 0 && daysMoved === 0) {
+      const targetRoomIndex = roomIndex + rowsMoved;
+      if (targetRoomIndex < 0 || targetRoomIndex >= flatRoomList.length) return;
 
-    const targetRoom = flatRoomList[targetRoomIndex].room;
-    
-    // Can't move to unassigned row
-    if (targetRoom.id === "unassigned") return;
+      const targetRoom = flatRoomList[targetRoomIndex].room;
+      
+      // Can't move to unassigned row
+      if (targetRoom.id === "unassigned") return;
 
-    // Call the move handler
-    onReservationMove?.(
-      reservation.id,
-      reservation.reservation_room_id,
-      targetRoom.id,
-      currentRoomId === "unassigned" ? null : currentRoomId
-    );
+      // Call the move handler
+      onReservationMove?.(
+        reservation.id,
+        reservation.reservation_room_id,
+        targetRoom.id,
+        currentRoomId === "unassigned" ? null : currentRoomId
+      );
+    }
   };
 
   if (rooms.length === 0) {
@@ -333,19 +368,34 @@ export function CalendarTimeline({
                     </div>
 
                     {/* Reservation blocks */}
-                    {room.reservations.map((res) => (
-                      <ReservationBlockWithTooltip
-                        key={`${res.id}-${res.reservation_room_id}`}
-                        reservation={res}
-                        startDate={startDate}
-                        dateRange={dateRange}
-                        onClick={onReservationClick}
-                        onDragEnd={(info) => handleDragEnd(res, room.id, currentGlobalIndex, info)}
-                        roomIndex={currentGlobalIndex}
-                        totalRooms={flatRoomList.length}
-                        isDragEnabled={isDragEnabled}
-                      />
-                    ))}
+                    {room.reservations.map((res) => {
+                      // Calculate horizontal constraints for this reservation
+                      const checkIn = parseISO(res.check_in_date);
+                      const checkOut = parseISO(res.check_out_date);
+                      const startOffset = differenceInDays(checkIn < startDate ? startDate : checkIn, startDate);
+                      const duration = differenceInDays(checkOut, checkIn);
+                      
+                      // Max left: can't go before the start of visible range
+                      const maxLeftOffset = -startOffset * CELL_WIDTH;
+                      // Max right: can't extend beyond visible range
+                      const maxRightOffset = (dateRange.length - startOffset - duration) * CELL_WIDTH;
+                      
+                      return (
+                        <ReservationBlockWithTooltip
+                          key={`${res.id}-${res.reservation_room_id}`}
+                          reservation={res}
+                          startDate={startDate}
+                          dateRange={dateRange}
+                          onClick={onReservationClick}
+                          onDragEnd={(info) => handleDragEnd(res, room.id, currentGlobalIndex, info)}
+                          roomIndex={currentGlobalIndex}
+                          totalRooms={flatRoomList.length}
+                          isDragEnabled={isDragEnabled}
+                          maxLeftOffset={maxLeftOffset}
+                          maxRightOffset={maxRightOffset}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               );
