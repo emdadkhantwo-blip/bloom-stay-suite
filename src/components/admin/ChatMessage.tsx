@@ -11,6 +11,23 @@ interface ChatMessageProps {
   showDate?: boolean;
 }
 
+// Format error messages for users
+function formatErrorMessage(error: string): string {
+  if (error.includes("Could not find a relationship")) {
+    return "Unable to fetch related data. Please try again.";
+  }
+  if (error.includes("violates row-level security")) {
+    return "You don't have permission to perform this action.";
+  }
+  if (error.includes("duplicate key")) {
+    return "This item already exists.";
+  }
+  if (error.includes("not found")) {
+    return "The requested item was not found.";
+  }
+  return error.length > 100 ? error.substring(0, 100) + '...' : error;
+}
+
 export function ChatMessage({ message, showDate }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isLoading = message.isLoading;
@@ -160,25 +177,34 @@ export function ChatMessage({ message, showDate }: ChatMessageProps) {
 
           {/* Tool Results with success/failure */}
           {message.toolResults && message.toolResults.length > 0 && (
-            <div className="mt-1 space-y-1">
+            <div className="mt-1.5 space-y-1.5">
               {message.toolResults.map((result, index) => (
                 <div 
                   key={index}
                   className={cn(
-                    "inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full",
+                    "text-xs px-3 py-2 rounded-lg",
                     result.success 
                       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                       : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                   )}
                 >
-                  {result.success ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <XCircle className="h-3 w-3" />
-                  )}
-                  <span>
-                    {result.success ? 'Success' : result.error || 'Failed'}
-                  </span>
+                  <div className="flex items-start gap-2">
+                    {result.success ? (
+                      <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <span className="font-medium">
+                        {result.success ? 'Success' : 'Error occurred'}
+                      </span>
+                      {!result.success && result.error && (
+                        <p className="mt-1 text-[11px] opacity-80">
+                          {formatErrorMessage(result.error)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

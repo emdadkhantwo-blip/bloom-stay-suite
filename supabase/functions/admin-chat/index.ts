@@ -52,9 +52,27 @@ async function callAIWithRetry(
   throw lastError || new Error('Max retries exceeded for AI API call');
 }
 
+// Helper function to format error messages for users
+function formatErrorMessage(error: string): string {
+  if (error.includes("Could not find a relationship")) {
+    return "Unable to fetch related data. Please try again.";
+  }
+  if (error.includes("violates row-level security")) {
+    return "You don't have permission to perform this action.";
+  }
+  if (error.includes("duplicate key")) {
+    return "This item already exists.";
+  }
+  if (error.includes("not found")) {
+    return "The requested item was not found.";
+  }
+  return error.length > 100 ? error.substring(0, 100) + '...' : error;
+}
+
 // Helper function to generate readable summaries for tool results
 function generateToolSummary(toolName: string, args: any, result: any): string {
   if (!result.success) {
+    return `⚠️ ${formatErrorMessage(result.error || 'Unknown error')}`;
     return `❌ Failed: ${result.error}`;
   }
 
@@ -176,12 +194,29 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
       .eq('is_active', true)
       .order('room_number');
     
-    // Fetch active staff
-    const { data: staff } = await supabase
+    // Fetch active staff profiles (separate queries to avoid FK issues)
+    const { data: staffProfiles } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, user_roles(role)')
+      .select('id, full_name, email, phone')
       .eq('tenant_id', tenantId)
       .eq('is_active', true);
+    
+    // Fetch roles for these staff
+    const staffIds = staffProfiles?.map((s: any) => s.id) || [];
+    let staffRoles: any[] = [];
+    if (staffIds.length > 0) {
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', staffIds);
+      staffRoles = roles || [];
+    }
+    
+    // Combine staff with their roles
+    const staff = (staffProfiles || []).map((profile: any) => ({
+      ...profile,
+      user_roles: staffRoles.filter((r: any) => r.user_id === profile.id)
+    }));
     
     // Fetch recent guests
     const { data: guests } = await supabase
@@ -1590,14 +1625,35 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
       }
 
       case "get_staff_list": {
-        let query = supabase.from('profiles')
-          .select('id, full_name, email, phone, is_active, user_roles(role)')
-          .eq('tenant_id', tenantId);
+        // Fetch profiles first (separate queries to avoid FK issues)
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, is_active')
+          .eq('tenant_id', tenantId)
+          .order('full_name');
         
-        const { data, error } = await query.order('full_name');
-        if (error) throw error;
+        if (profilesError) throw profilesError;
         
-        let staffList = data || [];
+        // Then get all roles for these users
+        const userIds = profiles?.map((p: any) => p.id) || [];
+        let roles: any[] = [];
+        if (userIds.length > 0) {
+          const { data: rolesData, error: rolesError } = await supabase
+            .from('user_roles')
+            .select('user_id, role')
+            .in('user_id', userIds);
+          
+          if (rolesError) throw rolesError;
+          roles = rolesData || [];
+        }
+        
+        // Combine the data
+        let staffList = (profiles || []).map((profile: any) => ({
+          ...profile,
+          user_roles: roles.filter((r: any) => r.user_id === profile.id)
+        }));
+        
+        // Filter by role if specified
         if (args.role) {
           staffList = staffList.filter((s: any) => 
             s.user_roles?.some((r: any) => r.role === args.role)
