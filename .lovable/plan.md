@@ -1,189 +1,142 @@
 
+## Goal
+Fix the calendar timeline so a reservation modified to **Check-in: Jan 26** and **Check-out: Jan 28** visually spans the correct dates (not only Jan 26). Keep the existing Refresh button behavior.
 
-# Implementation Plan: Calendar Refresh Button and Date Display Fix
+## What’s actually causing the bug (in simple terms)
+Right now the calendar’s “start date” (the left-most date column) is stored with a **time** (e.g., 11:33 PM), because it’s set using `new Date()` in a few places.
 
-## Overview
-This plan addresses two issues:
-1. Add a **Refresh button** to the `/calendar` page to manually reload calendar data
-2. Fix the **reservation block width display** issue where a 3-night stay appears shorter than expected
+But reservations from the database are “date-only” (midnight). When the code calculates block width using `differenceInDays`, the time portion can make `2 nights` turn into `1 day` visually.
 
----
+Example:
+- Calendar startDate = **Jan 26, 11:30 PM**
+- Reservation check-in = **Jan 26, 12:00 AM**
+- Reservation check-out = **Jan 28, 12:00 AM**
+- Visually computed duration becomes ~1 day (because it’s not a clean multiple of 24 hours)
 
-## Issue Analysis
+So the block appears only on the first day.
 
-### Current State
-From the database, the reservation "Amdur Reza" has:
-- **Check-In Date**: January 27, 2026 (Tuesday)
-- **Check-Out Date**: January 30, 2026 (Friday)  
-- **Duration**: 3 nights (27th, 28th, 29th)
+## Fix strategy (robust)
+1) **Normalize calendar startDate to “start of day” (midnight) everywhere**
+2) Use **calendar-day** differences (ignore time) for rendering math:
+   - Replace `differenceInDays` with `differenceInCalendarDays` for timeline offsets/durations and drag constraints
+3) Ensure date-range generation uses normalized dates too
+4) (Optional but recommended) Align Reservation Details duration calculation to the same logic for consistency
 
-The Stay Details panel correctly shows "3 nights", but the calendar block appears to only span about 1-2 days instead of 3 days.
-
-### Root Cause Investigation
-Looking at the `CalendarTimeline.tsx` calculation:
-
-```typescript
-const left = startOffset * CELL_WIDTH;
-const width = duration * CELL_WIDTH - 4;
-```
-
-The issue is that the reservation block is subtracting 4px from the width for a "gap", but the visual positioning may not be aligning correctly with the actual dates. The block should:
-- Start at column for Jan 27 (startOffset = 1 from Jan 26)
-- Span 3 columns (Jan 27, 28, 29) ending at Jan 30 checkout
+This makes the UI stable even if timezones or time components slip in.
 
 ---
 
-## Implementation Steps
+## Files to update
+### 1) `src/pages/Calendar.tsx`
+**Change**
+- Initialize state with `startOfDay(new Date())`
+- When setting startDate from controls, ensure it stays normalized (wrap `setStartDate`)
 
-### Step 1: Add Refresh Button to CalendarControls
+**Why**
+- Prevents “11:30 PM start date” from breaking the timeline calculation.
 
-**File**: `src/components/calendar/CalendarControls.tsx`
+**Implementation detail**
+- Import `startOfDay` from `date-fns`
+- Replace:
+  - `useState(() => new Date())`
+  - with `useState(() => startOfDay(new Date()))`
+- Add helper:
+  - `const setStartDateSafe = (d: Date) => setStartDate(startOfDay(d));`
+- Pass `setStartDateSafe` into `CalendarControls`
 
-Add a new prop for refresh functionality and a Refresh button:
-
-**Changes**:
-1. Add `onRefresh` callback prop to the component interface
-2. Add `isRefreshing` boolean prop to show loading state
-3. Add a Refresh button with `RefreshCw` icon from lucide-react
-4. Position it alongside existing navigation controls
-
-```text
-+------------------------------------------+
-| [<] [Today] [>]  |  [Date Picker]  |  [Days Select]  |  [Refresh] |
-+------------------------------------------+
-```
-
-### Step 2: Update Calendar Page to Handle Refresh
-
-**File**: `src/pages/Calendar.tsx`
-
-Add refresh functionality using React Query's refetch:
-
-**Changes**:
-1. Destructure `refetch` and `isRefetching` from `useCalendarReservations` hook
-2. Create `handleRefresh` function that calls `refetch()`
-3. Pass `onRefresh` and `isRefreshing` props to `CalendarControls`
-4. Show toast on successful refresh
-
-### Step 3: Fix Reservation Block Width Calculation
-
-**File**: `src/components/calendar/CalendarTimeline.tsx`
-
-The current width calculation appears correct mathematically, but there may be an edge case with how visible dates are clamped. Review and verify the calculation:
-
-**Current logic**:
-```typescript
-const visibleStart = checkIn < rangeStart ? rangeStart : checkIn;
-const visibleEnd = checkOut > rangeEnd ? rangeEnd : checkOut;
-
-const startOffset = differenceInDays(visibleStart, rangeStart);
-const duration = differenceInDays(visibleEnd, visibleStart);
-
-const width = duration * CELL_WIDTH - 4;
-```
-
-**Potential fix**: 
-Ensure that `rangeEnd` is correctly calculated as the last visible date PLUS one day (since checkOut is exclusive - guest leaves on checkout day). The current `rangeEnd = addDays(rangeStart, dateRange.length)` should be correct, but verify the comparison logic.
-
-If needed, add console logging temporarily to debug the actual values during rendering.
-
-### Step 4: Verify Date Parsing is Using Local Time
-
-The project memory indicates that `parseISO` from date-fns should be used for all date parsing to ensure local timezone interpretation. Verify all date operations in CalendarTimeline use this consistently.
+Also update `handleReservationDateChange` to use `differenceInCalendarDays` to keep pricing math consistent with date-only logic.
 
 ---
 
-## Files to Modify
+### 2) `src/components/calendar/CalendarControls.tsx`
+**Change**
+- Normalize any date emitted via `onStartDateChange`:
+  - Today button
+  - prev/next navigation
+  - date picker selection
 
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `src/components/calendar/CalendarControls.tsx` | Modify | Add Refresh button and props |
-| `src/pages/Calendar.tsx` | Modify | Add refresh handler and pass to CalendarControls |
-| `src/components/calendar/CalendarTimeline.tsx` | Modify | Review and fix block width calculation if needed |
+**Why**
+- Ensures startDate never reintroduces a time component.
 
----
-
-## UI Preview
-
-### CalendarControls After Changes
-```text
-+----------------------------------------------------------------------+
-| [<] [Today] [>]  [Jan 26 - Feb 8, 2026]  [14 Days v]  [Refresh ↻]   |
-+----------------------------------------------------------------------+
-```
-
-### Refresh Button Behavior
-- Shows spinning animation when refreshing
-- Displays "Refreshing..." or changes icon state while loading
-- Shows success toast: "Calendar refreshed"
+**Implementation detail**
+- Import `startOfDay`
+- Wrap all `onStartDateChange(...)` calls with `startOfDay(...)`.
 
 ---
 
-## Technical Details
+### 3) `src/hooks/useCalendarReservations.tsx`
+**Change**
+- Build `dateRange` based on a normalized base date
+- Compute `endDate` from the normalized base date
 
-### Refresh Button Implementation
+**Why**
+- Keeps the grid columns aligned to midnight days, matching reservation dates.
 
-```typescript
-// CalendarControls.tsx
-interface CalendarControlsProps {
-  startDate: Date;
-  numDays: number;
-  onStartDateChange: (date: Date) => void;
-  onNumDaysChange: (days: number) => void;
-  onRefresh?: () => void;      // NEW
-  isRefreshing?: boolean;       // NEW
-}
-
-// Add button in the controls JSX:
-<Button 
-  variant="outline" 
-  size="icon" 
-  onClick={onRefresh}
-  disabled={isRefreshing}
->
-  <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-</Button>
-```
-
-### Calendar Page Refresh Handler
-
-```typescript
-// Calendar.tsx
-const { data, isLoading, refetch, isRefetching } = useCalendarReservations(startDate, numDays);
-
-const handleRefresh = async () => {
-  await refetch();
-  toast.success("Calendar refreshed");
-};
-
-// Pass to CalendarControls:
-<CalendarControls
-  // ...existing props
-  onRefresh={handleRefresh}
-  isRefreshing={isRefetching}
-/>
-```
-
-### Block Width Fix Investigation
-
-The block width for a 3-night stay (Jan 27 - Jan 30) should be:
-- `duration = 3` (differenceInDays between Jan 30 and Jan 27)
-- `width = 3 * 48 - 4 = 140px`
-
-If the visual shows less than 3 columns, potential issues:
-1. The startDate/rangeEnd clamping logic may be cutting off the block
-2. There could be a CSS positioning issue with the left offset
-3. The parent container width may be constraining the block
-
-Debug approach: Add temporary console.log in the component to verify calculated values match expected values.
+**Implementation detail**
+- `const base = startOfDay(startDate)`
+- `dateRange.push(addDays(base, i))`
+- `endDate = addDays(base, numDays - 1)`
 
 ---
 
-## Testing Checklist
+### 4) `src/components/calendar/CalendarTimeline.tsx`
+**Change**
+- Use `differenceInCalendarDays` (not `differenceInDays`) in:
+  - `DraggableReservationBlock` calculations (`startOffset`, `duration`)
+  - the drag constraint calculations (`startOffset`, `duration`) in the map loop around line ~379
+- Normalize `rangeStart` internally defensively:
+  - `const rangeStart = startOfDay(startDate);`
 
-1. Click Refresh button - calendar data reloads with spinning icon
-2. Create a 3-night reservation (e.g., Jan 27-30) and verify block spans 3 columns
-3. Verify existing drag-and-drop functionality still works
-4. Verify Today button and navigation arrows still work
-5. Verify date picker still works for selecting start date
+**Why**
+- Removes all sensitivity to time-of-day differences, fixing the “only one day marked” bug.
+- Also fixes drag constraints so users can drag across the correct number of days.
 
+**Expected result**
+- For check-in Jan 26, check-out Jan 28:
+  - Duration = 2 (nights)
+  - Block spans **Jan 26 and Jan 27** columns (standard hotel calendar behavior where checkout day is not an occupied night).
+
+**Note on expectations**
+If you want the block to also color the **checkout day (Jan 28)** column, that’s a separate display choice (inclusive vs exclusive rendering). Standard hotel “nights” calendars show occupancy up to but not including checkout day. After this fix, the block will correctly cover the nights.
+
+If you prefer “inclusive coloring” (26, 27, and 28), I can implement a visual rule:
+- render `displayEnd = addDays(checkOut, 1)` for UI only
+- keep billing/availability logic unchanged
+
+---
+
+### 5) (Recommended consistency) `src/components/reservations/ReservationDetailDrawer.tsx`
+**Change**
+- Replace the nights calculation that uses `new Date(...).getTime()` with:
+  - `differenceInCalendarDays(parseISO(check_out_date), parseISO(check_in_date))`
+- Replace date formatting from `new Date(reservation.check_in_date)` to `parseISO(...)`
+
+**Why**
+- Avoid timezone-related surprises and keep all “nights” calculations consistent across the app.
+
+---
+
+## Testing checklist (what we’ll verify in preview)
+1) Go to `/calendar` and set start date to Jan 26.
+2) Modify a reservation to:
+   - Check-in: Jan 26
+   - Check-out: Jan 28
+3) Confirm the reservation block spans **2 columns** (26 and 27), not only 26.
+4) Verify the tooltip still shows “Jan 26 → Jan 28”.
+5) Drag a reservation horizontally and confirm it moves the correct number of days (constraints not broken).
+6) Click Refresh and ensure:
+   - spinner shows while refetching
+   - “Calendar refreshed” toast appears
+   - reservations re-render correctly
+
+---
+
+## Risks / edge cases handled
+- Different timezones / times in `Date` objects: neutralized by `startOfDay` + `differenceInCalendarDays`
+- Date picker returning midnight vs “today button” returning “now”: both normalized
+- Drag constraints mismatching block width: fixed by using the same calendar-day math in both places
+
+---
+
+## Deliverable
+After implementation, the calendar will reliably show reservation blocks spanning the correct number of days/nights even after date modifications, without requiring manual refresh to “look right.”
