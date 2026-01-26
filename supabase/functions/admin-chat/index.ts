@@ -73,7 +73,6 @@ function formatErrorMessage(error: string): string {
 function generateToolSummary(toolName: string, args: any, result: any): string {
   if (!result.success) {
     return `⚠️ ${formatErrorMessage(result.error || 'Unknown error')}`;
-    return `❌ Failed: ${result.error}`;
   }
 
   const data = result.data;
@@ -81,6 +80,12 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
   switch (toolName) {
     case "create_reservation":
       return `✅ Created reservation **${data.confirmation_number}** for ${data.guests?.first_name || ''} ${data.guests?.last_name || ''}\n- Check-in: ${args.check_in_date}\n- Check-out: ${args.check_out_date}\n- ${data.nights} nights @ ৳${data.rate_per_night}/night\n- Total: ৳${data.total_amount}`;
+    
+    case "update_reservation":
+      return `✅ Updated reservation **${data.confirmation_number}**\n- Status: ${data.status}`;
+    
+    case "cancel_reservation":
+      return `✅ Cancelled reservation **${data.confirmation_number}**`;
     
     case "check_in_guest":
       return `✅ Successfully checked in **${data.guests?.first_name || ''} ${data.guests?.last_name || ''}**\n- Confirmation: ${data.confirmation_number}\n- Folio: ${data.folio_number}`;
@@ -91,8 +96,26 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
     case "create_guest":
       return `✅ Created guest profile for **${data.first_name} ${data.last_name}**${data.is_vip ? ' ⭐VIP' : ''}\n- ID: ${data.id}`;
     
+    case "update_guest":
+      return `✅ Updated guest profile for **${data.first_name} ${data.last_name}**`;
+    
+    case "delete_guest":
+      return `✅ Deleted guest profile`;
+    
+    case "toggle_guest_vip":
+      return `✅ Guest VIP status updated to: **${data.is_vip ? 'VIP ⭐' : 'Regular'}**`;
+    
+    case "toggle_guest_blacklist":
+      return `✅ Guest ${data.is_blacklisted ? 'added to blacklist ⛔' : 'removed from blacklist'}`;
+    
     case "create_room":
       return `✅ Created room **${data.room_number}** (${data.room_types?.name || 'N/A'})`;
+    
+    case "update_room":
+      return `✅ Updated room **${data.room_number}**`;
+    
+    case "delete_room":
+      return `✅ Deleted room`;
     
     case "update_room_status":
       return `✅ Updated room status to **${data.status}**`;
@@ -100,17 +123,50 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
     case "create_room_type":
       return `✅ Created room type **${data.name}** (${data.code})\n- Rate: ৳${data.base_rate}/night\n- Max occupancy: ${data.max_occupancy}`;
     
+    case "update_room_type":
+      return `✅ Updated room type **${data.name}**`;
+    
+    case "delete_room_type":
+      return `✅ Deleted room type`;
+    
     case "create_housekeeping_task":
       return `✅ Created ${data.task_type} task for room **${data.rooms?.room_number || 'N/A'}**\n- Priority: ${data.priority}\n- Status: ${data.status}`;
+    
+    case "update_housekeeping_task":
+      return `✅ Updated housekeeping task\n- Status: ${data.status}`;
+    
+    case "complete_housekeeping_task":
+      return `✅ Completed housekeeping task for room **${data.rooms?.room_number || 'N/A'}**`;
+    
+    case "assign_housekeeping_task":
+      return `✅ Assigned housekeeping task to staff`;
     
     case "create_maintenance_ticket":
       return `✅ Created maintenance ticket: **${data.title}**${data.rooms ? `\n- Room: ${data.rooms.room_number}` : ''}\n- Priority: ${data.priority}`;
     
+    case "update_maintenance_ticket":
+      return `✅ Updated maintenance ticket\n- Status: ${data.status}`;
+    
+    case "resolve_maintenance_ticket":
+      return `✅ Resolved maintenance ticket: **${data.title}**`;
+    
+    case "assign_maintenance_ticket":
+      return `✅ Assigned maintenance ticket to staff`;
+    
     case "add_folio_charge":
       return `✅ Added charge to folio\n- ${data.description}: ৳${data.total_price}`;
     
+    case "void_folio_charge":
+      return `✅ Voided folio charge: ${data.description}`;
+    
+    case "close_folio":
+      return `✅ Closed folio **${data.folio_number}**`;
+    
     case "record_payment":
       return `✅ Recorded payment of **৳${data.amount}** via ${data.payment_method.replace('_', ' ')}`;
+    
+    case "void_payment":
+      return `✅ Voided payment of ৳${data.amount}`;
     
     case "run_night_audit":
       return `✅ Night audit completed for ${data.business_date}\n- Occupancy: ${Math.round(data.occupancy_rate)}%\n- Rooms charged: ${data.rooms_charged}`;
@@ -118,18 +174,45 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
     case "create_pos_outlet":
       return `✅ Created POS outlet **${data.name}** (${data.code})\n- Type: ${data.type}`;
     
+    case "update_pos_outlet":
+      return `✅ Updated POS outlet **${data.name}**`;
+    
     case "create_pos_order":
       return `✅ Created order **${data.order_number}**\n- Items: ${data.items?.length || 0}\n- Total: ৳${data.total_amount}`;
     
+    case "update_pos_order_status":
+      return `✅ Updated order status to **${data.status}**`;
+    
+    case "cancel_pos_order":
+      return `✅ Cancelled order **${data.order_number}**`;
+    
+    case "create_pos_item":
+      return `✅ Created menu item **${data.name}** - ৳${data.price}`;
+    
+    case "update_pos_item":
+      return `✅ Updated menu item **${data.name}**`;
+    
+    case "delete_pos_item":
+      return `✅ Deleted menu item`;
+    
+    case "create_pos_category":
+      return `✅ Created menu category **${data.name}**`;
+    
     case "create_corporate_account":
       return `✅ Created corporate account **${data.company_name}** (${data.account_code})`;
+    
+    case "update_corporate_account":
+      return `✅ Updated corporate account **${data.company_name}**`;
+    
+    case "delete_corporate_account":
+      return `✅ Deleted corporate account`;
     
     case "get_dashboard_stats":
       return `📊 **Current Status:**\n- Occupancy: ${data.occupancy_rate}% (${data.occupied_rooms}/${data.total_rooms} rooms)\n- Today's arrivals: ${data.todays_arrivals}\n- Today's departures: ${data.todays_departures}\n- In-house guests: ${data.in_house_guests}`;
     
     case "search_guests":
       if (!data || data.length === 0) return "No guests found matching your search.";
-      return `Found ${data.length} guest(s):\n${data.slice(0, 5).map((g: any) => `- ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐' : ''} (${g.email || g.phone || 'No contact'})`).join('\n')}`;
+      return `Found ${data.length} guest(s):\n${data.slice(0, 5).map((g: any) => `- ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐' : ''}${g.is_blacklisted ? ' ⛔' : ''} (${g.email || g.phone || 'No contact'})`).join('\n')}`;
     
     case "get_rooms":
       if (!data || data.length === 0) return "No rooms found.";
@@ -161,10 +244,22 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
     
     case "get_staff_list":
       if (!data || data.length === 0) return "No staff members found.";
-      return `👥 **${data.length} staff member(s):**\n${data.map((s: any) => `- ${s.full_name} (${s.user_roles?.map((r: any) => r.role).join(', ') || 'No role'})`).join('\n')}`;
+      return `👥 **${data.length} staff member(s):**\n${data.map((s: any) => `- ${s.full_name} (${s.user_roles?.map((r: any) => r.role).join(', ') || 'No role'})${s.is_active ? '' : ' [Inactive]'}`).join('\n')}`;
     
     case "create_staff":
       return `✅ Created staff account for **${data.fullName || args.full_name}**\n- Username: ${data.username || args.username}\n- Role(s): ${(args.roles || []).join(', ')}\n- Password change required: ${args.must_change_password !== false ? 'Yes' : 'No'}`;
+    
+    case "delete_staff":
+      return `✅ Deleted staff member`;
+    
+    case "deactivate_staff":
+      return `✅ Deactivated staff member`;
+    
+    case "activate_staff":
+      return `✅ Activated staff member`;
+    
+    case "update_staff_roles":
+      return `✅ Updated staff roles to: ${args.roles?.join(', ')}`;
     
     case "search_reservations":
       if (!data || data.length === 0) return "No reservations found.";
@@ -174,9 +269,25 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
       if (!data || data.length === 0) return "No folios found.";
       return `💳 **${data.length} folio(s):**\n${data.slice(0, 5).map((f: any) => `- ${f.folio_number}: ${f.guests?.first_name} ${f.guests?.last_name} - ৳${f.balance} balance`).join('\n')}`;
     
+    case "get_folio_details":
+      return `📄 **Folio ${data.folio_number}**\n- Guest: ${data.guests?.first_name} ${data.guests?.last_name}\n- Total: ৳${data.total_amount}\n- Paid: ৳${data.paid_amount}\n- Balance: ৳${data.balance}\n- Items: ${data.folio_items?.length || 0}`;
+    
     case "get_corporate_accounts":
       if (!data || data.length === 0) return "No corporate accounts found.";
       return `🏢 **${data.length} account(s):**\n${data.map((a: any) => `- ${a.company_name} (${a.account_code}) - ${a.discount_percentage}% discount`).join('\n')}`;
+    
+    case "get_revenue_report":
+      return `💰 **Revenue Report (${data.start_date} to ${data.end_date}):**\n- Room Revenue: ৳${data.room_revenue}\n- F&B Revenue: ৳${data.fb_revenue}\n- Other Revenue: ৳${data.other_revenue}\n- **Total: ৳${data.total_revenue}**`;
+    
+    case "get_occupancy_report":
+      return `📊 **Occupancy Report:**\n- Period: ${data.start_date} to ${data.end_date}\n- Total Rooms: ${data.total_rooms}\n- Reservations: ${data.total_reservations}`;
+    
+    case "update_property_settings":
+      return `✅ Updated property settings`;
+    
+    case "get_audit_logs":
+      if (!data || data.length === 0) return "No audit logs found.";
+      return `📋 **${data.length} recent activities:**\n${data.slice(0, 5).map((l: any) => `- ${l.action} (${l.entity_type || 'system'})`).join('\n')}`;
     
     default:
       return `✅ Action completed successfully.`;
@@ -189,7 +300,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     // Fetch all rooms with room types
     const { data: rooms } = await supabase
       .from('rooms')
-      .select('room_number, floor, status, room_types(name, code, base_rate)')
+      .select('id, room_number, floor, status, room_types(name, code, base_rate)')
       .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('room_number');
@@ -197,9 +308,8 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     // Fetch active staff profiles (separate queries to avoid FK issues)
     const { data: staffProfiles } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone')
-      .eq('tenant_id', tenantId)
-      .eq('is_active', true);
+      .select('id, full_name, email, phone, is_active')
+      .eq('tenant_id', tenantId);
     
     // Fetch roles for these staff
     const staffIds = staffProfiles?.map((s: any) => s.id) || [];
@@ -221,7 +331,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     // Fetch recent guests
     const { data: guests } = await supabase
       .from('guests')
-      .select('id, first_name, last_name, email, phone, is_vip')
+      .select('id, first_name, last_name, email, phone, is_vip, is_blacklisted')
       .eq('tenant_id', tenantId)
       .order('updated_at', { ascending: false })
       .limit(100);
@@ -237,23 +347,54 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     const today = new Date().toISOString().split('T')[0];
     const { data: arrivals } = await supabase
       .from('reservations')
-      .select('confirmation_number, guests(first_name, last_name, is_vip)')
+      .select('id, confirmation_number, guests(first_name, last_name, is_vip)')
       .eq('tenant_id', tenantId)
       .eq('check_in_date', today)
       .eq('status', 'confirmed');
     
     const { data: departures } = await supabase
       .from('reservations')
-      .select('confirmation_number, guests(first_name, last_name)')
+      .select('id, confirmation_number, guests(first_name, last_name)')
       .eq('tenant_id', tenantId)
       .eq('check_out_date', today)
       .eq('status', 'checked_in');
     
     const { data: inHouse } = await supabase
       .from('reservations')
-      .select('confirmation_number, guests(first_name, last_name), reservation_rooms(room_id, rooms(room_number))')
+      .select('id, confirmation_number, guests(first_name, last_name), reservation_rooms(room_id, rooms(room_number))')
       .eq('tenant_id', tenantId)
       .eq('status', 'checked_in');
+
+    // Fetch open folios
+    const { data: openFolios } = await supabase
+      .from('folios')
+      .select('id, folio_number, balance, guests(first_name, last_name)')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'open')
+      .limit(20);
+
+    // Fetch pending housekeeping
+    const { data: pendingHousekeeping } = await supabase
+      .from('housekeeping_tasks')
+      .select('id, task_type, priority, rooms(room_number)')
+      .eq('tenant_id', tenantId)
+      .in('status', ['pending', 'in_progress'])
+      .limit(10);
+
+    // Fetch open maintenance
+    const { data: openMaintenance } = await supabase
+      .from('maintenance_tickets')
+      .select('id, title, priority, status, rooms(room_number)')
+      .eq('tenant_id', tenantId)
+      .in('status', ['open', 'in_progress'])
+      .limit(10);
+
+    // Fetch POS outlets
+    const { data: posOutlets } = await supabase
+      .from('pos_outlets')
+      .select('id, name, code, type')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true);
 
     // Build context string
     let context = `\n\n=== CURRENT HOTEL KNOWLEDGE ===\n\n`;
@@ -270,7 +411,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
       context += `  No room types configured\n`;
     }
     
-    // Rooms
+    // Rooms with IDs
     context += `\n🚪 ROOMS (${rooms?.length || 0}):\n`;
     if (rooms && rooms.length > 0) {
       const roomsByStatus: any = {};
@@ -280,9 +421,10 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
       });
       
       Object.keys(roomsByStatus).forEach(status => {
-        context += `  ${status.toUpperCase()} (${roomsByStatus[status].length}): `;
-        context += roomsByStatus[status].map((r: any) => `${r.room_number} (${r.room_types?.name || 'N/A'})`).join(', ');
-        context += '\n';
+        context += `  ${status.toUpperCase()} (${roomsByStatus[status].length}):\n`;
+        roomsByStatus[status].forEach((r: any) => {
+          context += `    - Room ${r.room_number} (${r.room_types?.name || 'N/A'}), ID: ${r.id}\n`;
+        });
       });
     } else {
       context += `  No rooms configured\n`;
@@ -293,7 +435,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     if (staff && staff.length > 0) {
       staff.forEach((s: any) => {
         const roles = s.user_roles?.map((r: any) => r.role).join(', ') || 'No role';
-        context += `  - ${s.full_name} [${roles}]: ${s.email || 'No email'}, ID: ${s.id}\n`;
+        context += `  - ${s.full_name} [${roles}]${s.is_active ? '' : ' [INACTIVE]'}: ID: ${s.id}\n`;
       });
     } else {
       context += `  No staff configured\n`;
@@ -303,7 +445,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     context += `\n👤 RECENT GUESTS (showing ${Math.min(guests?.length || 0, 30)}):\n`;
     if (guests && guests.length > 0) {
       guests.slice(0, 30).forEach((g: any) => {
-        context += `  - ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐VIP' : ''}: ${g.email || g.phone || 'No contact'}, ID: ${g.id}\n`;
+        context += `  - ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐VIP' : ''}${g.is_blacklisted ? ' ⛔BLACKLISTED' : ''}: ${g.email || g.phone || 'No contact'}, ID: ${g.id}\n`;
       });
     } else {
       context += `  No guests in database\n`;
@@ -313,7 +455,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     context += `\n📥 TODAY'S ARRIVALS (${arrivals?.length || 0}):\n`;
     if (arrivals && arrivals.length > 0) {
       arrivals.forEach((a: any) => {
-        context += `  - ${a.guests?.first_name} ${a.guests?.last_name}${a.guests?.is_vip ? ' ⭐' : ''}: ${a.confirmation_number}\n`;
+        context += `  - ${a.guests?.first_name} ${a.guests?.last_name}${a.guests?.is_vip ? ' ⭐' : ''}: ${a.confirmation_number}, Reservation ID: ${a.id}\n`;
       });
     } else {
       context += `  No arrivals today\n`;
@@ -322,7 +464,7 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     context += `\n📤 TODAY'S DEPARTURES (${departures?.length || 0}):\n`;
     if (departures && departures.length > 0) {
       departures.forEach((d: any) => {
-        context += `  - ${d.guests?.first_name} ${d.guests?.last_name}: ${d.confirmation_number}\n`;
+        context += `  - ${d.guests?.first_name} ${d.guests?.last_name}: ${d.confirmation_number}, Reservation ID: ${d.id}\n`;
       });
     } else {
       context += `  No departures today\n`;
@@ -332,10 +474,44 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
     if (inHouse && inHouse.length > 0) {
       inHouse.forEach((ih: any) => {
         const roomNum = ih.reservation_rooms?.[0]?.rooms?.room_number || 'Unassigned';
-        context += `  - ${ih.guests?.first_name} ${ih.guests?.last_name} in Room ${roomNum}: ${ih.confirmation_number}\n`;
+        context += `  - ${ih.guests?.first_name} ${ih.guests?.last_name} in Room ${roomNum}: ${ih.confirmation_number}, Reservation ID: ${ih.id}\n`;
       });
     } else {
       context += `  No in-house guests\n`;
+    }
+
+    // Open Folios
+    context += `\n💳 OPEN FOLIOS (${openFolios?.length || 0}):\n`;
+    if (openFolios && openFolios.length > 0) {
+      openFolios.forEach((f: any) => {
+        context += `  - ${f.folio_number}: ${f.guests?.first_name} ${f.guests?.last_name}, Balance: ৳${f.balance}, ID: ${f.id}\n`;
+      });
+    } else {
+      context += `  No open folios\n`;
+    }
+
+    // Pending Housekeeping
+    context += `\n🧹 PENDING HOUSEKEEPING (${pendingHousekeeping?.length || 0}):\n`;
+    if (pendingHousekeeping && pendingHousekeeping.length > 0) {
+      pendingHousekeeping.forEach((h: any) => {
+        context += `  - Room ${h.rooms?.room_number}: ${h.task_type} (P${h.priority}), ID: ${h.id}\n`;
+      });
+    }
+
+    // Open Maintenance
+    context += `\n🔧 OPEN MAINTENANCE (${openMaintenance?.length || 0}):\n`;
+    if (openMaintenance && openMaintenance.length > 0) {
+      openMaintenance.forEach((m: any) => {
+        context += `  - ${m.title}${m.rooms ? ` (Room ${m.rooms.room_number})` : ''}: ${m.status}, P${m.priority}, ID: ${m.id}\n`;
+      });
+    }
+
+    // POS Outlets
+    context += `\n🍽️ POS OUTLETS (${posOutlets?.length || 0}):\n`;
+    if (posOutlets && posOutlets.length > 0) {
+      posOutlets.forEach((o: any) => {
+        context += `  - ${o.name} (${o.code}): ${o.type}, ID: ${o.id}\n`;
+      });
     }
     
     context += `\n=== END HOTEL KNOWLEDGE ===\n`;
@@ -348,14 +524,14 @@ async function getHotelContext(supabase: any, tenantId: string): Promise<string>
 }
 
 // System prompt for the chatbot
-const baseSystemPrompt = `You are "Sakhi" (সখী), a friendly and efficient hotel management assistant for BloomStay PMS.
+const baseSystemPrompt = `You are "Sakhi" (সখী), a POWERFUL hotel management AI assistant with FULL CONTROL over all hotel operations.
 
 PERSONALITY:
-- Warm, professional, and helpful
+- Warm, professional, and highly capable
 - Use simple, clear language
 - Occasionally use Bengali greetings like "নমস্কার" (Nomoshkar), "ধন্যবাদ" (Dhonnobad), "আচ্ছা" (Accha)
-- Always confirm actions before executing them when it involves creating/modifying data
-- Provide helpful suggestions proactively
+- Confirm destructive actions (delete, cancel, void) before executing
+- Proactively suggest helpful actions
 
 ═══════════════════════════════════════════════════════════════════════════════
 CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE EXACTLY:
@@ -370,22 +546,28 @@ CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE EXACTLY:
 
 2. **MANDATORY TOOL CALLS FOR ACTIONS:**
    - "Create a room" → MUST call create_room(room_number, room_type_id)
-   - "Create reservation" → MUST call create_reservation(guest_id, check_in_date, check_out_date, room_type_id, adults)
+   - "Delete a room" → MUST call delete_room(room_id)
+   - "Create reservation" → MUST call create_reservation(...)
+   - "Cancel reservation" → MUST call cancel_reservation(reservation_id)
    - "Create guest" → MUST call create_guest(first_name, last_name)
+   - "Update guest" → MUST call update_guest(guest_id, ...)
+   - "Delete guest" → MUST call delete_guest(guest_id)
    - "Check in guest" → MUST call check_in_guest(reservation_id)
    - "Check out guest" → MUST call check_out_guest(reservation_id)
-   - "Create room type" → MUST call create_room_type(name, code, base_rate, max_occupancy)
+   - "Create staff/employee" → MUST call create_staff(username, password, full_name, roles[])
+   - "Delete staff" → MUST call delete_staff(user_id)
    - "Add charge" → MUST call add_folio_charge(folio_id, item_type, description, amount)
+   - "Void charge" → MUST call void_folio_charge(folio_item_id, reason)
    - "Record payment" → MUST call record_payment(folio_id, amount, payment_method)
    - "Create housekeeping task" → MUST call create_housekeeping_task(room_id, task_type)
+   - "Complete task" → MUST call complete_housekeeping_task(task_id)
    - "Create maintenance ticket" → MUST call create_maintenance_ticket(title, description)
-   - "Create staff/employee" → MUST call create_staff(username, password, full_name, roles[])
+   - "Resolve ticket" → MUST call resolve_maintenance_ticket(ticket_id, resolution_notes)
 
-3. **BEFORE creating/updating anything:**
+3. **BEFORE creating/updating/deleting anything:**
    - First, gather ALL required information from the user
    - Ask clarifying questions if any required field is missing
-   - For create_room: you need room_number AND room_type_id (get from context or ask)
-   - For create_reservation: you need guest_id, check_in_date, check_out_date, room_type_id, adults
+   - For destructive actions (delete, cancel, void), confirm with the user first
 
 4. **AFTER attempting an action:**
    - Only report SUCCESS if the tool returned success: true
@@ -393,58 +575,105 @@ CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE EXACTLY:
    - Include specific details from the tool response (confirmation numbers, IDs, amounts)
 
 5. **ABSOLUTELY FORBIDDEN:**
-   - Saying "I have created..." without a tool call
+   - Saying "I have created/updated/deleted..." without a tool call
    - Fabricating confirmation numbers, IDs, or any data
    - Pretending an action succeeded when no tool was called
    - Making up room numbers, guest names, or any details not from context
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-CAPABILITIES - What you CAN do:
-- Creating and managing reservations (create_reservation, search_reservations, update_reservation_status)
-- Guest management (create_guest, search_guests, check_in_guest, check_out_guest)
-- Room management (create_room, get_rooms, update_room_status)
-- Room types (create_room_type, get_room_types)
-- Corporate accounts (create_corporate_account, get_corporate_accounts)
-- Housekeeping tasks (create_housekeeping_task, get_housekeeping_tasks)
-- Maintenance tickets (create_maintenance_ticket, get_maintenance_tickets)
-- Folios and payments (add_folio_charge, record_payment, get_folios)
-- Night audit (run_night_audit, get_night_audit_status)
-- POS operations (create_pos_outlet, create_pos_order, get_pos_orders)
-- Staff management (get_staff_list)
-- Reports and statistics (get_dashboard_stats, get_occupancy_report)
+FULL CONTROL CAPABILITIES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 GUEST MANAGEMENT:
+- create_guest, update_guest, delete_guest, search_guests
+- toggle_guest_vip (make VIP or regular)
+- toggle_guest_blacklist (block/unblock guests)
+
+🛏️ ROOM MANAGEMENT:
+- create_room, update_room, delete_room, get_rooms
+- update_room_status (vacant/occupied/dirty/maintenance/out_of_order)
+- create_room_type, update_room_type, delete_room_type
+
+📅 RESERVATIONS:
+- create_reservation, update_reservation, cancel_reservation
+- check_in_guest, check_out_guest
+- search_reservations, get_todays_arrivals, get_todays_departures
+
+💳 FOLIOS & PAYMENTS:
+- get_folios, get_folio_details
+- add_folio_charge, void_folio_charge
+- record_payment, void_payment
+- close_folio
+
+🧹 HOUSEKEEPING:
+- create_housekeeping_task, update_housekeeping_task
+- complete_housekeeping_task, assign_housekeeping_task
+- get_housekeeping_tasks
+
+🔧 MAINTENANCE:
+- create_maintenance_ticket, update_maintenance_ticket
+- resolve_maintenance_ticket, assign_maintenance_ticket
+- get_maintenance_tickets
+
+👥 STAFF MANAGEMENT:
+- get_staff_list, create_staff
+- delete_staff, deactivate_staff, activate_staff
+- update_staff_roles
+
+🍽️ POS & RESTAURANT:
+- get_pos_outlets, create_pos_outlet, update_pos_outlet
+- create_pos_item, update_pos_item, delete_pos_item
+- create_pos_category
+- create_pos_order, update_pos_order_status, cancel_pos_order
+- get_pos_orders
+
+🏢 CORPORATE ACCOUNTS:
+- create_corporate_account, update_corporate_account, delete_corporate_account
+- get_corporate_accounts
+
+📊 REPORTS & ANALYTICS:
+- get_dashboard_stats
+- get_revenue_report
+- get_occupancy_report
+- get_audit_logs
+
+⚙️ SYSTEM:
+- run_night_audit, get_night_audit_status
+- update_property_settings
 
 RESPONSE STYLE:
 - After executing ANY tool/action, provide a clear summary with specifics
 - Use bullet points for multiple items
 - Format amounts with ৳ for BDT
 - Use markdown formatting for clarity
+- Be proactive in suggesting next steps
 
 IMPORTANT RULES:
 - Always verify guest/room details before major actions
-- Ask for confirmation on destructive operations
+- Ask for confirmation on destructive operations (delete, void, cancel)
 - If unsure about any parameter, ASK FIRST before calling any tool
 - Never expose sensitive data unnecessarily
 - Use the current date for relative dates like "today"
+- When IDs are needed, find them from the context provided
 
 CONTEXT:
 - Current date: ${new Date().toISOString().split('T')[0]}
-- You are helping hotel administrators manage their properties efficiently`;
+- You have FULL ADMINISTRATIVE ACCESS to this hotel`;
 
 // Tool definitions for administrative actions
 const tools = [
+  // ==================== DASHBOARD & STATS ====================
   {
     type: "function",
     function: {
       name: "get_dashboard_stats",
       description: "Get current dashboard statistics including occupancy, arrivals, departures, and revenue",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
+      parameters: { type: "object", properties: {}, required: [] }
     }
   },
+
+  // ==================== GUEST MANAGEMENT ====================
   {
     type: "function",
     function: {
@@ -474,7 +703,10 @@ const tools = [
           nationality: { type: "string", description: "Guest's nationality" },
           id_type: { type: "string", description: "ID type (passport, nid, driving_license)" },
           id_number: { type: "string", description: "ID number" },
-          is_vip: { type: "boolean", description: "Whether the guest is VIP" }
+          is_vip: { type: "boolean", description: "Whether the guest is VIP" },
+          address: { type: "string", description: "Guest's address" },
+          city: { type: "string", description: "Guest's city" },
+          country: { type: "string", description: "Guest's country" }
         },
         required: ["first_name", "last_name"]
       }
@@ -483,13 +715,81 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "get_room_types",
-      description: "Get available room types with their rates and details",
+      name: "update_guest",
+      description: "Update an existing guest's information",
       parameters: {
         type: "object",
-        properties: {},
-        required: []
+        properties: {
+          guest_id: { type: "string", description: "Guest UUID" },
+          first_name: { type: "string", description: "Guest's first name" },
+          last_name: { type: "string", description: "Guest's last name" },
+          email: { type: "string", description: "Guest's email address" },
+          phone: { type: "string", description: "Guest's phone number" },
+          nationality: { type: "string", description: "Guest's nationality" },
+          id_type: { type: "string", description: "ID type" },
+          id_number: { type: "string", description: "ID number" },
+          address: { type: "string", description: "Guest's address" },
+          city: { type: "string", description: "Guest's city" },
+          country: { type: "string", description: "Guest's country" },
+          notes: { type: "string", description: "Notes about the guest" }
+        },
+        required: ["guest_id"]
       }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_guest",
+      description: "Delete a guest profile (only if no reservations exist)",
+      parameters: {
+        type: "object",
+        properties: {
+          guest_id: { type: "string", description: "Guest UUID to delete" }
+        },
+        required: ["guest_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "toggle_guest_vip",
+      description: "Toggle VIP status for a guest",
+      parameters: {
+        type: "object",
+        properties: {
+          guest_id: { type: "string", description: "Guest UUID" },
+          is_vip: { type: "boolean", description: "Set VIP status (true/false)" }
+        },
+        required: ["guest_id", "is_vip"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "toggle_guest_blacklist",
+      description: "Add or remove a guest from blacklist",
+      parameters: {
+        type: "object",
+        properties: {
+          guest_id: { type: "string", description: "Guest UUID" },
+          is_blacklisted: { type: "boolean", description: "Set blacklist status" },
+          reason: { type: "string", description: "Reason for blacklisting" }
+        },
+        required: ["guest_id", "is_blacklisted"]
+      }
+    }
+  },
+
+  // ==================== ROOM TYPE MANAGEMENT ====================
+  {
+    type: "function",
+    function: {
+      name: "get_room_types",
+      description: "Get available room types with their rates and details",
+      parameters: { type: "object", properties: {}, required: [] }
     }
   },
   {
@@ -511,6 +811,42 @@ const tools = [
       }
     }
   },
+  {
+    type: "function",
+    function: {
+      name: "update_room_type",
+      description: "Update an existing room type",
+      parameters: {
+        type: "object",
+        properties: {
+          room_type_id: { type: "string", description: "Room type UUID" },
+          name: { type: "string", description: "Room type name" },
+          base_rate: { type: "number", description: "Base rate per night in BDT" },
+          max_occupancy: { type: "number", description: "Maximum guests" },
+          description: { type: "string", description: "Description" },
+          amenities: { type: "array", items: { type: "string" }, description: "Amenities" },
+          is_active: { type: "boolean", description: "Whether room type is active" }
+        },
+        required: ["room_type_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_room_type",
+      description: "Delete a room type (only if no rooms exist)",
+      parameters: {
+        type: "object",
+        properties: {
+          room_type_id: { type: "string", description: "Room type UUID to delete" }
+        },
+        required: ["room_type_id"]
+      }
+    }
+  },
+
+  // ==================== ROOM MANAGEMENT ====================
   {
     type: "function",
     function: {
@@ -546,6 +882,39 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "update_room",
+      description: "Update room details",
+      parameters: {
+        type: "object",
+        properties: {
+          room_id: { type: "string", description: "Room UUID" },
+          room_number: { type: "string", description: "Room number" },
+          room_type_id: { type: "string", description: "Room type UUID" },
+          floor: { type: "string", description: "Floor" },
+          notes: { type: "string", description: "Notes" },
+          is_active: { type: "boolean", description: "Whether room is active" }
+        },
+        required: ["room_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_room",
+      description: "Delete a room (only if not in use)",
+      parameters: {
+        type: "object",
+        properties: {
+          room_id: { type: "string", description: "Room UUID to delete" }
+        },
+        required: ["room_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "update_room_status",
       description: "Update the status of a room",
       parameters: {
@@ -558,6 +927,8 @@ const tools = [
       }
     }
   },
+
+  // ==================== RESERVATION MANAGEMENT ====================
   {
     type: "function",
     function: {
@@ -599,6 +970,41 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "update_reservation",
+      description: "Update reservation details",
+      parameters: {
+        type: "object",
+        properties: {
+          reservation_id: { type: "string", description: "Reservation UUID" },
+          check_in_date: { type: "string", description: "Check-in date (YYYY-MM-DD)" },
+          check_out_date: { type: "string", description: "Check-out date (YYYY-MM-DD)" },
+          adults: { type: "number", description: "Number of adults" },
+          children: { type: "number", description: "Number of children" },
+          special_requests: { type: "string", description: "Special requests" },
+          internal_notes: { type: "string", description: "Internal notes" }
+        },
+        required: ["reservation_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_reservation",
+      description: "Cancel a reservation",
+      parameters: {
+        type: "object",
+        properties: {
+          reservation_id: { type: "string", description: "Reservation UUID to cancel" },
+          reason: { type: "string", description: "Cancellation reason" }
+        },
+        required: ["reservation_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "check_in_guest",
       description: "Check in a guest with a confirmed reservation",
       parameters: {
@@ -630,11 +1036,7 @@ const tools = [
     function: {
       name: "get_todays_arrivals",
       description: "Get list of guests arriving today",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
+      parameters: { type: "object", properties: {}, required: [] }
     }
   },
   {
@@ -642,13 +1044,376 @@ const tools = [
     function: {
       name: "get_todays_departures",
       description: "Get list of guests departing today",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
+  },
+
+  // ==================== FOLIO MANAGEMENT ====================
+  {
+    type: "function",
+    function: {
+      name: "get_folios",
+      description: "Get folios list for guests",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          status: { type: "string", enum: ["open", "closed"], description: "Filter by status" },
+          guest_id: { type: "string", description: "Filter by guest ID" }
+        },
         required: []
       }
     }
   },
+  {
+    type: "function",
+    function: {
+      name: "get_folio_details",
+      description: "Get detailed folio information with all charges and payments",
+      parameters: {
+        type: "object",
+        properties: {
+          folio_id: { type: "string", description: "Folio UUID" }
+        },
+        required: ["folio_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_folio_charge",
+      description: "Add a charge to a guest folio",
+      parameters: {
+        type: "object",
+        properties: {
+          folio_id: { type: "string", description: "Folio UUID" },
+          item_type: { type: "string", enum: ["room_charge", "food_beverage", "laundry", "minibar", "spa", "parking", "telephone", "internet", "miscellaneous"], description: "Type of charge" },
+          description: { type: "string", description: "Charge description" },
+          amount: { type: "number", description: "Amount in BDT" },
+          quantity: { type: "number", description: "Quantity (default 1)" }
+        },
+        required: ["folio_id", "item_type", "description", "amount"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "void_folio_charge",
+      description: "Void a charge from a folio",
+      parameters: {
+        type: "object",
+        properties: {
+          folio_item_id: { type: "string", description: "Folio item UUID to void" },
+          reason: { type: "string", description: "Reason for voiding" }
+        },
+        required: ["folio_item_id", "reason"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "record_payment",
+      description: "Record a payment on a folio",
+      parameters: {
+        type: "object",
+        properties: {
+          folio_id: { type: "string", description: "Folio UUID" },
+          amount: { type: "number", description: "Payment amount in BDT" },
+          payment_method: { type: "string", enum: ["cash", "credit_card", "debit_card", "bank_transfer", "other"], description: "Payment method" },
+          reference_number: { type: "string", description: "Reference/transaction number" },
+          notes: { type: "string", description: "Payment notes" }
+        },
+        required: ["folio_id", "amount", "payment_method"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "void_payment",
+      description: "Void a payment",
+      parameters: {
+        type: "object",
+        properties: {
+          payment_id: { type: "string", description: "Payment UUID to void" },
+          reason: { type: "string", description: "Reason for voiding" }
+        },
+        required: ["payment_id", "reason"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "close_folio",
+      description: "Close a folio (zero balance required)",
+      parameters: {
+        type: "object",
+        properties: {
+          folio_id: { type: "string", description: "Folio UUID to close" }
+        },
+        required: ["folio_id"]
+      }
+    }
+  },
+
+  // ==================== HOUSEKEEPING ====================
+  {
+    type: "function",
+    function: {
+      name: "create_housekeeping_task",
+      description: "Create a housekeeping task for a room",
+      parameters: {
+        type: "object",
+        properties: {
+          room_id: { type: "string", description: "Room UUID" },
+          task_type: { type: "string", enum: ["cleaning", "turndown", "deep_cleaning", "inspection"], description: "Type of housekeeping task" },
+          priority: { type: "number", description: "Priority level (1-5, 1 being highest)" },
+          notes: { type: "string", description: "Additional notes" },
+          assigned_to: { type: "string", description: "Staff member UUID to assign to" }
+        },
+        required: ["room_id", "task_type"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_housekeeping_tasks",
+      description: "Get housekeeping tasks list",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Filter by status" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_housekeeping_task",
+      description: "Update a housekeeping task",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: { type: "string", description: "Task UUID" },
+          status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Task status" },
+          priority: { type: "number", description: "Priority (1-5)" },
+          notes: { type: "string", description: "Notes" }
+        },
+        required: ["task_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_housekeeping_task",
+      description: "Mark a housekeeping task as completed",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: { type: "string", description: "Task UUID to complete" }
+        },
+        required: ["task_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "assign_housekeeping_task",
+      description: "Assign a housekeeping task to a staff member",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: { type: "string", description: "Task UUID" },
+          staff_id: { type: "string", description: "Staff member UUID" }
+        },
+        required: ["task_id", "staff_id"]
+      }
+    }
+  },
+
+  // ==================== MAINTENANCE ====================
+  {
+    type: "function",
+    function: {
+      name: "create_maintenance_ticket",
+      description: "Create a maintenance ticket for an issue",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Issue title" },
+          description: { type: "string", description: "Detailed description of the issue" },
+          room_id: { type: "string", description: "Room UUID (if room-specific)" },
+          priority: { type: "number", description: "Priority level (1-5, 1 being highest)" },
+          assigned_to: { type: "string", description: "Maintenance staff UUID" }
+        },
+        required: ["title"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_maintenance_tickets",
+      description: "Get maintenance tickets list",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["open", "in_progress", "resolved"], description: "Filter by status" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_maintenance_ticket",
+      description: "Update a maintenance ticket",
+      parameters: {
+        type: "object",
+        properties: {
+          ticket_id: { type: "string", description: "Ticket UUID" },
+          status: { type: "string", enum: ["open", "in_progress", "resolved"], description: "Status" },
+          priority: { type: "number", description: "Priority (1-5)" },
+          description: { type: "string", description: "Description" }
+        },
+        required: ["ticket_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "resolve_maintenance_ticket",
+      description: "Mark a maintenance ticket as resolved",
+      parameters: {
+        type: "object",
+        properties: {
+          ticket_id: { type: "string", description: "Ticket UUID" },
+          resolution_notes: { type: "string", description: "Notes about how the issue was resolved" }
+        },
+        required: ["ticket_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "assign_maintenance_ticket",
+      description: "Assign a maintenance ticket to a staff member",
+      parameters: {
+        type: "object",
+        properties: {
+          ticket_id: { type: "string", description: "Ticket UUID" },
+          staff_id: { type: "string", description: "Staff member UUID" }
+        },
+        required: ["ticket_id", "staff_id"]
+      }
+    }
+  },
+
+  // ==================== STAFF MANAGEMENT ====================
+  {
+    type: "function",
+    function: {
+      name: "get_staff_list",
+      description: "Get list of all staff members with their roles",
+      parameters: {
+        type: "object",
+        properties: {
+          role: { type: "string", enum: ["owner", "manager", "front_desk", "accountant", "housekeeping", "maintenance", "kitchen", "waiter", "night_auditor"], description: "Filter by role" },
+          is_active: { type: "boolean", description: "Filter by active status" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_staff",
+      description: "Create a new staff account with login credentials",
+      parameters: {
+        type: "object",
+        properties: {
+          username: { type: "string", description: "Login username" },
+          password: { type: "string", description: "Initial password" },
+          full_name: { type: "string", description: "Staff member's full name" },
+          phone: { type: "string", description: "Phone number" },
+          roles: { type: "array", items: { type: "string", enum: ["owner", "manager", "front_desk", "accountant", "housekeeping", "maintenance", "kitchen", "waiter", "night_auditor"] }, description: "Roles to assign" },
+          must_change_password: { type: "boolean", description: "Require password change on first login" }
+        },
+        required: ["username", "password", "full_name", "roles"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_staff",
+      description: "Delete a staff member account",
+      parameters: {
+        type: "object",
+        properties: {
+          user_id: { type: "string", description: "Staff user UUID to delete" }
+        },
+        required: ["user_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "deactivate_staff",
+      description: "Deactivate a staff member (disable login without deleting)",
+      parameters: {
+        type: "object",
+        properties: {
+          user_id: { type: "string", description: "Staff user UUID to deactivate" }
+        },
+        required: ["user_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "activate_staff",
+      description: "Reactivate a previously deactivated staff member",
+      parameters: {
+        type: "object",
+        properties: {
+          user_id: { type: "string", description: "Staff user UUID to activate" }
+        },
+        required: ["user_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_staff_roles",
+      description: "Update roles for a staff member",
+      parameters: {
+        type: "object",
+        properties: {
+          user_id: { type: "string", description: "Staff user UUID" },
+          roles: { type: "array", items: { type: "string" }, description: "New roles to assign (replaces existing)" }
+        },
+        required: ["user_id", "roles"]
+      }
+    }
+  },
+
+  // ==================== CORPORATE ACCOUNTS ====================
   {
     type: "function",
     function: {
@@ -687,128 +1452,47 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "create_housekeeping_task",
-      description: "Create a housekeeping task for a room",
+      name: "update_corporate_account",
+      description: "Update a corporate account",
       parameters: {
         type: "object",
         properties: {
-          room_id: { type: "string", description: "Room UUID" },
-          task_type: { type: "string", enum: ["cleaning", "turndown", "deep_cleaning", "inspection"], description: "Type of housekeeping task" },
-          priority: { type: "number", description: "Priority level (1-5, 1 being highest)" },
-          notes: { type: "string", description: "Additional notes" },
-          assigned_to: { type: "string", description: "Staff member UUID to assign to" }
+          account_id: { type: "string", description: "Corporate account UUID" },
+          company_name: { type: "string", description: "Company name" },
+          contact_name: { type: "string", description: "Contact name" },
+          contact_email: { type: "string", description: "Contact email" },
+          contact_phone: { type: "string", description: "Contact phone" },
+          discount_percentage: { type: "number", description: "Discount %" },
+          credit_limit: { type: "number", description: "Credit limit" },
+          payment_terms: { type: "string", description: "Payment terms" },
+          is_active: { type: "boolean", description: "Active status" }
         },
-        required: ["room_id", "task_type"]
+        required: ["account_id"]
       }
     }
   },
   {
     type: "function",
     function: {
-      name: "get_housekeeping_tasks",
-      description: "Get housekeeping tasks list",
+      name: "delete_corporate_account",
+      description: "Delete a corporate account",
       parameters: {
         type: "object",
         properties: {
-          status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Filter by status" }
+          account_id: { type: "string", description: "Corporate account UUID to delete" }
         },
-        required: []
+        required: ["account_id"]
       }
     }
   },
-  {
-    type: "function",
-    function: {
-      name: "create_maintenance_ticket",
-      description: "Create a maintenance ticket for an issue",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Issue title" },
-          description: { type: "string", description: "Detailed description of the issue" },
-          room_id: { type: "string", description: "Room UUID (if room-specific)" },
-          priority: { type: "number", description: "Priority level (1-5, 1 being highest)" },
-          assigned_to: { type: "string", description: "Maintenance staff UUID" }
-        },
-        required: ["title"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_maintenance_tickets",
-      description: "Get maintenance tickets list",
-      parameters: {
-        type: "object",
-        properties: {
-          status: { type: "string", enum: ["open", "in_progress", "resolved"], description: "Filter by status" }
-        },
-        required: []
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_folios",
-      description: "Get folios list for guests",
-      parameters: {
-        type: "object",
-        properties: {
-          status: { type: "string", enum: ["open", "closed"], description: "Filter by status" },
-          guest_id: { type: "string", description: "Filter by guest ID" }
-        },
-        required: []
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "add_folio_charge",
-      description: "Add a charge to a guest folio",
-      parameters: {
-        type: "object",
-        properties: {
-          folio_id: { type: "string", description: "Folio UUID" },
-          item_type: { type: "string", enum: ["room_charge", "food_beverage", "laundry", "minibar", "spa", "parking", "telephone", "internet", "miscellaneous"], description: "Type of charge" },
-          description: { type: "string", description: "Charge description" },
-          amount: { type: "number", description: "Amount in BDT" },
-          quantity: { type: "number", description: "Quantity (default 1)" }
-        },
-        required: ["folio_id", "item_type", "description", "amount"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "record_payment",
-      description: "Record a payment on a folio",
-      parameters: {
-        type: "object",
-        properties: {
-          folio_id: { type: "string", description: "Folio UUID" },
-          amount: { type: "number", description: "Payment amount in BDT" },
-          payment_method: { type: "string", enum: ["cash", "credit_card", "debit_card", "bank_transfer", "other"], description: "Payment method" },
-          reference_number: { type: "string", description: "Reference/transaction number" },
-          notes: { type: "string", description: "Payment notes" }
-        },
-        required: ["folio_id", "amount", "payment_method"]
-      }
-    }
-  },
+
+  // ==================== NIGHT AUDIT ====================
   {
     type: "function",
     function: {
       name: "get_night_audit_status",
       description: "Get the status of night audit for today",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
+      parameters: { type: "object", properties: {}, required: [] }
     }
   },
   {
@@ -825,16 +1509,14 @@ const tools = [
       }
     }
   },
+
+  // ==================== POS MANAGEMENT ====================
   {
     type: "function",
     function: {
       name: "get_pos_outlets",
       description: "Get list of POS outlets (restaurants, bars, etc.)",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
+      parameters: { type: "object", properties: {}, required: [] }
     }
   },
   {
@@ -850,6 +1532,92 @@ const tools = [
           type: { type: "string", enum: ["restaurant", "bar", "cafe", "room_service", "pool_bar"], description: "Outlet type" }
         },
         required: ["name", "code", "type"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_pos_outlet",
+      description: "Update a POS outlet",
+      parameters: {
+        type: "object",
+        properties: {
+          outlet_id: { type: "string", description: "Outlet UUID" },
+          name: { type: "string", description: "Outlet name" },
+          type: { type: "string", description: "Outlet type" },
+          is_active: { type: "boolean", description: "Active status" }
+        },
+        required: ["outlet_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_pos_category",
+      description: "Create a menu category for a POS outlet",
+      parameters: {
+        type: "object",
+        properties: {
+          outlet_id: { type: "string", description: "Outlet UUID" },
+          name: { type: "string", description: "Category name" },
+          sort_order: { type: "number", description: "Display order" }
+        },
+        required: ["outlet_id", "name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_pos_item",
+      description: "Create a menu item",
+      parameters: {
+        type: "object",
+        properties: {
+          outlet_id: { type: "string", description: "Outlet UUID" },
+          category_id: { type: "string", description: "Category UUID" },
+          name: { type: "string", description: "Item name" },
+          code: { type: "string", description: "Item code" },
+          price: { type: "number", description: "Price in BDT" },
+          description: { type: "string", description: "Item description" },
+          prep_time_minutes: { type: "number", description: "Preparation time" }
+        },
+        required: ["outlet_id", "name", "code", "price"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_pos_item",
+      description: "Update a menu item",
+      parameters: {
+        type: "object",
+        properties: {
+          item_id: { type: "string", description: "Item UUID" },
+          name: { type: "string", description: "Item name" },
+          price: { type: "number", description: "Price" },
+          description: { type: "string", description: "Description" },
+          is_available: { type: "boolean", description: "Whether item is available" },
+          is_active: { type: "boolean", description: "Whether item is active" }
+        },
+        required: ["item_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_pos_item",
+      description: "Delete a menu item",
+      parameters: {
+        type: "object",
+        properties: {
+          item_id: { type: "string", description: "Item UUID to delete" }
+        },
+        required: ["item_id"]
       }
     }
   },
@@ -887,7 +1655,7 @@ const tools = [
     type: "function",
     function: {
       name: "get_pos_orders",
-      description: "Get POS orders",
+      description: "Get POS orders list",
       parameters: {
         type: "object",
         properties: {
@@ -901,43 +1669,34 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "get_staff_list",
-      description: "Get list of staff members with their roles",
+      name: "update_pos_order_status",
+      description: "Update order status",
       parameters: {
         type: "object",
         properties: {
-          role: { type: "string", enum: ["owner", "manager", "front_desk", "accountant", "housekeeping", "maintenance", "kitchen", "waiter", "night_auditor"], description: "Filter by role" }
+          order_id: { type: "string", description: "Order UUID" },
+          status: { type: "string", enum: ["pending", "preparing", "ready", "served", "cancelled", "posted"], description: "New status" }
         },
-        required: []
+        required: ["order_id", "status"]
       }
     }
   },
   {
     type: "function",
     function: {
-      name: "create_staff",
-      description: "Create a new staff member account with username and password",
+      name: "cancel_pos_order",
+      description: "Cancel a POS order",
       parameters: {
         type: "object",
         properties: {
-          username: { type: "string", description: "Username for the staff (3-50 chars, alphanumeric and underscore)" },
-          password: { type: "string", description: "Password (min 8 characters)" },
-          full_name: { type: "string", description: "Staff member's full name" },
-          phone: { type: "string", description: "Phone number (optional)" },
-          roles: { 
-            type: "array", 
-            items: { 
-              type: "string", 
-              enum: ["manager", "front_desk", "accountant", "housekeeping", "maintenance", "kitchen", "waiter", "night_auditor"] 
-            },
-            description: "Role(s) to assign" 
-          },
-          must_change_password: { type: "boolean", description: "Require password change on first login (default true)" }
+          order_id: { type: "string", description: "Order UUID to cancel" }
         },
-        required: ["username", "password", "full_name", "roles"]
+        required: ["order_id"]
       }
     }
   },
+
+  // ==================== REPORTS ====================
   {
     type: "function",
     function: {
@@ -952,6 +1711,55 @@ const tools = [
         required: ["start_date", "end_date"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_revenue_report",
+      description: "Get revenue report for a date range",
+      parameters: {
+        type: "object",
+        properties: {
+          start_date: { type: "string", description: "Start date (YYYY-MM-DD)" },
+          end_date: { type: "string", description: "End date (YYYY-MM-DD)" }
+        },
+        required: ["start_date", "end_date"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_audit_logs",
+      description: "Get recent audit logs / activity history",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", description: "Filter by entity type (reservation, guest, room, etc.)" },
+          limit: { type: "number", description: "Number of logs to return (default 20)" }
+        },
+        required: []
+      }
+    }
+  },
+
+  // ==================== SETTINGS ====================
+  {
+    type: "function",
+    function: {
+      name: "update_property_settings",
+      description: "Update property settings (tax rate, service charge, etc.)",
+      parameters: {
+        type: "object",
+        properties: {
+          tax_rate: { type: "number", description: "Tax rate percentage" },
+          service_charge_rate: { type: "number", description: "Service charge percentage" },
+          currency: { type: "string", description: "Currency code" },
+          timezone: { type: "string", description: "Timezone" }
+        },
+        required: []
+      }
+    }
   }
 ];
 
@@ -959,34 +1767,18 @@ const tools = [
 async function executeTool(toolName: string, args: any, supabase: any, tenantId: string, propertyId: string, userId: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     switch (toolName) {
+      // ==================== DASHBOARD ====================
       case "get_dashboard_stats": {
         const today = new Date().toISOString().split('T')[0];
         
-        // Get rooms stats
         const { data: rooms } = await supabase.from('rooms').select('status').eq('tenant_id', tenantId);
         const totalRooms = rooms?.length || 0;
         const occupiedRooms = rooms?.filter((r: any) => r.status === 'occupied').length || 0;
         const vacantRooms = rooms?.filter((r: any) => r.status === 'vacant').length || 0;
         
-        // Get today's arrivals
-        const { data: arrivals } = await supabase.from('reservations')
-          .select('id')
-          .eq('tenant_id', tenantId)
-          .eq('check_in_date', today)
-          .eq('status', 'confirmed');
-        
-        // Get today's departures
-        const { data: departures } = await supabase.from('reservations')
-          .select('id')
-          .eq('tenant_id', tenantId)
-          .eq('check_out_date', today)
-          .eq('status', 'checked_in');
-        
-        // Get in-house guests
-        const { data: inHouse } = await supabase.from('reservations')
-          .select('id')
-          .eq('tenant_id', tenantId)
-          .eq('status', 'checked_in');
+        const { data: arrivals } = await supabase.from('reservations').select('id').eq('tenant_id', tenantId).eq('check_in_date', today).eq('status', 'confirmed');
+        const { data: departures } = await supabase.from('reservations').select('id').eq('tenant_id', tenantId).eq('check_out_date', today).eq('status', 'checked_in');
+        const { data: inHouse } = await supabase.from('reservations').select('id').eq('tenant_id', tenantId).eq('status', 'checked_in');
         
         return {
           success: true,
@@ -1002,6 +1794,7 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         };
       }
 
+      // ==================== GUEST MANAGEMENT ====================
       case "search_guests": {
         const { query } = args;
         const { data, error } = await supabase.from('guests')
@@ -1025,7 +1818,10 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
             nationality: args.nationality || null,
             id_type: args.id_type || null,
             id_number: args.id_number || null,
-            is_vip: args.is_vip || false
+            is_vip: args.is_vip || false,
+            address: args.address || null,
+            city: args.city || null,
+            country: args.country || null
           })
           .select()
           .single();
@@ -1034,6 +1830,79 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      case "update_guest": {
+        const updateData: any = {};
+        if (args.first_name) updateData.first_name = args.first_name;
+        if (args.last_name) updateData.last_name = args.last_name;
+        if (args.email !== undefined) updateData.email = args.email;
+        if (args.phone !== undefined) updateData.phone = args.phone;
+        if (args.nationality !== undefined) updateData.nationality = args.nationality;
+        if (args.id_type !== undefined) updateData.id_type = args.id_type;
+        if (args.id_number !== undefined) updateData.id_number = args.id_number;
+        if (args.address !== undefined) updateData.address = args.address;
+        if (args.city !== undefined) updateData.city = args.city;
+        if (args.country !== undefined) updateData.country = args.country;
+        if (args.notes !== undefined) updateData.notes = args.notes;
+
+        const { data, error } = await supabase.from('guests')
+          .update(updateData)
+          .eq('id', args.guest_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "delete_guest": {
+        // Check if guest has reservations
+        const { data: reservations } = await supabase.from('reservations')
+          .select('id')
+          .eq('guest_id', args.guest_id)
+          .limit(1);
+        
+        if (reservations && reservations.length > 0) {
+          throw new Error('Cannot delete guest with existing reservations');
+        }
+
+        const { error } = await supabase.from('guests')
+          .delete()
+          .eq('id', args.guest_id)
+          .eq('tenant_id', tenantId);
+        
+        if (error) throw error;
+        return { success: true, data: { deleted: true } };
+      }
+
+      case "toggle_guest_vip": {
+        const { data, error } = await supabase.from('guests')
+          .update({ is_vip: args.is_vip })
+          .eq('id', args.guest_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "toggle_guest_blacklist": {
+        const { data, error } = await supabase.from('guests')
+          .update({ 
+            is_blacklisted: args.is_blacklisted,
+            blacklist_reason: args.is_blacklisted ? (args.reason || null) : null
+          })
+          .eq('id', args.guest_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      // ==================== ROOM TYPE MANAGEMENT ====================
       case "get_room_types": {
         const { data, error } = await supabase.from('room_types')
           .select('*')
@@ -1064,6 +1933,46 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      case "update_room_type": {
+        const updateData: any = {};
+        if (args.name) updateData.name = args.name;
+        if (args.base_rate !== undefined) updateData.base_rate = args.base_rate;
+        if (args.max_occupancy !== undefined) updateData.max_occupancy = args.max_occupancy;
+        if (args.description !== undefined) updateData.description = args.description;
+        if (args.amenities !== undefined) updateData.amenities = args.amenities;
+        if (args.is_active !== undefined) updateData.is_active = args.is_active;
+
+        const { data, error } = await supabase.from('room_types')
+          .update(updateData)
+          .eq('id', args.room_type_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "delete_room_type": {
+        const { data: rooms } = await supabase.from('rooms')
+          .select('id')
+          .eq('room_type_id', args.room_type_id)
+          .limit(1);
+        
+        if (rooms && rooms.length > 0) {
+          throw new Error('Cannot delete room type with existing rooms');
+        }
+
+        const { error } = await supabase.from('room_types')
+          .delete()
+          .eq('id', args.room_type_id)
+          .eq('tenant_id', tenantId);
+        
+        if (error) throw error;
+        return { success: true, data: { deleted: true } };
+      }
+
+      // ==================== ROOM MANAGEMENT ====================
       case "get_rooms": {
         let query = supabase.from('rooms')
           .select('*, room_types(name, code)')
@@ -1095,6 +2004,44 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      case "update_room": {
+        const updateData: any = {};
+        if (args.room_number) updateData.room_number = args.room_number;
+        if (args.room_type_id) updateData.room_type_id = args.room_type_id;
+        if (args.floor !== undefined) updateData.floor = args.floor;
+        if (args.notes !== undefined) updateData.notes = args.notes;
+        if (args.is_active !== undefined) updateData.is_active = args.is_active;
+
+        const { data, error } = await supabase.from('rooms')
+          .update(updateData)
+          .eq('id', args.room_id)
+          .eq('tenant_id', tenantId)
+          .select('*, room_types(name)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "delete_room": {
+        const { data: room } = await supabase.from('rooms')
+          .select('status')
+          .eq('id', args.room_id)
+          .single();
+        
+        if (room?.status === 'occupied') {
+          throw new Error('Cannot delete an occupied room');
+        }
+
+        const { error } = await supabase.from('rooms')
+          .delete()
+          .eq('id', args.room_id)
+          .eq('tenant_id', tenantId);
+        
+        if (error) throw error;
+        return { success: true, data: { deleted: true } };
+      }
+
       case "update_room_status": {
         const { data, error } = await supabase.from('rooms')
           .update({ status: args.status })
@@ -1107,6 +2054,7 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      // ==================== RESERVATION MANAGEMENT ====================
       case "search_reservations": {
         let query = supabase.from('reservations')
           .select('*, guests(first_name, last_name, email, phone)')
@@ -1128,13 +2076,11 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
       }
 
       case "create_reservation": {
-        // Get room type for rate
         const { data: roomType } = await supabase.from('room_types')
           .select('base_rate, code')
           .eq('id', args.room_type_id)
           .single();
         
-        // Get property code
         const { data: property } = await supabase.from('properties')
           .select('code')
           .eq('id', propertyId)
@@ -1146,7 +2092,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
         const totalAmount = rate * nights;
         
-        // Generate confirmation number
         const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
         const randomNum = Math.floor(1000 + Math.random() * 9000);
         const confirmationNumber = `${property?.code || 'RES'}-${dateStr}-${randomNum}`;
@@ -1171,7 +2116,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         
         if (resError) throw resError;
         
-        // Create reservation room entry
         await supabase.from('reservation_rooms')
           .insert({
             tenant_id: tenantId,
@@ -1185,6 +2129,41 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data: { ...reservation, nights, rate_per_night: rate } };
       }
 
+      case "update_reservation": {
+        const updateData: any = {};
+        if (args.check_in_date) updateData.check_in_date = args.check_in_date;
+        if (args.check_out_date) updateData.check_out_date = args.check_out_date;
+        if (args.adults !== undefined) updateData.adults = args.adults;
+        if (args.children !== undefined) updateData.children = args.children;
+        if (args.special_requests !== undefined) updateData.special_requests = args.special_requests;
+        if (args.internal_notes !== undefined) updateData.internal_notes = args.internal_notes;
+
+        const { data, error } = await supabase.from('reservations')
+          .update(updateData)
+          .eq('id', args.reservation_id)
+          .eq('tenant_id', tenantId)
+          .select('*, guests(first_name, last_name)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "cancel_reservation": {
+        const { data, error } = await supabase.from('reservations')
+          .update({ 
+            status: 'cancelled',
+            internal_notes: args.reason ? `Cancelled: ${args.reason}` : 'Cancelled'
+          })
+          .eq('id', args.reservation_id)
+          .eq('tenant_id', tenantId)
+          .select('*, guests(first_name, last_name)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
       case "check_in_guest": {
         const { data: reservation, error: fetchError } = await supabase.from('reservations')
           .select('*, guests(first_name, last_name)')
@@ -1196,7 +2175,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
           throw new Error(`Cannot check in: Reservation status is ${reservation.status}`);
         }
         
-        // Update reservation status
         const { error: updateError } = await supabase.from('reservations')
           .update({ 
             status: 'checked_in',
@@ -1206,18 +2184,11 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         
         if (updateError) throw updateError;
         
-        // If room assigned, update room status
         if (args.room_id) {
-          await supabase.from('rooms')
-            .update({ status: 'occupied' })
-            .eq('id', args.room_id);
-          
-          await supabase.from('reservation_rooms')
-            .update({ room_id: args.room_id })
-            .eq('reservation_id', args.reservation_id);
+          await supabase.from('rooms').update({ status: 'occupied' }).eq('id', args.room_id);
+          await supabase.from('reservation_rooms').update({ room_id: args.room_id }).eq('reservation_id', args.reservation_id);
         }
         
-        // Create folio
         const folioNumber = `F-${reservation.confirmation_number}`;
         await supabase.from('folios')
           .insert({
@@ -1230,11 +2201,7 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         
         return { 
           success: true, 
-          data: { 
-            ...reservation, 
-            status: 'checked_in',
-            folio_number: folioNumber
-          } 
+          data: { ...reservation, status: 'checked_in', folio_number: folioNumber } 
         };
       }
 
@@ -1249,7 +2216,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
           throw new Error(`Cannot check out: Reservation status is ${reservation.status}`);
         }
         
-        // Update reservation
         const { error: updateError } = await supabase.from('reservations')
           .update({ 
             status: 'checked_out',
@@ -1259,14 +2225,10 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         
         if (updateError) throw updateError;
         
-        // Update room status to dirty
         if (reservation.reservation_rooms?.[0]?.room_id) {
-          await supabase.from('rooms')
-            .update({ status: 'dirty' })
-            .eq('id', reservation.reservation_rooms[0].room_id);
+          await supabase.from('rooms').update({ status: 'dirty' }).eq('id', reservation.reservation_rooms[0].room_id);
         }
         
-        // Close folio
         await supabase.from('folios')
           .update({ status: 'closed', closed_at: new Date().toISOString() })
           .eq('reservation_id', args.reservation_id);
@@ -1300,6 +2262,441 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      // ==================== FOLIO MANAGEMENT ====================
+      case "get_folios": {
+        let query = supabase.from('folios')
+          .select('*, guests(first_name, last_name)')
+          .eq('tenant_id', tenantId);
+        
+        if (args.status) query = query.eq('status', args.status);
+        if (args.guest_id) query = query.eq('guest_id', args.guest_id);
+        
+        const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "get_folio_details": {
+        const { data, error } = await supabase.from('folios')
+          .select('*, guests(first_name, last_name), folio_items(*), payments(*)')
+          .eq('id', args.folio_id)
+          .eq('tenant_id', tenantId)
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "add_folio_charge": {
+        const { data, error } = await supabase.from('folio_items')
+          .insert({
+            tenant_id: tenantId,
+            folio_id: args.folio_id,
+            item_type: args.item_type,
+            description: args.description,
+            unit_price: args.amount,
+            quantity: args.quantity || 1,
+            total_price: args.amount * (args.quantity || 1),
+            posted_by: userId
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "void_folio_charge": {
+        const { data, error } = await supabase.from('folio_items')
+          .update({
+            voided: true,
+            voided_at: new Date().toISOString(),
+            voided_by: userId,
+            void_reason: args.reason
+          })
+          .eq('id', args.folio_item_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "record_payment": {
+        const { data, error } = await supabase.from('payments')
+          .insert({
+            tenant_id: tenantId,
+            folio_id: args.folio_id,
+            amount: args.amount,
+            payment_method: args.payment_method,
+            reference_number: args.reference_number || null,
+            notes: args.notes || null,
+            received_by: userId
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        const { data: folio } = await supabase.from('folios')
+          .select('paid_amount')
+          .eq('id', args.folio_id)
+          .single();
+        
+        await supabase.from('folios')
+          .update({ paid_amount: (folio?.paid_amount || 0) + args.amount })
+          .eq('id', args.folio_id);
+        
+        return { success: true, data };
+      }
+
+      case "void_payment": {
+        const { data, error } = await supabase.from('payments')
+          .update({
+            voided: true,
+            voided_at: new Date().toISOString(),
+            voided_by: userId,
+            void_reason: args.reason
+          })
+          .eq('id', args.payment_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "close_folio": {
+        const { data: folio } = await supabase.from('folios')
+          .select('balance')
+          .eq('id', args.folio_id)
+          .single();
+        
+        if (folio?.balance !== 0) {
+          throw new Error(`Cannot close folio with balance: ৳${folio?.balance}`);
+        }
+
+        const { data, error } = await supabase.from('folios')
+          .update({
+            status: 'closed',
+            closed_at: new Date().toISOString(),
+            closed_by: userId
+          })
+          .eq('id', args.folio_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      // ==================== HOUSEKEEPING ====================
+      case "create_housekeeping_task": {
+        const { data, error } = await supabase.from('housekeeping_tasks')
+          .insert({
+            tenant_id: tenantId,
+            property_id: propertyId,
+            room_id: args.room_id,
+            task_type: args.task_type,
+            priority: args.priority || 3,
+            notes: args.notes || null,
+            assigned_to: args.assigned_to || null,
+            status: 'pending'
+          })
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "get_housekeeping_tasks": {
+        let query = supabase.from('housekeeping_tasks')
+          .select('*, rooms(room_number)')
+          .eq('tenant_id', tenantId);
+        
+        if (args.status) query = query.eq('status', args.status);
+        
+        const { data, error } = await query.order('priority').order('created_at');
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "update_housekeeping_task": {
+        const updateData: any = {};
+        if (args.status) updateData.status = args.status;
+        if (args.priority !== undefined) updateData.priority = args.priority;
+        if (args.notes !== undefined) updateData.notes = args.notes;
+        if (args.status === 'in_progress' && !updateData.started_at) {
+          updateData.started_at = new Date().toISOString();
+        }
+
+        const { data, error } = await supabase.from('housekeeping_tasks')
+          .update(updateData)
+          .eq('id', args.task_id)
+          .eq('tenant_id', tenantId)
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "complete_housekeeping_task": {
+        const { data, error } = await supabase.from('housekeeping_tasks')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', args.task_id)
+          .eq('tenant_id', tenantId)
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+
+        // Update room status to vacant if it was dirty
+        if (data.rooms?.room_number) {
+          await supabase.from('rooms')
+            .update({ status: 'vacant' })
+            .eq('id', data.room_id)
+            .eq('status', 'dirty');
+        }
+        
+        return { success: true, data };
+      }
+
+      case "assign_housekeeping_task": {
+        const { data, error } = await supabase.from('housekeeping_tasks')
+          .update({ assigned_to: args.staff_id })
+          .eq('id', args.task_id)
+          .eq('tenant_id', tenantId)
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      // ==================== MAINTENANCE ====================
+      case "create_maintenance_ticket": {
+        const { data, error } = await supabase.from('maintenance_tickets')
+          .insert({
+            tenant_id: tenantId,
+            property_id: propertyId,
+            title: args.title,
+            description: args.description || null,
+            room_id: args.room_id || null,
+            priority: args.priority || 3,
+            assigned_to: args.assigned_to || null,
+            reported_by: userId,
+            status: 'open'
+          })
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "get_maintenance_tickets": {
+        let query = supabase.from('maintenance_tickets')
+          .select('*, rooms(room_number)')
+          .eq('tenant_id', tenantId);
+        
+        if (args.status) query = query.eq('status', args.status);
+        
+        const { data, error } = await query.order('priority').order('created_at', { ascending: false });
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "update_maintenance_ticket": {
+        const updateData: any = {};
+        if (args.status) updateData.status = args.status;
+        if (args.priority !== undefined) updateData.priority = args.priority;
+        if (args.description !== undefined) updateData.description = args.description;
+
+        const { data, error } = await supabase.from('maintenance_tickets')
+          .update(updateData)
+          .eq('id', args.ticket_id)
+          .eq('tenant_id', tenantId)
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "resolve_maintenance_ticket": {
+        const { data, error } = await supabase.from('maintenance_tickets')
+          .update({
+            status: 'resolved',
+            resolution_notes: args.resolution_notes || null,
+            resolved_at: new Date().toISOString(),
+            resolved_by: userId
+          })
+          .eq('id', args.ticket_id)
+          .eq('tenant_id', tenantId)
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "assign_maintenance_ticket": {
+        const { data, error } = await supabase.from('maintenance_tickets')
+          .update({ assigned_to: args.staff_id })
+          .eq('id', args.ticket_id)
+          .eq('tenant_id', tenantId)
+          .select('*, rooms(room_number)')
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      // ==================== STAFF MANAGEMENT ====================
+      case "get_staff_list": {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, is_active')
+          .eq('tenant_id', tenantId)
+          .order('full_name');
+        
+        if (profilesError) throw profilesError;
+        
+        const userIds = profiles?.map((p: any) => p.id) || [];
+        let roles: any[] = [];
+        if (userIds.length > 0) {
+          const { data: rolesData } = await supabase
+            .from('user_roles')
+            .select('user_id, role')
+            .in('user_id', userIds);
+          roles = rolesData || [];
+        }
+        
+        let staffList = (profiles || []).map((profile: any) => ({
+          ...profile,
+          user_roles: roles.filter((r: any) => r.user_id === profile.id)
+        }));
+        
+        if (args.role) {
+          staffList = staffList.filter((s: any) => 
+            s.user_roles?.some((r: any) => r.role === args.role)
+          );
+        }
+        if (args.is_active !== undefined) {
+          staffList = staffList.filter((s: any) => s.is_active === args.is_active);
+        }
+        
+        return { success: true, data: staffList };
+      }
+
+      case "create_staff": {
+        const { data: properties } = await supabase
+          .from('properties')
+          .select('id')
+          .eq('tenant_id', tenantId);
+        
+        const propertyIds = properties?.map((p: any) => p.id) || [];
+        
+        if (propertyIds.length === 0) {
+          throw new Error('No properties found for this tenant');
+        }
+        
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-staff`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            username: args.username,
+            password: args.password,
+            fullName: args.full_name,
+            phone: args.phone || null,
+            roles: args.roles,
+            propertyIds: propertyIds,
+            mustChangePassword: args.must_change_password !== false
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to create staff');
+        }
+        
+        return { success: true, data: result.user };
+      }
+
+      case "delete_staff": {
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/delete-staff`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({ userId: args.user_id })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to delete staff');
+        }
+        
+        return { success: true, data: { deleted: true } };
+      }
+
+      case "deactivate_staff": {
+        const { data, error } = await supabase.from('profiles')
+          .update({ is_active: false })
+          .eq('id', args.user_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "activate_staff": {
+        const { data, error } = await supabase.from('profiles')
+          .update({ is_active: true })
+          .eq('id', args.user_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "update_staff_roles": {
+        // Delete existing roles
+        await supabase.from('user_roles')
+          .delete()
+          .eq('user_id', args.user_id);
+        
+        // Insert new roles
+        const roleInserts = args.roles.map((role: string) => ({
+          user_id: args.user_id,
+          role: role
+        }));
+        
+        const { error } = await supabase.from('user_roles').insert(roleInserts);
+        if (error) throw error;
+        
+        return { success: true, data: { roles: args.roles } };
+      }
+
+      // ==================== CORPORATE ACCOUNTS ====================
       case "create_corporate_account": {
         const { data, error } = await supabase.from('corporate_accounts')
           .insert({
@@ -1334,135 +2731,39 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
-      case "create_housekeeping_task": {
-        const { data, error } = await supabase.from('housekeeping_tasks')
-          .insert({
-            tenant_id: tenantId,
-            property_id: propertyId,
-            room_id: args.room_id,
-            task_type: args.task_type,
-            priority: args.priority || 3,
-            notes: args.notes || null,
-            assigned_to: args.assigned_to || null,
-            status: 'pending'
-          })
-          .select('*, rooms(room_number)')
-          .single();
-        
-        if (error) throw error;
-        return { success: true, data };
-      }
+      case "update_corporate_account": {
+        const updateData: any = {};
+        if (args.company_name) updateData.company_name = args.company_name;
+        if (args.contact_name !== undefined) updateData.contact_name = args.contact_name;
+        if (args.contact_email !== undefined) updateData.contact_email = args.contact_email;
+        if (args.contact_phone !== undefined) updateData.contact_phone = args.contact_phone;
+        if (args.discount_percentage !== undefined) updateData.discount_percentage = args.discount_percentage;
+        if (args.credit_limit !== undefined) updateData.credit_limit = args.credit_limit;
+        if (args.payment_terms !== undefined) updateData.payment_terms = args.payment_terms;
+        if (args.is_active !== undefined) updateData.is_active = args.is_active;
 
-      case "get_housekeeping_tasks": {
-        let query = supabase.from('housekeeping_tasks')
-          .select('*, rooms(room_number), profiles:assigned_to(full_name)')
-          .eq('tenant_id', tenantId);
-        
-        if (args.status) {
-          query = query.eq('status', args.status);
-        }
-        
-        const { data, error } = await query.order('priority').order('created_at');
-        if (error) throw error;
-        return { success: true, data };
-      }
-
-      case "create_maintenance_ticket": {
-        const { data, error } = await supabase.from('maintenance_tickets')
-          .insert({
-            tenant_id: tenantId,
-            property_id: propertyId,
-            title: args.title,
-            description: args.description || null,
-            room_id: args.room_id || null,
-            priority: args.priority || 3,
-            assigned_to: args.assigned_to || null,
-            reported_by: userId,
-            status: 'open'
-          })
-          .select('*, rooms(room_number)')
-          .single();
-        
-        if (error) throw error;
-        return { success: true, data };
-      }
-
-      case "get_maintenance_tickets": {
-        let query = supabase.from('maintenance_tickets')
-          .select('*, rooms(room_number), profiles:assigned_to(full_name)')
-          .eq('tenant_id', tenantId);
-        
-        if (args.status) {
-          query = query.eq('status', args.status);
-        }
-        
-        const { data, error } = await query.order('priority').order('created_at', { ascending: false });
-        if (error) throw error;
-        return { success: true, data };
-      }
-
-      case "get_folios": {
-        let query = supabase.from('folios')
-          .select('*, guests(first_name, last_name)')
-          .eq('tenant_id', tenantId);
-        
-        if (args.status) query = query.eq('status', args.status);
-        if (args.guest_id) query = query.eq('guest_id', args.guest_id);
-        
-        const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
-        if (error) throw error;
-        return { success: true, data };
-      }
-
-      case "add_folio_charge": {
-        const { data, error } = await supabase.from('folio_items')
-          .insert({
-            tenant_id: tenantId,
-            folio_id: args.folio_id,
-            item_type: args.item_type,
-            description: args.description,
-            unit_price: args.amount,
-            quantity: args.quantity || 1,
-            total_price: args.amount * (args.quantity || 1),
-            posted_by: userId
-          })
+        const { data, error } = await supabase.from('corporate_accounts')
+          .update(updateData)
+          .eq('id', args.account_id)
+          .eq('tenant_id', tenantId)
           .select()
           .single();
         
         if (error) throw error;
-        
         return { success: true, data };
       }
 
-      case "record_payment": {
-        const { data, error } = await supabase.from('payments')
-          .insert({
-            tenant_id: tenantId,
-            folio_id: args.folio_id,
-            amount: args.amount,
-            payment_method: args.payment_method,
-            reference_number: args.reference_number || null,
-            notes: args.notes || null,
-            received_by: userId
-          })
-          .select()
-          .single();
+      case "delete_corporate_account": {
+        const { error } = await supabase.from('corporate_accounts')
+          .delete()
+          .eq('id', args.account_id)
+          .eq('tenant_id', tenantId);
         
         if (error) throw error;
-        
-        // Update folio paid amount
-        const { data: folio } = await supabase.from('folios')
-          .select('paid_amount')
-          .eq('id', args.folio_id)
-          .single();
-        
-        await supabase.from('folios')
-          .update({ paid_amount: (folio?.paid_amount || 0) + args.amount })
-          .eq('id', args.folio_id);
-        
-        return { success: true, data };
+        return { success: true, data: { deleted: true } };
       }
 
+      // ==================== NIGHT AUDIT ====================
       case "get_night_audit_status": {
         const today = new Date().toISOString().split('T')[0];
         const { data, error } = await supabase.from('night_audits')
@@ -1481,7 +2782,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
       case "run_night_audit": {
         const today = new Date().toISOString().split('T')[0];
         
-        // Check if already exists
         const { data: existing } = await supabase.from('night_audits')
           .select('id, status')
           .eq('tenant_id', tenantId)
@@ -1492,7 +2792,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
           throw new Error('Night audit already completed for today');
         }
         
-        // Get stats
         const { data: rooms } = await supabase.from('rooms')
           .select('status')
           .eq('tenant_id', tenantId);
@@ -1534,6 +2833,7 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data: result };
       }
 
+      // ==================== POS MANAGEMENT ====================
       case "get_pos_outlets": {
         const { data, error } = await supabase.from('pos_outlets')
           .select('*')
@@ -1561,8 +2861,87 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      case "update_pos_outlet": {
+        const updateData: any = {};
+        if (args.name) updateData.name = args.name;
+        if (args.type) updateData.type = args.type;
+        if (args.is_active !== undefined) updateData.is_active = args.is_active;
+
+        const { data, error } = await supabase.from('pos_outlets')
+          .update(updateData)
+          .eq('id', args.outlet_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "create_pos_category": {
+        const { data, error } = await supabase.from('pos_categories')
+          .insert({
+            tenant_id: tenantId,
+            outlet_id: args.outlet_id,
+            name: args.name,
+            sort_order: args.sort_order || 0
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "create_pos_item": {
+        const { data, error } = await supabase.from('pos_items')
+          .insert({
+            tenant_id: tenantId,
+            outlet_id: args.outlet_id,
+            category_id: args.category_id || null,
+            name: args.name,
+            code: args.code.toUpperCase(),
+            price: args.price,
+            description: args.description || null,
+            prep_time_minutes: args.prep_time_minutes || 15
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "update_pos_item": {
+        const updateData: any = {};
+        if (args.name) updateData.name = args.name;
+        if (args.price !== undefined) updateData.price = args.price;
+        if (args.description !== undefined) updateData.description = args.description;
+        if (args.is_available !== undefined) updateData.is_available = args.is_available;
+        if (args.is_active !== undefined) updateData.is_active = args.is_active;
+
+        const { data, error } = await supabase.from('pos_items')
+          .update(updateData)
+          .eq('id', args.item_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      case "delete_pos_item": {
+        const { error } = await supabase.from('pos_items')
+          .delete()
+          .eq('id', args.item_id)
+          .eq('tenant_id', tenantId);
+        
+        if (error) throw error;
+        return { success: true, data: { deleted: true } };
+      }
+
       case "create_pos_order": {
-        // Generate order number
         const { data: outlet } = await supabase.from('pos_outlets')
           .select('code')
           .eq('id', args.outlet_id)
@@ -1572,7 +2951,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         const randomNum = Math.floor(1000 + Math.random() * 9000);
         const orderNumber = `${outlet?.code || 'ORD'}-${dateStr}-${randomNum}`;
         
-        // Calculate totals
         const subtotal = args.items.reduce((sum: number, item: any) => 
           sum + (item.unit_price * item.quantity), 0);
         
@@ -1595,7 +2973,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         
         if (orderError) throw orderError;
         
-        // Create order items
         const orderItems = args.items.map((item: any) => ({
           tenant_id: tenantId,
           order_id: order.id,
@@ -1624,87 +3001,31 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
-      case "get_staff_list": {
-        // Fetch profiles first (separate queries to avoid FK issues)
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, phone, is_active')
+      case "update_pos_order_status": {
+        const { data, error } = await supabase.from('pos_orders')
+          .update({ status: args.status })
+          .eq('id', args.order_id)
           .eq('tenant_id', tenantId)
-          .order('full_name');
+          .select()
+          .single();
         
-        if (profilesError) throw profilesError;
-        
-        // Then get all roles for these users
-        const userIds = profiles?.map((p: any) => p.id) || [];
-        let roles: any[] = [];
-        if (userIds.length > 0) {
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('user_id, role')
-            .in('user_id', userIds);
-          
-          if (rolesError) throw rolesError;
-          roles = rolesData || [];
-        }
-        
-        // Combine the data
-        let staffList = (profiles || []).map((profile: any) => ({
-          ...profile,
-          user_roles: roles.filter((r: any) => r.user_id === profile.id)
-        }));
-        
-        // Filter by role if specified
-        if (args.role) {
-          staffList = staffList.filter((s: any) => 
-            s.user_roles?.some((r: any) => r.role === args.role)
-          );
-        }
-        
-        return { success: true, data: staffList };
+        if (error) throw error;
+        return { success: true, data };
       }
 
-      case "create_staff": {
-        // Get property IDs for this tenant
-        const { data: properties, error: propError } = await supabase
-          .from('properties')
-          .select('id')
-          .eq('tenant_id', tenantId);
+      case "cancel_pos_order": {
+        const { data, error } = await supabase.from('pos_orders')
+          .update({ status: 'cancelled' })
+          .eq('id', args.order_id)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
         
-        if (propError) throw propError;
-        
-        const propertyIds = properties?.map((p: any) => p.id) || [];
-        
-        if (propertyIds.length === 0) {
-          throw new Error('No properties found for this tenant');
-        }
-        
-        // Call the create-staff edge function
-        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-staff`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-          },
-          body: JSON.stringify({
-            username: args.username,
-            password: args.password,
-            fullName: args.full_name,
-            phone: args.phone || null,
-            roles: args.roles,
-            propertyIds: propertyIds,
-            mustChangePassword: args.must_change_password !== false
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to create staff');
-        }
-        
-        return { success: true, data: result.user };
+        if (error) throw error;
+        return { success: true, data };
       }
 
+      // ==================== REPORTS ====================
       case "get_occupancy_report": {
         const { data: reservations, error } = await supabase.from('reservations')
           .select('check_in_date, check_out_date, status')
@@ -1720,7 +3041,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
           .eq('tenant_id', tenantId);
         
         const totalRooms = rooms?.length || 0;
-        const totalRoomNights = reservations?.length || 0;
         
         return { 
           success: true, 
@@ -1728,10 +3048,77 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
             start_date: args.start_date,
             end_date: args.end_date,
             total_rooms: totalRooms,
-            total_reservations: reservations?.length || 0,
-            summary: `${totalRoomNights} room nights booked out of ${totalRooms} available rooms`
+            total_reservations: reservations?.length || 0
           }
         };
+      }
+
+      case "get_revenue_report": {
+        // Get folio items for the period
+        const { data: folioItems } = await supabase.from('folio_items')
+          .select('item_type, total_price, service_date')
+          .eq('tenant_id', tenantId)
+          .eq('voided', false)
+          .gte('service_date', args.start_date)
+          .lte('service_date', args.end_date);
+        
+        let roomRevenue = 0;
+        let fbRevenue = 0;
+        let otherRevenue = 0;
+        
+        (folioItems || []).forEach((item: any) => {
+          if (item.item_type === 'room_charge') {
+            roomRevenue += parseFloat(item.total_price) || 0;
+          } else if (item.item_type === 'food_beverage') {
+            fbRevenue += parseFloat(item.total_price) || 0;
+          } else {
+            otherRevenue += parseFloat(item.total_price) || 0;
+          }
+        });
+        
+        return { 
+          success: true, 
+          data: {
+            start_date: args.start_date,
+            end_date: args.end_date,
+            room_revenue: roomRevenue,
+            fb_revenue: fbRevenue,
+            other_revenue: otherRevenue,
+            total_revenue: roomRevenue + fbRevenue + otherRevenue
+          }
+        };
+      }
+
+      case "get_audit_logs": {
+        let query = supabase.from('audit_logs')
+          .select('*')
+          .eq('tenant_id', tenantId);
+        
+        if (args.entity_type) query = query.eq('entity_type', args.entity_type);
+        
+        const limit = args.limit || 20;
+        const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
+        if (error) throw error;
+        return { success: true, data };
+      }
+
+      // ==================== SETTINGS ====================
+      case "update_property_settings": {
+        const updateData: any = {};
+        if (args.tax_rate !== undefined) updateData.tax_rate = args.tax_rate;
+        if (args.service_charge_rate !== undefined) updateData.service_charge_rate = args.service_charge_rate;
+        if (args.currency !== undefined) updateData.currency = args.currency;
+        if (args.timezone !== undefined) updateData.timezone = args.timezone;
+
+        const { data, error } = await supabase.from('properties')
+          .update(updateData)
+          .eq('id', propertyId)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return { success: true, data };
       }
 
       default:
@@ -1744,7 +3131,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -1761,16 +3147,13 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Get auth header for user context
     const authHeader = req.headers.get('Authorization');
     
-    // Create Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
     
-    // Get user from auth header
     let userId: string = '';
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
@@ -1778,11 +3161,9 @@ serve(async (req) => {
       userId = user?.id || '';
     }
 
-    // Fetch comprehensive hotel context
     const hotelContext = await getHotelContext(supabase, tenantId);
     const fullSystemPrompt = baseSystemPrompt + hotelContext;
 
-    // Call Lovable AI Gateway with retry logic
     const response = await callAIWithRetry(LOVABLE_API_KEY, {
       model: "google/gemini-3-flash-preview",
       messages: [
@@ -1792,7 +3173,7 @@ serve(async (req) => {
       tools,
       tool_choice: "auto",
       temperature: 0.7,
-      max_tokens: 2048
+      max_tokens: 4096
     });
 
     if (!response.ok) {
@@ -1820,7 +3201,6 @@ serve(async (req) => {
       throw new Error("No response from AI");
     }
 
-    // Check if there are tool calls
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       const toolResults = [];
       const toolSummaries = [];
@@ -1840,7 +3220,6 @@ serve(async (req) => {
           userId
         );
         
-        // Generate human-readable summary
         const summary = generateToolSummary(toolName, toolArgs, result);
         toolSummaries.push(summary);
         
@@ -1854,7 +3233,6 @@ serve(async (req) => {
         });
       }
 
-      // Call AI again with tool results and summaries (with retry)
       const followUpResponse = await callAIWithRetry(LOVABLE_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
@@ -1864,14 +3242,13 @@ serve(async (req) => {
           ...toolResults
         ],
         temperature: 0.7,
-        max_tokens: 2048
+        max_tokens: 4096
       });
 
       if (!followUpResponse.ok) {
         const errorText = await followUpResponse.text();
         console.error("Follow-up AI error:", errorText);
         
-        // If follow-up fails, use the generated summaries directly
         return new Response(JSON.stringify({
           message: toolSummaries.join('\n\n'),
           toolCalls: assistantMessage.tool_calls.map((tc: any) => ({
@@ -1899,15 +3276,17 @@ serve(async (req) => {
       });
     }
 
-    // No tool calls - check for hallucination (claiming to have done something without tools)
+    // No tool calls - check for hallucination
     const responseContent = (assistantMessage.content || '').toLowerCase();
     const creationPatterns = [
       'i have created', 'i\'ve created', 'created successfully',
       'i have added', 'i\'ve added', 'added successfully',
       'i have made', 'i\'ve made', 'made successfully',
+      'i have deleted', 'i\'ve deleted', 'deleted successfully',
+      'i have updated', 'i\'ve updated', 'updated successfully',
       'room has been created', 'reservation has been created',
       'guest has been created', 'successfully created',
-      'তৈরি করেছি', 'সম্পন্ন হয়েছে', 'করা হয়েছে'
+      'তৈরি করেছি', 'সম্পন্ন হয়েছে', 'করা হয়েছে', 'মুছে ফেলেছি'
     ];
     
     const claimsAction = creationPatterns.some(pattern => responseContent.includes(pattern));
@@ -1915,9 +3294,8 @@ serve(async (req) => {
     if (claimsAction) {
       console.warn('HALLUCINATION DETECTED: AI claimed action without tool calls. Original response:', assistantMessage.content);
       
-      // Override with a corrective response
       return new Response(JSON.stringify({
-        message: "I understand you want me to perform an action. However, I need to confirm the details first before I can proceed. Could you please confirm or provide:\n\n1. **What would you like me to create/do?**\n2. **All required details** (e.g., room number, guest name, dates)\n\nOnce you confirm, I'll execute the action for you.",
+        message: "আমি বুঝতে পারছি আপনি কিছু করতে চাইছেন। তবে, আমাকে প্রথমে বিস্তারিত জানাতে হবে:\n\n1. **কী করতে চাইছেন?** (তৈরি/আপডেট/মুছে ফেলা)\n2. **প্রয়োজনীয় তথ্য** (রুম নম্বর, গেস্টের নাম, তারিখ ইত্যাদি)\n\nনিশ্চিত করার পর আমি কাজটি সম্পন্ন করব।",
         warning: "Action requires confirmation",
         toolCalls: [],
         toolResults: []
@@ -1926,7 +3304,6 @@ serve(async (req) => {
       });
     }
 
-    // No tool calls needed, just return the informational message
     return new Response(JSON.stringify({
       message: assistantMessage.content,
       toolCalls: [],
@@ -1937,8 +3314,9 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("Admin chat error:", error);
-    return new Response(JSON.stringify({ 
-      error: error.message || "An error occurred processing your request" 
+    return new Response(JSON.stringify({
+      error: error.message || "An error occurred",
+      message: `দুঃখিত, একটি সমস্যা হয়েছে: ${error.message}`
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
