@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,17 +6,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Upload, Save, Loader2 } from 'lucide-react';
+import { Building2, Upload, Save, Loader2, X, ImageIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenant } from '@/hooks/useTenant';
+import { toast } from 'sonner';
 
 export default function BrandingSettings() {
   const { branding, settings, updateBranding, updateBrandingSettings, isUpdating } = useSettings();
+  const { tenant } = useTenant();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [name, setName] = useState(branding.name);
   const [logoUrl, setLogoUrl] = useState(branding.logo_url || '');
   const [contactEmail, setContactEmail] = useState(branding.contact_email || '');
   const [contactPhone, setContactPhone] = useState(branding.contact_phone || '');
+  const [isUploading, setIsUploading] = useState(false);
   
   // Branding settings
   const [primaryColor, setPrimaryColor] = useState(settings.branding?.primary_color || '#3B82F6');
@@ -34,6 +40,83 @@ export default function BrandingSettings() {
     setLogoPosition(settings.branding?.logo_position || 'left');
     setShowPoweredBy(settings.branding?.show_powered_by ?? true);
   }, [branding, settings]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !tenant?.id) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${tenant.id}/logo-${Date.now()}.${fileExt}`;
+
+      // Delete old logo if exists
+      if (logoUrl) {
+        const oldPath = logoUrl.split('/hotel-logos/')[1];
+        if (oldPath) {
+          await supabase.storage.from('hotel-logos').remove([oldPath]);
+        }
+      }
+
+      // Upload new logo
+      const { error: uploadError } = await supabase.storage
+        .from('hotel-logos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('hotel-logos')
+        .getPublicUrl(fileName);
+
+      setLogoUrl(urlData.publicUrl);
+      toast.success('Logo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!logoUrl || !tenant?.id) return;
+
+    try {
+      const oldPath = logoUrl.split('/hotel-logos/')[1];
+      if (oldPath) {
+        await supabase.storage.from('hotel-logos').remove([oldPath]);
+      }
+      setLogoUrl('');
+      toast.success('Logo removed');
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      toast.error('Failed to remove logo');
+    }
+  };
 
   const handleSave = async () => {
     // Update tenant branding
@@ -63,41 +146,76 @@ export default function BrandingSettings() {
             Organization Information
           </CardTitle>
           <CardDescription>
-            Basic information about your organization
+            Basic information about your organization that appears across the system
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-start gap-6">
-            <div className="flex flex-col items-center gap-2">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={logoUrl} alt={name} />
-                <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                  {name.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Upload className="h-4 w-4" />
-                Upload Logo
-              </Button>
+          <div className="flex flex-col sm:flex-row items-start gap-6">
+            {/* Logo Upload Section */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative group">
+                <Avatar className="h-28 w-28 border-2 border-dashed border-muted-foreground/30">
+                  <AvatarImage src={logoUrl} alt={name} className="object-cover" />
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                    {name ? name.substring(0, 2).toUpperCase() : <ImageIcon className="h-10 w-10 text-muted-foreground" />}
+                  </AvatarFallback>
+                </Avatar>
+                {logoUrl && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={handleRemoveLogo}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="logo-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {isUploading ? 'Uploading...' : 'Upload Logo'}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Max 5MB • JPG, PNG, GIF, WebP, SVG
+                </p>
+              </div>
             </div>
-            <div className="flex-1 space-y-4">
+
+            {/* Name and Contact Fields */}
+            <div className="flex-1 space-y-4 w-full">
               <div className="grid gap-2">
-                <Label htmlFor="name">Organization Name</Label>
+                <Label htmlFor="name">Hotel/Organization Name</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your Hotel Group"
+                  placeholder="Your Hotel Name"
+                  className="text-lg font-medium"
                 />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="logoUrl">Logo URL</Label>
-                <Input
-                  id="logoUrl"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://example.com/logo.png"
-                />
+                <p className="text-xs text-muted-foreground">
+                  This name will appear in the sidebar and dashboard
+                </p>
               </div>
             </div>
           </div>
@@ -110,7 +228,7 @@ export default function BrandingSettings() {
                 type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="contact@example.com"
+                placeholder="contact@yourhotel.com"
               />
             </div>
             <div className="grid gap-2">
@@ -119,7 +237,7 @@ export default function BrandingSettings() {
                 id="contactPhone"
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                placeholder="+880 1XXX-XXXXXX"
               />
             </div>
           </div>
@@ -205,7 +323,7 @@ export default function BrandingSettings() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isUpdating} className="gap-2">
+        <Button onClick={handleSave} disabled={isUpdating || isUploading} className="gap-2">
           {isUpdating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (

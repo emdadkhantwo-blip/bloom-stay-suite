@@ -135,20 +135,31 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
 <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
         <div className="flex items-center gap-2">
-          <div className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md",
-            isSuperAdmin 
-              ? "bg-gradient-to-br from-purple-600 to-indigo-600 text-white" 
-              : "bg-sidebar-primary text-sidebar-primary-foreground"
-          )}>
-            {isSuperAdmin ? <ShieldCheck className="h-4 w-4" /> : <Hotel className="h-4 w-4" />}
-          </div>
+          {/* Logo/Avatar */}
+          {!isSuperAdmin && tenant?.logo_url ? (
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-background">
+              <img 
+                src={tenant.logo_url} 
+                alt={tenant.name} 
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-md",
+              isSuperAdmin 
+                ? "bg-gradient-to-br from-purple-600 to-indigo-600 text-white" 
+                : "bg-sidebar-primary text-sidebar-primary-foreground"
+            )}>
+              {isSuperAdmin ? <ShieldCheck className="h-4 w-4" /> : <Hotel className="h-4 w-4" />}
+            </div>
+          )}
           {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-sm font-semibold text-sidebar-foreground truncate">
                 {isSuperAdmin ? 'Platform Admin' : (tenant?.name || 'Hotel PMS')}
               </span>
-              <span className="text-2xs text-sidebar-muted">
+              <span className="text-2xs text-sidebar-muted truncate">
                 {isSuperAdmin ? 'Super Administrator' : (currentProperty?.name || 'Select Property')}
               </span>
             </div>

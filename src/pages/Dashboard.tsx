@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTenant } from '@/hooks/useTenant';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { ROOM_STATUS_CONFIG, type RoomStatus } from '@/types/database';
 import { cn } from '@/lib/utils';
@@ -43,7 +44,7 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
-  const { currentProperty, subscription } = useTenant();
+  const { currentProperty, subscription, tenant } = useTenant();
   const [stats, setStats] = useState<DashboardStats>({
     totalRooms: 0,
     occupiedRooms: 0,
@@ -213,13 +214,26 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header with date and property info */}
+      {/* Header with logo, name, date and property info */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(), 'EEEE, MMMM d, yyyy')} • {currentProperty.name}
-          </p>
+        <div className="flex items-center gap-4">
+          {/* Hotel Logo */}
+          {tenant?.logo_url && (
+            <Avatar className="h-14 w-14 border-2 border-primary/20">
+              <AvatarImage src={tenant.logo_url} alt={tenant.name} className="object-cover" />
+              <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">
+                {tenant.name?.substring(0, 2).toUpperCase() || 'HT'}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold">
+              {tenant?.name ? `${tenant.name} Dashboard` : 'Dashboard'}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(), 'EEEE, MMMM d, yyyy')} • {currentProperty?.name}
+            </p>
+          </div>
         </div>
         {subscription && (
           <Badge variant="outline" className="w-fit border-primary/30 text-primary">
