@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Minimize2, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Minimize2, Trash2, Plus, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,11 +8,25 @@ import { ChatInput } from './ChatInput';
 import { useAdminChat } from '@/hooks/useAdminChat';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function AdminChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const { messages, isLoading, sendMessage, clearHistory, addWelcomeMessage } = useAdminChat();
+  const { 
+    messages, 
+    isLoading, 
+    sessionId,
+    sendMessage, 
+    clearHistory, 
+    startNewSession,
+    addWelcomeMessage 
+  } = useAdminChat();
   const { roles } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +56,8 @@ export function AdminChatbot() {
   if (!isAdmin) {
     return null;
   }
+
+  const shortSessionId = sessionId ? sessionId.slice(0, 8) : '';
 
   return (
     <>
@@ -84,51 +100,93 @@ export function AdminChatbot() {
             exit={{ opacity: 0, y: 100, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={cn(
-              "fixed bottom-6 right-6 z-50 w-[400px] max-w-[calc(100vw-48px)]",
+              "fixed bottom-6 right-6 z-50 w-[420px] max-w-[calc(100vw-48px)]",
               "bg-background border rounded-2xl shadow-2xl overflow-hidden flex flex-col",
               isMinimized ? "h-auto" : "max-h-[calc(100vh-120px)]"
             )}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <MessageCircle className="h-5 w-5" />
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <MessageCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">সখী (Sakhi)</h3>
+                    <p className="text-xs text-white/80">Hotel Management Assistant</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">সখী (Sakhi)</h3>
-                  <p className="text-xs text-white/80">Hotel Management Assistant</p>
+                <div className="flex items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+                          onClick={startNewSession}
+                          title="New chat session"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>New session</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+                          onClick={clearHistory}
+                          title="Clear chat history"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Clear history</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    title={isMinimized ? "Expand" : "Minimize"}
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+                    onClick={() => setIsOpen(false)}
+                    title="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
-                  onClick={clearHistory}
-                  title="Clear chat"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
-                  onClick={() => setIsMinimized(!isMinimized)}
-                  title={isMinimized ? "Expand" : "Minimize"}
-                >
-                  <Minimize2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
-                  onClick={() => setIsOpen(false)}
-                  title="Close"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              
+              {/* Session indicator */}
+              {!isMinimized && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-white/60">
+                  <History className="h-3 w-3" />
+                  <span>Session: {shortSessionId}...</span>
+                  {messages.length > 1 && (
+                    <span className="ml-auto">{messages.length} messages</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Messages Area */}
@@ -139,8 +197,16 @@ export function AdminChatbot() {
                   className="flex-1 overflow-y-auto"
                 >
                   <div className="min-h-full">
-                    {messages.map((message) => (
-                      <ChatMessage key={message.id} message={message} />
+                    {messages.map((message, index) => (
+                      <ChatMessage 
+                        key={message.id} 
+                        message={message}
+                        showDate={
+                          index === 0 || 
+                          new Date(message.timestamp).toDateString() !== 
+                          new Date(messages[index - 1].timestamp).toDateString()
+                        }
+                      />
                     ))}
                   </div>
                 </ScrollArea>

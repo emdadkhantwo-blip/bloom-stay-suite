@@ -6,8 +6,265 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to generate readable summaries for tool results
+function generateToolSummary(toolName: string, args: any, result: any): string {
+  if (!result.success) {
+    return `❌ Failed: ${result.error}`;
+  }
+
+  const data = result.data;
+  
+  switch (toolName) {
+    case "create_reservation":
+      return `✅ Created reservation **${data.confirmation_number}** for ${data.guests?.first_name || ''} ${data.guests?.last_name || ''}\n- Check-in: ${args.check_in_date}\n- Check-out: ${args.check_out_date}\n- ${data.nights} nights @ ৳${data.rate_per_night}/night\n- Total: ৳${data.total_amount}`;
+    
+    case "check_in_guest":
+      return `✅ Successfully checked in **${data.guests?.first_name || ''} ${data.guests?.last_name || ''}**\n- Confirmation: ${data.confirmation_number}\n- Folio: ${data.folio_number}`;
+    
+    case "check_out_guest":
+      return `✅ Successfully checked out **${data.guests?.first_name || ''} ${data.guests?.last_name || ''}**\n- Confirmation: ${data.confirmation_number}`;
+    
+    case "create_guest":
+      return `✅ Created guest profile for **${data.first_name} ${data.last_name}**${data.is_vip ? ' ⭐VIP' : ''}\n- ID: ${data.id}`;
+    
+    case "create_room":
+      return `✅ Created room **${data.room_number}** (${data.room_types?.name || 'N/A'})`;
+    
+    case "update_room_status":
+      return `✅ Updated room status to **${data.status}**`;
+    
+    case "create_room_type":
+      return `✅ Created room type **${data.name}** (${data.code})\n- Rate: ৳${data.base_rate}/night\n- Max occupancy: ${data.max_occupancy}`;
+    
+    case "create_housekeeping_task":
+      return `✅ Created ${data.task_type} task for room **${data.rooms?.room_number || 'N/A'}**\n- Priority: ${data.priority}\n- Status: ${data.status}`;
+    
+    case "create_maintenance_ticket":
+      return `✅ Created maintenance ticket: **${data.title}**${data.rooms ? `\n- Room: ${data.rooms.room_number}` : ''}\n- Priority: ${data.priority}`;
+    
+    case "add_folio_charge":
+      return `✅ Added charge to folio\n- ${data.description}: ৳${data.total_price}`;
+    
+    case "record_payment":
+      return `✅ Recorded payment of **৳${data.amount}** via ${data.payment_method.replace('_', ' ')}`;
+    
+    case "run_night_audit":
+      return `✅ Night audit completed for ${data.business_date}\n- Occupancy: ${Math.round(data.occupancy_rate)}%\n- Rooms charged: ${data.rooms_charged}`;
+    
+    case "create_pos_outlet":
+      return `✅ Created POS outlet **${data.name}** (${data.code})\n- Type: ${data.type}`;
+    
+    case "create_pos_order":
+      return `✅ Created order **${data.order_number}**\n- Items: ${data.items?.length || 0}\n- Total: ৳${data.total_amount}`;
+    
+    case "create_corporate_account":
+      return `✅ Created corporate account **${data.company_name}** (${data.account_code})`;
+    
+    case "get_dashboard_stats":
+      return `📊 **Current Status:**\n- Occupancy: ${data.occupancy_rate}% (${data.occupied_rooms}/${data.total_rooms} rooms)\n- Today's arrivals: ${data.todays_arrivals}\n- Today's departures: ${data.todays_departures}\n- In-house guests: ${data.in_house_guests}`;
+    
+    case "search_guests":
+      if (!data || data.length === 0) return "No guests found matching your search.";
+      return `Found ${data.length} guest(s):\n${data.slice(0, 5).map((g: any) => `- ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐' : ''} (${g.email || g.phone || 'No contact'})`).join('\n')}`;
+    
+    case "get_rooms":
+      if (!data || data.length === 0) return "No rooms found.";
+      const roomsByStatus = data.reduce((acc: any, r: any) => {
+        acc[r.status] = (acc[r.status] || 0) + 1;
+        return acc;
+      }, {});
+      return `📊 **${data.length} rooms:**\n${Object.entries(roomsByStatus).map(([s, c]) => `- ${s}: ${c}`).join('\n')}`;
+    
+    case "get_room_types":
+      if (!data || data.length === 0) return "No room types configured.";
+      return `Available room types:\n${data.map((rt: any) => `- **${rt.name}** (${rt.code}): ৳${rt.base_rate}/night, max ${rt.max_occupancy} guests`).join('\n')}`;
+    
+    case "get_todays_arrivals":
+      if (!data || data.length === 0) return "No arrivals scheduled for today.";
+      return `📥 **${data.length} arrival(s) today:**\n${data.map((r: any) => `- ${r.guests?.first_name} ${r.guests?.last_name}${r.guests?.is_vip ? ' ⭐' : ''} (${r.confirmation_number})`).join('\n')}`;
+    
+    case "get_todays_departures":
+      if (!data || data.length === 0) return "No departures scheduled for today.";
+      return `📤 **${data.length} departure(s) today:**\n${data.map((r: any) => `- ${r.guests?.first_name} ${r.guests?.last_name} (${r.confirmation_number})`).join('\n')}`;
+    
+    case "get_housekeeping_tasks":
+      if (!data || data.length === 0) return "No housekeeping tasks found.";
+      return `🧹 **${data.length} task(s):**\n${data.slice(0, 5).map((t: any) => `- Room ${t.rooms?.room_number}: ${t.task_type} (${t.status})`).join('\n')}`;
+    
+    case "get_maintenance_tickets":
+      if (!data || data.length === 0) return "No maintenance tickets found.";
+      return `🔧 **${data.length} ticket(s):**\n${data.slice(0, 5).map((t: any) => `- ${t.title} (${t.status})${t.rooms ? ` - Room ${t.rooms.room_number}` : ''}`).join('\n')}`;
+    
+    case "get_staff_list":
+      if (!data || data.length === 0) return "No staff members found.";
+      return `👥 **${data.length} staff member(s):**\n${data.map((s: any) => `- ${s.full_name} (${s.user_roles?.map((r: any) => r.role).join(', ') || 'No role'})`).join('\n')}`;
+    
+    case "search_reservations":
+      if (!data || data.length === 0) return "No reservations found.";
+      return `📋 **${data.length} reservation(s):**\n${data.slice(0, 5).map((r: any) => `- ${r.confirmation_number}: ${r.guests?.first_name} ${r.guests?.last_name} (${r.status})`).join('\n')}`;
+    
+    case "get_folios":
+      if (!data || data.length === 0) return "No folios found.";
+      return `💳 **${data.length} folio(s):**\n${data.slice(0, 5).map((f: any) => `- ${f.folio_number}: ${f.guests?.first_name} ${f.guests?.last_name} - ৳${f.balance} balance`).join('\n')}`;
+    
+    case "get_corporate_accounts":
+      if (!data || data.length === 0) return "No corporate accounts found.";
+      return `🏢 **${data.length} account(s):**\n${data.map((a: any) => `- ${a.company_name} (${a.account_code}) - ${a.discount_percentage}% discount`).join('\n')}`;
+    
+    default:
+      return `✅ Action completed successfully.`;
+  }
+}
+
+// Fetch comprehensive hotel context
+async function getHotelContext(supabase: any, tenantId: string): Promise<string> {
+  try {
+    // Fetch all rooms with room types
+    const { data: rooms } = await supabase
+      .from('rooms')
+      .select('room_number, floor, status, room_types(name, code, base_rate)')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .order('room_number');
+    
+    // Fetch active staff
+    const { data: staff } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, phone, user_roles(role)')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true);
+    
+    // Fetch recent guests
+    const { data: guests } = await supabase
+      .from('guests')
+      .select('id, first_name, last_name, email, phone, is_vip')
+      .eq('tenant_id', tenantId)
+      .order('updated_at', { ascending: false })
+      .limit(100);
+    
+    // Fetch room types
+    const { data: roomTypes } = await supabase
+      .from('room_types')
+      .select('id, name, code, base_rate, max_occupancy')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true);
+    
+    // Fetch today's key info
+    const today = new Date().toISOString().split('T')[0];
+    const { data: arrivals } = await supabase
+      .from('reservations')
+      .select('confirmation_number, guests(first_name, last_name, is_vip)')
+      .eq('tenant_id', tenantId)
+      .eq('check_in_date', today)
+      .eq('status', 'confirmed');
+    
+    const { data: departures } = await supabase
+      .from('reservations')
+      .select('confirmation_number, guests(first_name, last_name)')
+      .eq('tenant_id', tenantId)
+      .eq('check_out_date', today)
+      .eq('status', 'checked_in');
+    
+    const { data: inHouse } = await supabase
+      .from('reservations')
+      .select('confirmation_number, guests(first_name, last_name), reservation_rooms(room_id, rooms(room_number))')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'checked_in');
+
+    // Build context string
+    let context = `\n\n=== CURRENT HOTEL KNOWLEDGE ===\n\n`;
+    
+    context += `📅 TODAY: ${today}\n\n`;
+    
+    // Room Types
+    context += `🏷️ ROOM TYPES (${roomTypes?.length || 0}):\n`;
+    if (roomTypes && roomTypes.length > 0) {
+      roomTypes.forEach((rt: any) => {
+        context += `  - ${rt.name} (${rt.code}): ৳${rt.base_rate}/night, max ${rt.max_occupancy} guests, ID: ${rt.id}\n`;
+      });
+    } else {
+      context += `  No room types configured\n`;
+    }
+    
+    // Rooms
+    context += `\n🚪 ROOMS (${rooms?.length || 0}):\n`;
+    if (rooms && rooms.length > 0) {
+      const roomsByStatus: any = {};
+      rooms.forEach((r: any) => {
+        roomsByStatus[r.status] = roomsByStatus[r.status] || [];
+        roomsByStatus[r.status].push(r);
+      });
+      
+      Object.keys(roomsByStatus).forEach(status => {
+        context += `  ${status.toUpperCase()} (${roomsByStatus[status].length}): `;
+        context += roomsByStatus[status].map((r: any) => `${r.room_number} (${r.room_types?.name || 'N/A'})`).join(', ');
+        context += '\n';
+      });
+    } else {
+      context += `  No rooms configured\n`;
+    }
+    
+    // Staff
+    context += `\n👥 STAFF (${staff?.length || 0}):\n`;
+    if (staff && staff.length > 0) {
+      staff.forEach((s: any) => {
+        const roles = s.user_roles?.map((r: any) => r.role).join(', ') || 'No role';
+        context += `  - ${s.full_name} [${roles}]: ${s.email || 'No email'}, ID: ${s.id}\n`;
+      });
+    } else {
+      context += `  No staff configured\n`;
+    }
+    
+    // Recent Guests
+    context += `\n👤 RECENT GUESTS (showing ${Math.min(guests?.length || 0, 30)}):\n`;
+    if (guests && guests.length > 0) {
+      guests.slice(0, 30).forEach((g: any) => {
+        context += `  - ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐VIP' : ''}: ${g.email || g.phone || 'No contact'}, ID: ${g.id}\n`;
+      });
+    } else {
+      context += `  No guests in database\n`;
+    }
+    
+    // Today's Activity
+    context += `\n📥 TODAY'S ARRIVALS (${arrivals?.length || 0}):\n`;
+    if (arrivals && arrivals.length > 0) {
+      arrivals.forEach((a: any) => {
+        context += `  - ${a.guests?.first_name} ${a.guests?.last_name}${a.guests?.is_vip ? ' ⭐' : ''}: ${a.confirmation_number}\n`;
+      });
+    } else {
+      context += `  No arrivals today\n`;
+    }
+    
+    context += `\n📤 TODAY'S DEPARTURES (${departures?.length || 0}):\n`;
+    if (departures && departures.length > 0) {
+      departures.forEach((d: any) => {
+        context += `  - ${d.guests?.first_name} ${d.guests?.last_name}: ${d.confirmation_number}\n`;
+      });
+    } else {
+      context += `  No departures today\n`;
+    }
+    
+    context += `\n🏨 IN-HOUSE GUESTS (${inHouse?.length || 0}):\n`;
+    if (inHouse && inHouse.length > 0) {
+      inHouse.forEach((ih: any) => {
+        const roomNum = ih.reservation_rooms?.[0]?.rooms?.room_number || 'Unassigned';
+        context += `  - ${ih.guests?.first_name} ${ih.guests?.last_name} in Room ${roomNum}: ${ih.confirmation_number}\n`;
+      });
+    } else {
+      context += `  No in-house guests\n`;
+    }
+    
+    context += `\n=== END HOTEL KNOWLEDGE ===\n`;
+    
+    return context;
+  } catch (error) {
+    console.error('Error fetching hotel context:', error);
+    return '\n\n[Could not fetch hotel context]\n';
+  }
+}
+
 // System prompt for the chatbot
-const systemPrompt = `You are "Sakhi" (সখী), a friendly and efficient hotel management assistant for BloomStay PMS.
+const baseSystemPrompt = `You are "Sakhi" (সখী), a friendly and efficient hotel management assistant for BloomStay PMS.
 
 PERSONALITY:
 - Warm, professional, and helpful
@@ -31,12 +288,16 @@ You can help administrators with:
 - Staff management (get_staff_list - note: for security, staff creation requires the dedicated staff creation flow)
 - Reports and statistics (get_dashboard_stats, get_occupancy_report)
 
-RESPONSE STYLE:
-- Keep responses concise but friendly
+RESPONSE STYLE - CRITICAL:
+- After executing ANY tool/action, you MUST provide a clear, detailed summary including:
+  * What action was performed with specific details
+  * Key details like names, room numbers, confirmation numbers, amounts
+  * The outcome (success/failure)
+  * Suggested next steps if applicable
+- NEVER just say "I completed the action" - always describe WHAT was done with specifics
 - Use bullet points for multiple items
-- Always summarize what action was taken
-- Suggest next steps when appropriate
 - Format numbers with proper currency (৳ for BDT)
+- Use markdown formatting for clarity (bold for important info, lists for multiple items)
 
 IMPORTANT RULES:
 - Always verify guest/room details before major actions
@@ -46,6 +307,8 @@ IMPORTANT RULES:
 - When creating records, always confirm the details with the user first
 - Use the current date for relative dates like "today", "tomorrow"
 - If a tool call fails, explain the error in a friendly way and suggest alternatives
+- When users ask about rooms, guests, or staff - USE the knowledge provided below to answer directly
+- You have access to ALL hotel data below - use it to answer questions without needing to call tools
 
 CONTEXT:
 - Current date: ${new Date().toISOString().split('T')[0]}
@@ -1025,9 +1288,6 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         
         if (error) throw error;
         
-        // Update folio totals
-        await supabase.rpc('update_folio_totals', { folio_uuid: args.folio_id });
-        
         return { success: true, data };
       }
 
@@ -1312,6 +1572,10 @@ serve(async (req) => {
       userId = user?.id || '';
     }
 
+    // Fetch comprehensive hotel context
+    const hotelContext = await getHotelContext(supabase, tenantId);
+    const fullSystemPrompt = baseSystemPrompt + hotelContext;
+
     // Call Lovable AI Gateway
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -1322,7 +1586,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: fullSystemPrompt },
           ...messages
         ],
         tools,
@@ -1360,6 +1624,7 @@ serve(async (req) => {
     // Check if there are tool calls
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       const toolResults = [];
+      const toolSummaries = [];
       
       for (const toolCall of assistantMessage.tool_calls) {
         const toolName = toolCall.function.name;
@@ -1376,14 +1641,21 @@ serve(async (req) => {
           userId
         );
         
+        // Generate human-readable summary
+        const summary = generateToolSummary(toolName, toolArgs, result);
+        toolSummaries.push(summary);
+        
         toolResults.push({
           tool_call_id: toolCall.id,
           role: "tool",
-          content: JSON.stringify(result)
+          content: JSON.stringify({
+            ...result,
+            _summary: summary
+          })
         });
       }
 
-      // Call AI again with tool results
+      // Call AI again with tool results and summaries
       const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -1393,7 +1665,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: fullSystemPrompt + `\n\nIMPORTANT: The following tool(s) were executed. Use the _summary field from each result to create a detailed, friendly response that explains what was done:\n\n${toolSummaries.join('\n\n')}` },
             ...messages,
             assistantMessage,
             ...toolResults
@@ -1406,14 +1678,25 @@ serve(async (req) => {
       if (!followUpResponse.ok) {
         const errorText = await followUpResponse.text();
         console.error("Follow-up AI error:", errorText);
-        throw new Error("Failed to process tool results");
+        
+        // If follow-up fails, use the generated summaries directly
+        return new Response(JSON.stringify({
+          message: toolSummaries.join('\n\n'),
+          toolCalls: assistantMessage.tool_calls.map((tc: any) => ({
+            name: tc.function.name,
+            args: JSON.parse(tc.function.arguments)
+          })),
+          toolResults: toolResults.map(tr => JSON.parse(tr.content))
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const followUpData = await followUpResponse.json();
       const finalMessage = followUpData.choices?.[0]?.message;
 
       return new Response(JSON.stringify({
-        message: finalMessage?.content || "I completed the action but couldn't generate a summary.",
+        message: finalMessage?.content || toolSummaries.join('\n\n'),
         toolCalls: assistantMessage.tool_calls.map((tc: any) => ({
           name: tc.function.name,
           args: JSON.parse(tc.function.arguments)
