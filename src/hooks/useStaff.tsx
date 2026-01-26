@@ -263,6 +263,7 @@ export function useStaff() {
     staff: staffQuery.data || [],
     isLoading: staffQuery.isLoading,
     error: staffQuery.error,
+    refetch: staffQuery.refetch,
     updateStaff: updateStaffMutation.mutate,
     updateRoles: updateRolesMutation.mutate,
     updatePropertyAccess: updatePropertyAccessMutation.mutate,
