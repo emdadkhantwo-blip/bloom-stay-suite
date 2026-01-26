@@ -79,11 +79,41 @@ export default {
           maintenance: "hsl(var(--room-maintenance))",
           "out-of-order": "hsl(var(--room-out-of-order))",
         },
+        // Vibrant colors for gradients and accents
+        vibrant: {
+          blue: "hsl(var(--vibrant-blue))",
+          purple: "hsl(var(--vibrant-purple))",
+          green: "hsl(var(--vibrant-green))",
+          amber: "hsl(var(--vibrant-amber))",
+          rose: "hsl(var(--vibrant-rose))",
+          cyan: "hsl(var(--vibrant-cyan))",
+          indigo: "hsl(var(--vibrant-indigo))",
+          pink: "hsl(var(--vibrant-pink))",
+          orange: "hsl(var(--vibrant-orange))",
+          teal: "hsl(var(--vibrant-teal))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
+      },
+      boxShadow: {
+        vibrant: "0 4px 14px 0 hsl(var(--primary) / 0.25)",
+        "vibrant-lg": "0 10px 25px -3px hsl(var(--primary) / 0.3)",
+        glow: "0 0 20px hsl(var(--primary) / 0.3)",
+      },
+      backgroundImage: {
+        "gradient-primary": "linear-gradient(135deg, hsl(var(--vibrant-blue)) 0%, hsl(var(--vibrant-purple)) 100%)",
+        "gradient-success": "linear-gradient(135deg, hsl(var(--vibrant-green)) 0%, hsl(var(--vibrant-teal)) 100%)",
+        "gradient-warning": "linear-gradient(135deg, hsl(var(--vibrant-amber)) 0%, hsl(var(--vibrant-orange)) 100%)",
+        "gradient-danger": "linear-gradient(135deg, hsl(var(--vibrant-rose)) 0%, hsl(var(--vibrant-pink)) 100%)",
+        "gradient-info": "linear-gradient(135deg, hsl(var(--vibrant-cyan)) 0%, hsl(var(--vibrant-blue)) 100%)",
+        "gradient-purple": "linear-gradient(135deg, hsl(var(--vibrant-purple)) 0%, hsl(var(--vibrant-pink)) 100%)",
+        "gradient-indigo": "linear-gradient(135deg, hsl(var(--vibrant-indigo)) 0%, hsl(var(--vibrant-purple)) 100%)",
+        "gradient-radial": "radial-gradient(circle at top right, var(--tw-gradient-stops))",
       },
       keyframes: {
         "accordion-down": {
@@ -103,19 +133,39 @@ export default {
           },
         },
         "fade-in": {
-          from: { opacity: "0" },
-          to: { opacity: "1" },
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
         "slide-in-right": {
           from: { transform: "translateX(100%)" },
           to: { transform: "translateX(0)" },
         },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.95)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        "count-up": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-5px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.2s ease-out",
+        "fade-in": "fade-in 0.3s ease-out",
+        "fade-in-up": "fade-in-up 0.4s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
+        "scale-in": "scale-in 0.2s ease-out",
+        "count-up": "count-up 0.5s ease-out",
+        float: "float 3s ease-in-out infinite",
       },
       fontSize: {
         "2xs": ["0.625rem", { lineHeight: "0.875rem" }],

@@ -215,15 +215,15 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
           {/* Hotel Logo */}
           {tenant?.logo_url && (
-            <Avatar className="h-14 w-14 border-2 border-primary/20">
+            <Avatar className="h-14 w-14 border-2 border-primary/20 shadow-lg">
               <AvatarImage src={tenant.logo_url} alt={tenant.name} className="object-cover" />
-              <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">
+              <AvatarFallback className="text-lg bg-gradient-to-br from-vibrant-blue to-vibrant-purple text-white font-bold">
                 {tenant.name?.substring(0, 2).toUpperCase() || 'HT'}
               </AvatarFallback>
             </Avatar>
           )}
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-2xl font-bold text-gradient-primary">
               {tenant?.name ? `${tenant.name} Dashboard` : 'Dashboard'}
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -232,37 +232,47 @@ export default function Dashboard() {
           </div>
         </div>
         {subscription && (
-          <Badge variant="outline" className="w-fit border-primary/30 text-primary">
+          <Badge className="w-fit bg-gradient-to-r from-vibrant-blue to-vibrant-purple text-white border-0 shadow-md">
             {subscription.plan?.name || 'Free'} Plan
           </Badge>
         )}
       </div>
 
-      {/* Primary KPIs */}
+      {/* Primary KPIs - Vibrant gradient cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Occupancy Rate */}
-        <Card className="relative overflow-hidden">
-          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-primary/10" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-vibrant-blue to-vibrant-purple" />
+          <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+          <div className="absolute -right-4 -bottom-4 h-20 w-20 rounded-full bg-white/5" />
+          <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-white/80">
               Occupancy Rate
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
+            <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             {isLoading ? (
-              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-10 w-24 bg-white/20" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{occupancyRate}%</span>
+                  <span className="text-4xl font-bold text-white">{occupancyRate}%</span>
                   {occupancyRate > 70 ? (
-                    <ArrowUpRight className="h-4 w-4 text-success" />
+                    <span className="flex items-center text-emerald-300 text-sm">
+                      <ArrowUpRight className="h-4 w-4" />
+                      Good
+                    </span>
                   ) : (
-                    <ArrowDownRight className="h-4 w-4 text-warning" />
+                    <span className="flex items-center text-amber-300 text-sm">
+                      <ArrowDownRight className="h-4 w-4" />
+                      Low
+                    </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-white/70 mt-1">
                   {stats.occupiedRooms} of {stats.totalRooms} rooms occupied
                 </p>
               </>
@@ -271,21 +281,25 @@ export default function Dashboard() {
         </Card>
 
         {/* Today's Revenue */}
-        <Card className="relative overflow-hidden">
-          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-success/10" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-vibrant-green to-vibrant-teal" />
+          <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+          <div className="absolute -right-4 -bottom-4 h-20 w-20 rounded-full bg-white/5" />
+          <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-white/80">
               Today's Revenue
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-success" />
+            <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <DollarSign className="h-5 w-5 text-white" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             {isLoading ? (
-              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-10 w-28 bg-white/20" />
             ) : (
               <>
-                <div className="text-3xl font-bold">{formatCurrency(stats.todayRevenue)}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-4xl font-bold text-white">{formatCurrency(stats.todayRevenue)}</div>
+                <p className="text-sm text-white/70 mt-1">
                   {formatCurrency(stats.monthRevenue)} this month
                 </p>
               </>
@@ -294,24 +308,28 @@ export default function Dashboard() {
         </Card>
 
         {/* Pending Tasks */}
-        <Card className="relative overflow-hidden">
-          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-warning/10" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-vibrant-amber to-vibrant-orange" />
+          <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+          <div className="absolute -right-4 -bottom-4 h-20 w-20 rounded-full bg-white/5" />
+          <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-white/80">
               Housekeeping Tasks
             </CardTitle>
-            <ClipboardList className="h-4 w-4 text-warning" />
+            <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <ClipboardList className="h-5 w-5 text-white" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-10 w-20 bg-white/20" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{stats.pendingHousekeepingTasks}</span>
-                  <span className="text-sm text-muted-foreground">pending</span>
+                  <span className="text-4xl font-bold text-white">{stats.pendingHousekeepingTasks}</span>
+                  <span className="text-sm text-white/70">pending</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-white/70 mt-1">
                   {stats.inProgressHousekeepingTasks} in progress
                 </p>
               </>
@@ -320,32 +338,35 @@ export default function Dashboard() {
         </Card>
 
         {/* Maintenance Tickets */}
-        <Card className="relative overflow-hidden">
-          <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-4 rounded-full bg-destructive/10" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-vibrant-rose to-vibrant-pink" />
+          <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+          <div className="absolute -right-4 -bottom-4 h-20 w-20 rounded-full bg-white/5" />
+          <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-white/80">
               Maintenance Tickets
             </CardTitle>
-            <Wrench className="h-4 w-4 text-destructive" />
+            <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <Wrench className="h-5 w-5 text-white" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-10 w-20 bg-white/20" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{stats.openMaintenanceTickets}</span>
-                  <span className="text-sm text-muted-foreground">open</span>
+                  <span className="text-4xl font-bold text-white">{stats.openMaintenanceTickets}</span>
+                  <span className="text-sm text-white/70">open</span>
                 </div>
-                {stats.criticalMaintenanceTickets > 0 && (
-                  <p className="flex items-center gap-1 text-xs text-destructive">
-                    <AlertTriangle className="h-3 w-3" />
+                {stats.criticalMaintenanceTickets > 0 ? (
+                  <p className="flex items-center gap-1 text-sm text-amber-200 mt-1">
+                    <AlertTriangle className="h-4 w-4" />
                     {stats.criticalMaintenanceTickets} critical
                   </p>
-                )}
-                {stats.criticalMaintenanceTickets === 0 && (
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3 text-success" />
+                ) : (
+                  <p className="flex items-center gap-1 text-sm text-emerald-200 mt-1">
+                    <CheckCircle2 className="h-4 w-4" />
                     No critical issues
                   </p>
                 )}
@@ -358,14 +379,14 @@ export default function Dashboard() {
       {/* Secondary Stats Grid */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Room Status Overview */}
-        <Card>
+        <Card className="shadow-md border hover:shadow-lg transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Room Status</CardTitle>
+                <CardTitle className="text-lg font-semibold">Room Status</CardTitle>
                 <CardDescription>Current status of all rooms</CardDescription>
               </div>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="shadow-sm hover:shadow">
                 <Link to="/rooms">View All</Link>
               </Button>
             </div>
@@ -374,7 +395,7 @@ export default function Dashboard() {
             {isLoading ? (
               <div className="grid grid-cols-5 gap-3">
                 {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-20" />
+                  <Skeleton key={i} className="h-24" />
                 ))}
               </div>
             ) : (
@@ -387,20 +408,28 @@ export default function Dashboard() {
                     : status === 'out_of_order' ? 0
                     : 0;
 
+                  const gradients: Record<string, string> = {
+                    vacant: 'from-emerald-400 to-emerald-600',
+                    occupied: 'from-blue-400 to-blue-600',
+                    dirty: 'from-amber-400 to-amber-600',
+                    maintenance: 'from-purple-400 to-purple-600',
+                    out_of_order: 'from-rose-400 to-rose-600',
+                  };
+
                   return (
                     <div
                       key={status}
-                      className="flex flex-col items-center rounded-lg border p-3 text-center transition-colors hover:bg-muted/50"
+                      className="group flex flex-col items-center rounded-xl border p-4 text-center transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
                     >
                       <div
                         className={cn(
-                          'mb-2 flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold',
-                          config.color
+                          'mb-2 flex h-12 w-12 items-center justify-center rounded-xl text-lg font-bold text-white bg-gradient-to-br transition-transform group-hover:scale-110',
+                          gradients[status]
                         )}
                       >
                         {count}
                       </div>
-                      <span className="text-xs text-muted-foreground">{config.label}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
                     </div>
                   );
                 })}
@@ -410,85 +439,85 @@ export default function Dashboard() {
         </Card>
 
         {/* Today's Activity */}
-        <Card>
+        <Card className="shadow-md border hover:shadow-lg transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Today's Activity</CardTitle>
+                <CardTitle className="text-lg font-semibold">Today's Activity</CardTitle>
                 <CardDescription>Arrivals, departures & reservations</CardDescription>
               </div>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="shadow-sm hover:shadow">
                 <Link to="/front-desk">Front Desk</Link>
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
-                    <ArrowUpRight className="h-5 w-5" />
+              <div className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md hover:border-vibrant-green/30 hover:-translate-y-0.5 cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg">
+                    <ArrowUpRight className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Arrivals</p>
-                    <p className="text-xs text-muted-foreground">Expected check-ins</p>
+                    <p className="font-semibold">Arrivals</p>
+                    <p className="text-sm text-muted-foreground">Expected check-ins today</p>
                   </div>
                 </div>
                 {isLoading ? (
-                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-10 w-12" />
                 ) : (
-                  <span className="text-2xl font-bold">{stats.todayArrivals}</span>
+                  <span className="text-3xl font-bold text-vibrant-green">{stats.todayArrivals}</span>
                 )}
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
-                    <ArrowDownRight className="h-5 w-5" />
+              <div className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md hover:border-vibrant-amber/30 hover:-translate-y-0.5 cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg">
+                    <ArrowDownRight className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Departures</p>
-                    <p className="text-xs text-muted-foreground">Expected check-outs</p>
+                    <p className="font-semibold">Departures</p>
+                    <p className="text-sm text-muted-foreground">Expected check-outs today</p>
                   </div>
                 </div>
                 {isLoading ? (
-                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-10 w-12" />
                 ) : (
-                  <span className="text-2xl font-bold">{stats.todayDepartures}</span>
+                  <span className="text-3xl font-bold text-vibrant-amber">{stats.todayDepartures}</span>
                 )}
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Users className="h-5 w-5" />
+              <div className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md hover:border-vibrant-blue/30 hover:-translate-y-0.5 cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-lg">
+                    <Users className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">In-House Guests</p>
-                    <p className="text-xs text-muted-foreground">Currently staying</p>
+                    <p className="font-semibold">In-House Guests</p>
+                    <p className="text-sm text-muted-foreground">Currently staying</p>
                   </div>
                 </div>
                 {isLoading ? (
-                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-10 w-12" />
                 ) : (
-                  <span className="text-2xl font-bold">{stats.inHouseGuests}</span>
+                  <span className="text-3xl font-bold text-vibrant-blue">{stats.inHouseGuests}</span>
                 )}
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10 text-info">
-                    <Clock className="h-5 w-5" />
+              <div className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md hover:border-vibrant-cyan/30 hover:-translate-y-0.5 cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white shadow-lg">
+                    <Clock className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Pending Reservations</p>
-                    <p className="text-xs text-muted-foreground">Upcoming confirmed</p>
+                    <p className="font-semibold">Pending Reservations</p>
+                    <p className="text-sm text-muted-foreground">Upcoming confirmed</p>
                   </div>
                 </div>
                 {isLoading ? (
-                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-10 w-12" />
                 ) : (
-                  <span className="text-2xl font-bold">{stats.pendingReservations}</span>
+                  <span className="text-3xl font-bold text-vibrant-cyan">{stats.pendingReservations}</span>
                 )}
               </div>
             </div>
@@ -497,46 +526,70 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      <Card className="shadow-md border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Quick Actions</CardTitle>
+          <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Button 
+              variant="outline" 
+              className="group h-auto justify-start gap-4 p-4 border-2 hover:border-vibrant-blue/50 hover:bg-vibrant-blue/5 transition-all" 
+              asChild
+            >
               <Link to="/reservations">
-                <Calendar className="h-5 w-5 text-primary" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow group-hover:scale-110 transition-transform">
+                  <Calendar className="h-5 w-5" />
+                </div>
                 <div className="text-left">
-                  <p className="font-medium">New Reservation</p>
+                  <p className="font-semibold">New Reservation</p>
                   <p className="text-xs text-muted-foreground">Create booking</p>
                 </div>
               </Link>
             </Button>
-            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+            <Button 
+              variant="outline" 
+              className="group h-auto justify-start gap-4 p-4 border-2 hover:border-vibrant-green/50 hover:bg-vibrant-green/5 transition-all" 
+              asChild
+            >
               <Link to="/front-desk">
-                <Users className="h-5 w-5 text-success" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow group-hover:scale-110 transition-transform">
+                  <Users className="h-5 w-5" />
+                </div>
                 <div className="text-left">
-                  <p className="font-medium">Check-In Guest</p>
+                  <p className="font-semibold">Check-In Guest</p>
                   <p className="text-xs text-muted-foreground">Process arrival</p>
                 </div>
               </Link>
             </Button>
-            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+            <Button 
+              variant="outline" 
+              className="group h-auto justify-start gap-4 p-4 border-2 hover:border-vibrant-amber/50 hover:bg-vibrant-amber/5 transition-all" 
+              asChild
+            >
               <Link to="/housekeeping">
-                <ClipboardList className="h-5 w-5 text-warning" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow group-hover:scale-110 transition-transform">
+                  <ClipboardList className="h-5 w-5" />
+                </div>
                 <div className="text-left">
-                  <p className="font-medium">Housekeeping</p>
+                  <p className="font-semibold">Housekeeping</p>
                   <p className="text-xs text-muted-foreground">
                     {stats.pendingHousekeepingTasks} tasks pending
                   </p>
                 </div>
               </Link>
             </Button>
-            <Button variant="outline" className="h-auto justify-start gap-3 p-4" asChild>
+            <Button 
+              variant="outline" 
+              className="group h-auto justify-start gap-4 p-4 border-2 hover:border-vibrant-rose/50 hover:bg-vibrant-rose/5 transition-all" 
+              asChild
+            >
               <Link to="/maintenance">
-                <Wrench className="h-5 w-5 text-destructive" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 text-white shadow group-hover:scale-110 transition-transform">
+                  <Wrench className="h-5 w-5" />
+                </div>
                 <div className="text-left">
-                  <p className="font-medium">Maintenance</p>
+                  <p className="font-semibold">Maintenance</p>
                   <p className="text-xs text-muted-foreground">
                     {stats.openMaintenanceTickets} tickets open
                   </p>
