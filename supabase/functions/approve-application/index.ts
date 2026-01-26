@@ -201,10 +201,27 @@ Deno.serve(async (req) => {
       console.log("Created subscription with plan:", plan.name);
     }
 
-    // Step 4: Create profile
+    // Step 4: Update profile (upsert since handle_new_user trigger may have created it)
+    // First, delete any auto-created tenant/profile from the trigger
+    const { data: existingProfile } = await adminClient
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", newUserId)
+      .maybeSingle();
+
+    if (existingProfile?.tenant_id && existingProfile.tenant_id !== tenant.id) {
+      // Clean up auto-created tenant from trigger
+      console.log("Cleaning up auto-created tenant:", existingProfile.tenant_id);
+      await adminClient.from("property_access").delete().eq("user_id", newUserId);
+      await adminClient.from("properties").delete().eq("tenant_id", existingProfile.tenant_id);
+      await adminClient.from("subscriptions").delete().eq("tenant_id", existingProfile.tenant_id);
+      await adminClient.from("tenants").delete().eq("id", existingProfile.tenant_id);
+    }
+
+    // Update the profile with correct tenant
     const { error: profileError } = await adminClient
       .from("profiles")
-      .insert({
+      .upsert({
         id: newUserId,
         username: application.username,
         email: application.email,
@@ -213,7 +230,7 @@ Deno.serve(async (req) => {
         tenant_id: tenant.id,
         is_active: true,
         must_change_password: false,
-      });
+      }, { onConflict: "id" });
 
     if (profileError) {
       console.error("Profile creation error:", profileError);
