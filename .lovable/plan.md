@@ -1,223 +1,376 @@
 
 
-## Calendar Page Improvements Plan
+## Calendar Improvements - Complete Implementation Plan
 
-### Issues Identified
+### Issues Analysis
 
-After analyzing the codebase, I found three main issues:
+After reviewing the code, I identified the root causes:
 
-| Issue | Root Cause |
-|-------|-----------|
-| **1. Checked-in details not showing** | The calendar query filters `status` to only include `confirmed` and `checked_in`, but the stats calculation looks for departures with status `checked_in` on today's checkout date. The display works correctly, but checked-in reservations without assigned rooms don't show on the calendar timeline. |
-| **2. Room block click not showing details** | Currently, clicking a reservation block navigates to `/reservations?highlight={id}`, but the Reservations page doesn't parse this query parameter to auto-open the detail drawer. |
-| **3. Cannot extend checkout time** | There's no UI to modify reservation dates. The `ReservationDetailDrawer` only shows dates but doesn't allow editing them. |
+| Issue | Root Cause | Solution |
+|-------|-----------|----------|
+| **Amount not updating after modify dates** | The `ExtendStayDialog` calls `onSuccess?.()` with no data. The drawer still shows stale `reservation` prop data. | Pass the updated reservation back through `onSuccess` callback to update drawer state |
+| **Calendar not updating after modify dates** | Query invalidation works, but the drawer's local `selectedReservation` state isn't updated. The drawer closes before refetch happens. | Update `selectedReservation` state with new data after successful modification |
+| **Room availability validation needed** | No validation exists before updating dates | Add `checkRoomAvailability` function that queries for conflicting reservations |
+| **Drag and drop not implemented** | Feature doesn't exist | Use `framer-motion` for draggable blocks with vertical offset detection |
 
 ---
 
-### Solution Overview
+### Implementation Details
 
-```text
-+------------------+     +----------------------+     +------------------------+
-|   Calendar Page  | --> | Click Reservation    | --> | Detail Drawer Opens    |
-|                  |     | Block                |     | with Edit Capability   |
-+------------------+     +----------------------+     +------------------------+
-                                                              |
-                                                              v
-                                                      +------------------------+
-                                                      | Extend Stay Dialog     |
-                                                      | (Change checkout date) |
-                                                      +------------------------+
+#### 1. Fix Data Synchronization
+
+**ExtendStayDialog.tsx Changes:**
+- Update `onSuccess` callback signature to return the updated reservation object
+- After successful mutation, construct and return the updated reservation
+
+```typescript
+// Change interface
+interface ExtendStayDialogProps {
+  reservation: Reservation;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: (updatedReservation: Reservation) => void; // NEW: pass updated data
+}
+
+// In handleConfirm, after mutateAsync:
+const updatedReservation: Reservation = {
+  ...reservation,
+  check_in_date: format(newCheckInDate, "yyyy-MM-dd"),
+  check_out_date: format(newCheckOutDate, "yyyy-MM-dd"),
+  total_amount: newTotal,
+};
+onSuccess?.(updatedReservation);
 ```
 
----
+**ReservationDetailDrawer.tsx Changes:**
+- Update `onExtendStay` prop type to accept the updated reservation
+- Forward the updated reservation from ExtendStayDialog to parent
 
-### Technical Implementation
-
-#### 1. Fix "Checked-In Details Not Showing"
-
-**File: `src/hooks/useCalendarReservations.tsx`**
-
-The issue is that reservations without room assignments don't appear on the calendar. Update the query to also show unassigned reservations.
-
-Changes:
-- Include reservations even if `room_id` is null in `reservation_rooms`
-- Create a special "Unassigned" row to display reservations without room assignments
-- Alternatively, show a badge or indicator for unassigned checked-in reservations
-
-#### 2. Fix "Room Block Click Not Showing Details"
-
-**Approach A: Open Detail Drawer Directly on Calendar Page (Recommended)**
-
-Instead of navigating to `/reservations?highlight=...`, open a detail drawer directly on the Calendar page.
-
-**Files to modify:**
-- `src/pages/Calendar.tsx` - Add state for selected reservation and drawer
-- Import and use `ReservationDetailDrawer` directly
-- Fetch full reservation details when a block is clicked
-
-**Changes:**
 ```typescript
-// Calendar.tsx - Add drawer state and handlers
-const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
-const [drawerOpen, setDrawerOpen] = useState(false);
+interface ReservationDetailDrawerProps {
+  ...
+  onExtendStay?: (updatedReservation: Reservation) => void; // Updated type
+}
+```
 
-const handleReservationClick = async (calendarRes: CalendarReservation) => {
-  // Fetch full reservation details
-  const { data } = await supabase
-    .from("reservations")
-    .select("*, guest:guests(*), reservation_rooms(*, room:rooms(*), room_type:room_types(*))")
-    .eq("id", calendarRes.id)
-    .single();
-  
-  if (data) {
-    setSelectedReservation(data);
-    setDrawerOpen(true);
-  }
+**Calendar.tsx Changes:**
+- Update `handleExtendStay` to receive and set the updated reservation
+- This ensures the drawer shows updated data immediately
+
+```typescript
+const handleExtendStay = (updatedReservation: Reservation) => {
+  setSelectedReservation(updatedReservation); // Update drawer state
+  queryClient.invalidateQueries({ 
+    predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+  });
 };
 ```
 
-#### 3. Add "Extend Stay" / "Modify Dates" Functionality
+#### 2. Fix Query Invalidation Pattern
 
-**New Files:**
-- `src/components/reservations/ExtendStayDialog.tsx` - Dialog to modify check-in/check-out dates
+**useReservations.tsx - useUpdateReservation Changes:**
+- Use predicate-based invalidation to match all calendar-reservations queries regardless of date/numDays parameters
 
-**Files to modify:**
-- `src/hooks/useReservations.tsx` - Add `useUpdateReservation` mutation
-- `src/components/reservations/ReservationDetailDrawer.tsx` - Add "Extend Stay" button
-
-**New hook in `useReservations.tsx`:**
 ```typescript
-export function useUpdateReservation() {
+onSuccess: () => {
+  queryClient.invalidateQueries({ 
+    predicate: (query) => 
+      query.queryKey[0] === "calendar-reservations" ||
+      query.queryKey[0] === "reservations" ||
+      query.queryKey[0] === "reservation-stats"
+  });
+  toast.success("Reservation updated successfully");
+},
+```
+
+#### 3. Add Room Availability Validation
+
+**ExtendStayDialog.tsx - New Validation Function:**
+
+```typescript
+const [isChecking, setIsChecking] = useState(false);
+const [conflictError, setConflictError] = useState<string | null>(null);
+
+const checkRoomAvailability = async (): Promise<{
+  available: boolean;
+  conflicts: string[];
+}> => {
+  if (!newCheckInDate || !newCheckOutDate) {
+    return { available: false, conflicts: [] };
+  }
+
+  // Get the room_id from reservation_rooms
+  const roomId = reservation.reservation_rooms?.[0]?.room_id;
+  if (!roomId) {
+    // No room assigned, no conflict possible
+    return { available: true, conflicts: [] };
+  }
+
+  const newCheckIn = format(newCheckInDate, "yyyy-MM-dd");
+  const newCheckOut = format(newCheckOutDate, "yyyy-MM-dd");
+
+  // Query for overlapping reservations (excluding current)
+  const { data: conflicts, error } = await supabase
+    .from("reservations")
+    .select(`
+      id,
+      confirmation_number,
+      check_in_date,
+      check_out_date,
+      reservation_rooms!inner(room_id)
+    `)
+    .neq("id", reservation.id)
+    .eq("reservation_rooms.room_id", roomId)
+    .in("status", ["confirmed", "checked_in"])
+    .lte("check_in_date", newCheckOut)
+    .gt("check_out_date", newCheckIn);
+
+  if (error) {
+    console.error("Availability check error:", error);
+    return { available: true, conflicts: [] }; // Fail open
+  }
+
+  return {
+    available: conflicts.length === 0,
+    conflicts: conflicts.map((c) => c.confirmation_number),
+  };
+};
+```
+
+**Updated handleConfirm:**
+```typescript
+const handleConfirm = async () => {
+  if (!newCheckInDate || !newCheckOutDate || newNights <= 0) return;
+
+  setIsChecking(true);
+  setConflictError(null);
+
+  // Check availability first
+  const { available, conflicts } = await checkRoomAvailability();
+
+  if (!available) {
+    setConflictError(`Room not available. Conflicts with: ${conflicts.join(", ")}`);
+    setIsChecking(false);
+    return;
+  }
+
+  // Proceed with update...
+};
+```
+
+**UI for Conflict Error:**
+```typescript
+{conflictError && (
+  <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2">
+    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+    {conflictError}
+  </div>
+)}
+```
+
+#### 4. Add Drag and Drop Room Assignment
+
+**useReservations.tsx - New Hook:**
+
+```typescript
+export function useMoveReservationToRoom() {
   const queryClient = useQueryClient();
-  const { currentProperty } = useTenant();
 
   return useMutation({
-    mutationFn: async ({ 
-      reservationId, 
-      updates 
-    }: { 
-      reservationId: string; 
-      updates: { check_out_date?: string; check_in_date?: string } 
+    mutationFn: async ({
+      reservationId,
+      reservationRoomId,
+      newRoomId,
+      oldRoomId,
+    }: {
+      reservationId: string;
+      reservationRoomId: string;
+      newRoomId: string;
+      oldRoomId: string | null;
     }) => {
+      // Update reservation_rooms with new room_id
       const { error } = await supabase
-        .from("reservations")
-        .update({ 
-          ...updates,
-          updated_at: new Date().toISOString() 
-        })
-        .eq("id", reservationId);
+        .from("reservation_rooms")
+        .update({ room_id: newRoomId, updated_at: new Date().toISOString() })
+        .eq("id", reservationRoomId);
 
       if (error) throw error;
+
+      // If old room was occupied, mark it as dirty
+      if (oldRoomId) {
+        await supabase
+          .from("rooms")
+          .update({ status: "dirty", updated_at: new Date().toISOString() })
+          .eq("id", oldRoomId);
+      }
+
+      // Mark new room as occupied
+      await supabase
+        .from("rooms")
+        .update({ status: "occupied", updated_at: new Date().toISOString() })
+        .eq("id", newRoomId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["calendar-reservations"] });
-      toast.success("Reservation updated successfully");
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "calendar-reservations" ||
+          query.queryKey[0] === "rooms",
+      });
+      toast.success("Reservation moved to new room");
+    },
+    onError: (error) => {
+      console.error("Move reservation error:", error);
+      toast.error("Failed to move reservation");
     },
   });
 }
 ```
 
-**ExtendStayDialog component:**
+**CalendarTimeline.tsx - Draggable Blocks:**
+
+Add new props and state:
 ```typescript
-// Shows a date picker to select new check-out date
-// Validates that new date is after current date
-// Calculates additional nights and cost
-// Updates reservation via useUpdateReservation hook
+interface CalendarTimelineProps {
+  rooms: CalendarRoom[];
+  dateRange: Date[];
+  onReservationClick?: (reservation: CalendarReservation) => void;
+  onReservationMove?: (
+    reservationId: string,
+    reservationRoomId: string,
+    newRoomId: string,
+    oldRoomId: string | null
+  ) => void; // NEW
+}
 ```
 
-#### 4. Fix forwardRef Console Warnings
-
-**File: `src/components/calendar/CalendarTimeline.tsx`**
-
-The `TooltipTrigger` from Radix expects the child to accept refs, but `ReservationBlock` is a regular function component.
-
-**Fix:**
+Create DraggableReservationBlock using framer-motion:
 ```typescript
-const ReservationBlock = forwardRef<HTMLButtonElement, ReservationBlockProps>(
-  ({ reservation, startDate, dateRange, onClick }, ref) => {
-    // ... component logic
+import { motion, PanInfo } from "framer-motion";
+
+const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableBlockProps>(
+  ({ reservation, startDate, dateRange, onClick, onDragEnd, roomIndex, rooms }, ref) => {
+    const [isDragging, setIsDragging] = useState(false);
+    
+    // ... existing position calculations ...
+
     return (
-      <button ref={ref} ...>
+      <motion.button
+        ref={ref}
+        drag="y"
+        dragMomentum={false}
+        dragElastic={0}
+        dragConstraints={{ top: -roomIndex * ROW_HEIGHT, bottom: (rooms.length - roomIndex - 1) * ROW_HEIGHT }}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={(event, info) => {
+          setIsDragging(false);
+          onDragEnd?.(info);
+        }}
+        onClick={() => !isDragging && onClick?.(reservation)}
+        className={cn(
+          "absolute top-1 h-10 rounded-md border px-2 flex items-center gap-1 overflow-hidden transition-all",
+          isDragging ? "cursor-grabbing z-50 shadow-lg ring-2 ring-primary" : "cursor-grab",
+          STATUS_COLORS[reservation.status],
+          STATUS_TEXT_COLORS[reservation.status]
+        )}
+        style={{ left: `${left}px`, width: `${width}px` }}
+        whileDrag={{ scale: 1.05, opacity: 0.9 }}
+      >
         {/* content */}
-      </button>
+      </motion.button>
     );
   }
 );
-ReservationBlock.displayName = "ReservationBlock";
 ```
 
-Also wrap `CalendarTimeline` with `forwardRef` if needed.
+Handle drag end to calculate target room:
+```typescript
+const handleDragEnd = (
+  reservation: CalendarReservation,
+  currentRoomId: string,
+  roomIndex: number,
+  info: PanInfo
+) => {
+  const deltaY = info.offset.y;
+  const rowsMoved = Math.round(deltaY / ROW_HEIGHT);
+
+  if (rowsMoved === 0) return; // No room change
+
+  const targetRoomIndex = roomIndex + rowsMoved;
+  if (targetRoomIndex < 0 || targetRoomIndex >= rooms.length) return;
+
+  const targetRoom = rooms[targetRoomIndex];
+  if (targetRoom.id === "unassigned") return; // Can't move to unassigned row
+
+  onReservationMove?.(
+    reservation.id,
+    reservation.reservation_room_id, // Need to add this field
+    targetRoom.id,
+    currentRoomId === "unassigned" ? null : currentRoomId
+  );
+};
+```
+
+**Calendar.tsx - Add Move Handler:**
+```typescript
+const moveReservation = useMoveReservationToRoom();
+
+const handleReservationMove = (
+  reservationId: string,
+  reservationRoomId: string,
+  newRoomId: string,
+  oldRoomId: string | null
+) => {
+  moveReservation.mutate({
+    reservationId,
+    reservationRoomId,
+    newRoomId,
+    oldRoomId,
+  });
+};
+
+// In CalendarTimeline:
+<CalendarTimeline
+  rooms={data?.rooms || []}
+  dateRange={data?.dateRange || []}
+  onReservationClick={handleReservationClick}
+  onReservationMove={handleReservationMove}
+/>
+```
+
+**useCalendarReservations.tsx - Add reservation_room_id:**
+Update the CalendarReservation interface and data mapping to include the reservation_room_id needed for the move operation.
 
 ---
-
-### Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/reservations/ExtendStayDialog.tsx` | Dialog for changing check-in/check-out dates |
 
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/Calendar.tsx` | Add drawer state, fetch full reservation on click, include extend stay functionality |
-| `src/components/calendar/CalendarTimeline.tsx` | Fix forwardRef warnings |
-| `src/hooks/useReservations.tsx` | Add `useUpdateReservation` mutation |
-| `src/hooks/useCalendarReservations.tsx` | Include checked-in reservations without room assignments |
-| `src/components/reservations/ReservationDetailDrawer.tsx` | Add "Extend Stay" button and dialog trigger |
+| `src/components/reservations/ExtendStayDialog.tsx` | Add availability validation, return updated reservation on success, add conflict error UI |
+| `src/components/reservations/ReservationDetailDrawer.tsx` | Update onExtendStay callback type |
+| `src/pages/Calendar.tsx` | Handle updated reservation, add move handler |
+| `src/hooks/useReservations.tsx` | Fix query invalidation, add `useMoveReservationToRoom` hook |
+| `src/hooks/useCalendarReservations.tsx` | Add reservation_room_id to CalendarReservation |
+| `src/components/calendar/CalendarTimeline.tsx` | Add drag-and-drop with framer-motion |
 
 ---
 
-### UI/UX Changes
+### User Experience Flow
 
-#### Calendar Page
-When clicking a reservation block:
-1. Detail drawer slides in from the right
-2. Shows full reservation details (guest info, room assignments, folio, etc.)
-3. Has action buttons: Check In, Check Out, Cancel, **Extend Stay** (new)
+**Modifying Dates:**
+1. Click reservation block on calendar
+2. Drawer opens with reservation details
+3. Click "Modify Dates" button
+4. Select new check-in/check-out dates
+5. System validates room availability
+6. If conflict found: Show error with conflicting reservation numbers
+7. If available: Update reservation, drawer shows new dates/amount immediately, calendar refreshes
 
-#### Extend Stay Dialog
-```text
-┌─────────────────────────────────────────────────────────┐
-│ Extend Stay                                         [X] │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│ Current Check-Out: Tue, Jan 28, 2026                   │
-│                                                         │
-│ New Check-Out Date:                                     │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ [Calendar Picker]                               📅  │ │
-│ └─────────────────────────────────────────────────────┘ │
-│                                                         │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Additional Nights: 2                                │ │
-│ │ Room Rate: ৳3,000/night                             │ │
-│ │ Additional Cost: ৳6,000                             │ │
-│ └─────────────────────────────────────────────────────┘ │
-│                                                         │
-│           [Cancel]                    [Confirm Extension]│
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-### Implementation Steps
-
-1. **Fix forwardRef warnings** in `CalendarTimeline.tsx`
-2. **Add `useUpdateReservation` hook** to `useReservations.tsx`
-3. **Create `ExtendStayDialog` component** for modifying dates
-4. **Update `ReservationDetailDrawer`** to include "Extend Stay" button
-5. **Update `Calendar.tsx`** to open detail drawer on click instead of navigating
-6. **Update `useCalendarReservations`** to show unassigned checked-in reservations
-
----
-
-### Edge Cases Handled
-
-- Validation that new checkout date is after check-in date
-- Validation that new checkout date is after current date
-- Room availability check for extended dates (optional)
-- Recalculation of total amount for additional nights
-- Adding additional room charges to folio for extended stay
+**Drag and Drop:**
+1. Grab a reservation block on the calendar
+2. Drag vertically to a different room row
+3. Visual feedback: Block scales up, shadow appears
+4. Release on target room row
+5. System updates room assignment
+6. Calendar refreshes with block in new position
 
