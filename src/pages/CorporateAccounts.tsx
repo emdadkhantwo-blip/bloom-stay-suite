@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import {
   Briefcase,
   Search,
   Plus,
   MoreHorizontal,
-  Edit2,
   Trash2,
   Users,
   Percent,
   Eye,
+  CheckCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   useCorporateAccounts,
   useDeleteCorporateAccount,
@@ -82,71 +82,89 @@ export default function CorporateAccounts() {
     }
   };
 
+  const statItems = [
+    {
+      label: "Total Accounts",
+      value: accounts.length,
+      icon: Briefcase,
+      gradient: "from-blue-500 to-indigo-600",
+    },
+    {
+      label: "Active",
+      value: activeAccounts,
+      icon: CheckCircle,
+      gradient: "from-emerald-500 to-teal-600",
+    },
+    {
+      label: "Linked Guests",
+      value: totalLinkedGuests,
+      icon: Users,
+      gradient: "from-purple-500 to-violet-600",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Briefcase className="h-6 w-6" />
+            <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-2 shadow-md">
+              <Briefcase className="h-6 w-6 text-white" />
+            </div>
             Corporate Accounts
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Manage corporate clients and travel agent accounts
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
+        <Button 
+          onClick={() => setCreateDialogOpen(true)}
+          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-none shadow-md"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Account
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Briefcase className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{accounts.length}</p>
-                <p className="text-xs text-muted-foreground">Total Accounts</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10">
-                <Briefcase className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{activeAccounts}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Users className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalLinkedGuests}</p>
-                <p className="text-xs text-muted-foreground">Linked Guests</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {statItems.map((item) => (
+            <Card 
+              key={item.label}
+              className={cn(
+                "relative overflow-hidden border-none shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5",
+                `bg-gradient-to-br ${item.gradient}`
+              )}
+            >
+              {/* Decorative circles */}
+              <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+              <div className="absolute -bottom-2 -left-2 h-12 w-12 rounded-full bg-white/5" />
+              
+              <CardContent className="relative z-10 flex items-center gap-3 p-4">
+                <div className="rounded-xl bg-white/20 p-2.5">
+                  <item.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{item.value}</p>
+                  <p className="text-xs text-white/80 font-medium">{item.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Accounts Table */}
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-b">
           <div className="flex flex-col sm:flex-row gap-4 justify-between">
             <div>
               <CardTitle>All Accounts</CardTitle>
@@ -165,11 +183,11 @@ export default function CorporateAccounts() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/30">
                   <TableHead>Company</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Discount</TableHead>
@@ -210,19 +228,28 @@ export default function CorporateAccounts() {
                   </TableRow>
                 ) : (
                   filteredAccounts.map((account) => (
-                    <TableRow key={account.id}>
+                    <TableRow 
+                      key={account.id}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{account.company_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {account.account_code}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "h-2 w-2 rounded-full",
+                            account.is_active ? "bg-emerald-500" : "bg-slate-400"
+                          )} />
+                          <div>
+                            <p className="font-medium">{account.company_name}</p>
+                            <p className="text-xs text-muted-foreground font-mono">
+                              {account.account_code}
+                            </p>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           {account.contact_name && (
-                            <p>{account.contact_name}</p>
+                            <p className="font-medium">{account.contact_name}</p>
                           )}
                           {account.contact_email && (
                             <p className="text-muted-foreground text-xs">
@@ -233,7 +260,7 @@ export default function CorporateAccounts() {
                       </TableCell>
                       <TableCell>
                         {account.discount_percentage > 0 ? (
-                          <Badge variant="secondary">
+                          <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-none shadow-sm">
                             <Percent className="h-3 w-3 mr-1" />
                             {account.discount_percentage}%
                           </Badge>
@@ -242,14 +269,16 @@ export default function CorporateAccounts() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{account.linked_guests_count || 0}</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="rounded-full bg-purple-500/10 p-1">
+                            <Users className="h-3 w-3 text-purple-500" />
+                          </div>
+                          <span className="font-medium">{account.linked_guests_count || 0}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         {account.is_active ? (
-                          <Badge className="bg-success text-success-foreground">
+                          <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-none shadow-sm">
                             Active
                           </Badge>
                         ) : (
@@ -263,7 +292,7 @@ export default function CorporateAccounts() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="bg-popover">
                             <DropdownMenuItem
                               onClick={() => handleViewAccount(account)}
                             >

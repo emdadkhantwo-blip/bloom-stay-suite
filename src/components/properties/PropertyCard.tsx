@@ -30,6 +30,7 @@ import {
 import { useDeleteProperty } from "@/hooks/useProperties";
 import { useTenant } from "@/hooks/useTenant";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface Property {
   id: string;
@@ -52,10 +53,22 @@ interface PropertyCardProps {
   onViewDetails: () => void;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  active: "bg-green-500/10 text-green-500 border-green-500/20",
-  inactive: "bg-muted text-muted-foreground",
-  maintenance: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+const STATUS_STYLES: Record<string, { border: string; badge: string; text: string }> = {
+  active: { 
+    border: "border-l-emerald-500", 
+    badge: "bg-gradient-to-r from-emerald-500 to-teal-500",
+    text: "text-white"
+  },
+  inactive: { 
+    border: "border-l-slate-400", 
+    badge: "bg-slate-200",
+    text: "text-slate-600"
+  },
+  maintenance: { 
+    border: "border-l-amber-500", 
+    badge: "bg-gradient-to-r from-amber-500 to-orange-500",
+    text: "text-white"
+  },
 };
 
 export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
@@ -65,6 +78,7 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
 
   const isCurrentProperty = currentProperty?.id === property.id;
   const canDelete = properties.length > 1;
+  const statusStyle = STATUS_STYLES[property.status];
 
   const handleDelete = () => {
     deleteProperty.mutate(property.id);
@@ -75,15 +89,19 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
 
   return (
     <>
-      <Card className={isCurrentProperty ? "border-primary" : ""}>
+      <Card className={cn(
+        "transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-l-4",
+        statusStyle.border,
+        isCurrentProperty && "ring-2 ring-primary ring-offset-2"
+      )}>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Building2 className="h-5 w-5 text-primary" />
+            <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 shadow-md">
+              <Building2 className="h-5 w-5 text-white" />
             </div>
             <div>
               <h3 className="font-semibold">{property.name}</h3>
-              <p className="text-sm text-muted-foreground">{property.code}</p>
+              <p className="text-sm text-muted-foreground font-mono">{property.code}</p>
             </div>
           </div>
 
@@ -93,7 +111,7 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="bg-popover">
               <DropdownMenuItem onClick={onViewDetails}>
                 View & Edit
               </DropdownMenuItem>
@@ -116,11 +134,11 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
         <CardContent className="space-y-4">
           {/* Status & Current Badge */}
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={STATUS_STYLES[property.status]}>
+            <Badge className={cn("border-none shadow-sm capitalize", statusStyle.badge, statusStyle.text)}>
               {property.status}
             </Badge>
             {isCurrentProperty && (
-              <Badge variant="default" className="text-xs">
+              <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-none shadow-sm">
                 Current
               </Badge>
             )}
@@ -129,40 +147,46 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
           {/* Location */}
           {location && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
+              <div className="rounded-full bg-purple-500/10 p-1">
+                <MapPin className="h-3.5 w-3.5 text-purple-500" />
+              </div>
               <span>{location}</span>
             </div>
           )}
 
           {/* Contact Info */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {property.phone && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-3.5 w-3.5" />
+                <div className="rounded-full bg-emerald-500/10 p-1">
+                  <Phone className="h-3 w-3 text-emerald-500" />
+                </div>
                 <span>{property.phone}</span>
               </div>
             )}
             {property.email && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-3.5 w-3.5" />
+                <div className="rounded-full bg-blue-500/10 p-1">
+                  <Mail className="h-3 w-3 text-blue-500" />
+                </div>
                 <span className="truncate">{property.email}</span>
               </div>
             )}
           </div>
 
           {/* Timezone & Currency */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-full">
               <Globe className="h-3 w-3" />
               <span>{property.timezone || "UTC"}</span>
             </div>
-            <span>•</span>
-            <span>{property.currency || "USD"}</span>
+            <span className="bg-muted/50 px-2 py-1 rounded-full">
+              {property.currency || "USD"}
+            </span>
             {property.tax_rate !== null && property.tax_rate > 0 && (
-              <>
-                <span>•</span>
-                <span>Tax: {property.tax_rate}%</span>
-              </>
+              <span className="bg-amber-500/10 text-amber-600 px-2 py-1 rounded-full">
+                Tax: {property.tax_rate}%
+              </span>
             )}
           </div>
 
@@ -170,7 +194,7 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full hover:bg-primary hover:text-primary-foreground transition-colors"
             onClick={onViewDetails}
           >
             Manage Property
