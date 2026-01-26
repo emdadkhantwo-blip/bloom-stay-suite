@@ -150,8 +150,10 @@ Deno.serve(async (req) => {
     const newUserId = authData.user.id;
     console.log("Created auth user:", newUserId);
 
-    // Step 2: Create tenant
-    const tenantSlug = `tenant-${newUserId.substring(0, 8)}`;
+    // Step 2: Create tenant with unique slug (use timestamp to ensure uniqueness)
+    const timestamp = Date.now().toString(36);
+    const tenantSlug = `${slug}-${timestamp}`;
+    
     const { data: tenant, error: tenantError } = await adminClient
       .from("tenants")
       .insert({
@@ -175,7 +177,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("Created tenant:", tenant.id);
+    console.log("Created tenant:", tenant.id, "with slug:", tenantSlug);
 
     // Step 3: Create subscription with selected plan
     const { error: subscriptionError } = await adminClient
@@ -270,7 +272,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 8: Update application status
+    // Step 8: Initialize feature flags for tenant
+    const featureFlags = ['pms', 'crm', 'pos'];
+    for (const feature of featureFlags) {
+      await adminClient.from("feature_flags").insert({
+        tenant_id: tenant.id,
+        feature_name: feature,
+        is_enabled: true,
+      });
+    }
+    console.log("Initialized feature flags");
+
+    // Step 9: Update application status
     const { error: updateError } = await adminClient
       .from("admin_applications")
       .update({
