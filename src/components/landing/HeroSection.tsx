@@ -36,8 +36,8 @@ export function HeroSection() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
               >
-                <Badge className="mb-6 bg-success/20 text-success border-0 px-4 py-2">
-                  <span className="mr-2 h-2 w-2 rounded-full bg-success animate-pulse inline-block" />
+                <Badge className="mb-6 bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 px-4 py-2 shadow-lg shadow-emerald-500/30 font-medium">
+                  <span className="mr-2 h-2 w-2 rounded-full bg-white animate-pulse inline-block" />
                   ২০০০+ হোটেল বিশ্বস্ত সফটওয়্যার
                 </Badge>
               </motion.div>
