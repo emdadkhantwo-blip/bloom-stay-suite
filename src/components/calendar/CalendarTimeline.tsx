@@ -94,6 +94,9 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
 
     const isVip = reservation.guest?.is_vip;
 
+    // Check if checkout is visible (for half-day indicator)
+    const isCheckoutVisible = checkOut <= rangeEnd && checkOut > rangeStart;
+
     // Calculate drag constraints (vertical for rooms, horizontal for dates)
     const maxUp = -(roomIndex * ROW_HEIGHT);
     const maxDown = (totalRooms - roomIndex - 1) * ROW_HEIGHT;
@@ -137,6 +140,23 @@ const DraggableReservationBlock = forwardRef<HTMLButtonElement, DraggableReserva
           <CalendarClock className="h-3 w-3 flex-shrink-0" />
         )}
         <span className="truncate text-xs font-medium">{guestName}</span>
+        
+        {/* Checkout indicator - diagonal stripe on right edge */}
+        {isCheckoutVisible && (
+          <div 
+            className="absolute right-0 top-0 h-full w-3 pointer-events-none"
+            style={{
+              background: `repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 255, 255, 0.3) 2px,
+                rgba(255, 255, 255, 0.3) 4px
+              )`,
+            }}
+            title="Checkout"
+          />
+        )}
       </motion.button>
     );
   }

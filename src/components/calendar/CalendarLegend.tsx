@@ -1,4 +1,4 @@
-import { Crown, UserCheck, CalendarClock } from "lucide-react";
+import { Crown, UserCheck, CalendarClock, LogOut } from "lucide-react";
 
 export function CalendarLegend() {
   const items = [
@@ -29,6 +29,23 @@ export function CalendarLegend() {
           <span className="text-muted-foreground">{item.label}</span>
         </div>
       ))}
+      {/* Checkout indicator legend */}
+      <div className="flex items-center gap-1.5">
+        <div 
+          className="h-3 w-3 rounded border border-muted-foreground/30"
+          style={{
+            background: `repeating-linear-gradient(
+              -45deg,
+              hsl(var(--muted)),
+              hsl(var(--muted)) 1px,
+              hsl(var(--muted-foreground) / 0.3) 1px,
+              hsl(var(--muted-foreground) / 0.3) 2px
+            )`,
+          }}
+        />
+        <LogOut className="h-3 w-3 text-muted-foreground" />
+        <span className="text-muted-foreground">Checkout Day</span>
+      </div>
     </div>
   );
 }
