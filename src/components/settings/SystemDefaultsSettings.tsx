@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,31 +48,32 @@ const DATE_FORMATS = [
 
 export default function SystemDefaultsSettings() {
   const { settings, updateDefaultSettings, isUpdating } = useSettings();
+  const hasInitialized = useRef(false);
   
   // System defaults
-  const [checkInTime, setCheckInTime] = useState(settings.defaults?.check_in_time || '14:00');
-  const [checkOutTime, setCheckOutTime] = useState(settings.defaults?.check_out_time || '11:00');
-  const [defaultCurrency, setDefaultCurrency] = useState(settings.defaults?.default_currency || 'BDT');
-  const [defaultTimezone, setDefaultTimezone] = useState(settings.defaults?.default_timezone || 'Asia/Dhaka');
-  const [dateFormat, setDateFormat] = useState(settings.defaults?.date_format || 'MM/DD/YYYY');
-  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>(settings.defaults?.time_format || '12h');
-  const [cancellationHours, setCancellationHours] = useState(
-    settings.defaults?.cancellation_policy_hours?.toString() || '24'
-  );
-  const [noShowCharge, setNoShowCharge] = useState(
-    settings.defaults?.no_show_charge_percent?.toString() || '100'
-  );
+  const [checkInTime, setCheckInTime] = useState('14:00');
+  const [checkOutTime, setCheckOutTime] = useState('11:00');
+  const [defaultCurrency, setDefaultCurrency] = useState('BDT');
+  const [defaultTimezone, setDefaultTimezone] = useState('Asia/Dhaka');
+  const [dateFormat, setDateFormat] = useState('DD/MM/YYYY');
+  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
+  const [cancellationHours, setCancellationHours] = useState('24');
+  const [noShowCharge, setNoShowCharge] = useState('100');
 
+  // Only sync from settings on initial load
   useEffect(() => {
-    setCheckInTime(settings.defaults?.check_in_time || '14:00');
-    setCheckOutTime(settings.defaults?.check_out_time || '11:00');
-    setDefaultCurrency(settings.defaults?.default_currency || 'BDT');
-    setDefaultTimezone(settings.defaults?.default_timezone || 'Asia/Dhaka');
-    setDateFormat(settings.defaults?.date_format || 'DD/MM/YYYY');
-    setTimeFormat(settings.defaults?.time_format || '12h');
-    setCancellationHours(settings.defaults?.cancellation_policy_hours?.toString() || '24');
-    setNoShowCharge(settings.defaults?.no_show_charge_percent?.toString() || '100');
-  }, [settings]);
+    if (!hasInitialized.current && settings.defaults) {
+      setCheckInTime(settings.defaults.check_in_time || '14:00');
+      setCheckOutTime(settings.defaults.check_out_time || '11:00');
+      setDefaultCurrency(settings.defaults.default_currency || 'BDT');
+      setDefaultTimezone(settings.defaults.default_timezone || 'Asia/Dhaka');
+      setDateFormat(settings.defaults.date_format || 'DD/MM/YYYY');
+      setTimeFormat(settings.defaults.time_format || '12h');
+      setCancellationHours(settings.defaults.cancellation_policy_hours?.toString() || '24');
+      setNoShowCharge(settings.defaults.no_show_charge_percent?.toString() || '100');
+      hasInitialized.current = true;
+    }
+  }, [settings.defaults]);
 
   const handleSave = async () => {
     await updateDefaultSettings({
