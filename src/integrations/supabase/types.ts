@@ -1509,6 +1509,57 @@ export type Database = {
           },
         ]
       }
+      reservation_guest_ids: {
+        Row: {
+          created_at: string
+          document_type: string
+          document_url: string
+          file_name: string | null
+          guest_number: number
+          id: string
+          reservation_id: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string
+          document_url: string
+          file_name?: string | null
+          guest_number?: number
+          id?: string
+          reservation_id: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          document_url?: string
+          file_name?: string | null
+          guest_number?: number
+          id?: string
+          reservation_id?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_guest_ids_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_guest_ids_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_rooms: {
         Row: {
           adults: number

@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, differenceInDays } from "date-fns";
-import { CalendarIcon, Plus, Trash2, Tags, Percent, DollarSign } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Tags, Percent, DollarSign, Upload, X, FileText } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -100,6 +101,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   const [rooms, setRooms] = useState<RoomSelection[]>([
     { id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 },
   ]);
+  const [guestIdFiles, setGuestIdFiles] = useState<Map<number, { file: File; preview: string; type: string; fileName: string }>>(new Map());
 
   const form = useForm<ReservationFormData>({
     resolver: zodResolver(reservationSchema),
@@ -115,6 +117,40 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
 
   const checkInDate = form.watch("check_in_date");
   const checkOutDate = form.watch("check_out_date");
+  const watchedAdults = form.watch("adults");
+
+  // Cleanup object URLs when component unmounts or files change
+  useEffect(() => {
+    return () => {
+      guestIdFiles.forEach((fileData) => {
+        if (fileData.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+    };
+  }, []);
+
+  // Remove file entries for guests that no longer exist when adults count decreases
+  useEffect(() => {
+    const adultsCount = watchedAdults || 1;
+    const updatedFiles = new Map(guestIdFiles);
+    let changed = false;
+    
+    updatedFiles.forEach((_, guestNumber) => {
+      if (guestNumber > adultsCount) {
+        const fileData = updatedFiles.get(guestNumber);
+        if (fileData?.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+        updatedFiles.delete(guestNumber);
+        changed = true;
+      }
+    });
+    
+    if (changed) {
+      setGuestIdFiles(updatedFiles);
+    }
+  }, [watchedAdults]);
 
   const nights = useMemo(() => {
     if (!checkInDate || !checkOutDate) return 0;
@@ -181,12 +217,72 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     }
   };
 
+  const handleIdUpload = (guestNumber: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Invalid file type. Please upload an image (JPEG, PNG, WebP) or PDF.");
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error("File too large. Maximum size is 5MB.");
+      return;
+    }
+
+    const fileType = file.type === "application/pdf" ? "pdf" : "image";
+    const preview = fileType === "image" ? URL.createObjectURL(file) : "";
+
+    const updatedFiles = new Map(guestIdFiles);
+    
+    // Revoke old preview URL if exists
+    const oldFile = updatedFiles.get(guestNumber);
+    if (oldFile?.preview.startsWith("blob:")) {
+      URL.revokeObjectURL(oldFile.preview);
+    }
+
+    updatedFiles.set(guestNumber, {
+      file,
+      preview,
+      type: fileType,
+      fileName: file.name,
+    });
+    setGuestIdFiles(updatedFiles);
+  };
+
+  const removeIdFile = (guestNumber: number) => {
+    const updatedFiles = new Map(guestIdFiles);
+    const fileData = updatedFiles.get(guestNumber);
+    
+    if (fileData?.preview.startsWith("blob:")) {
+      URL.revokeObjectURL(fileData.preview);
+    }
+    
+    updatedFiles.delete(guestNumber);
+    setGuestIdFiles(updatedFiles);
+  };
+
   const onSubmit = async (data: ReservationFormData) => {
     // Validate rooms
     const validRooms = rooms.filter((r) => r.room_type_id);
     if (validRooms.length === 0) {
       return;
     }
+
+    // Convert Map to format expected by hook
+    const idFilesForUpload = new Map<number, { file: File; type: string; fileName: string }>();
+    guestIdFiles.forEach((fileData, guestNumber) => {
+      idFilesForUpload.set(guestNumber, {
+        file: fileData.file,
+        type: fileData.type,
+        fileName: fileData.fileName,
+      });
+    });
 
     try {
       await createReservation.mutateAsync({
@@ -206,12 +302,22 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
           adults: r.adults,
           children: r.children,
         })),
+        idFiles: idFilesForUpload.size > 0 ? idFilesForUpload : undefined,
       });
       
       // Reset form and close
       form.reset();
       setSelectedReference(null);
       setRooms([{ id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 }]);
+      
+      // Cleanup file previews
+      guestIdFiles.forEach((fileData) => {
+        if (fileData.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+      setGuestIdFiles(new Map());
+      
       onOpenChange(false);
     } catch (error) {
       // Error handled in mutation
@@ -521,6 +627,79 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                   )}
                 </div>
               )}
+
+              {/* Guest ID Documents Upload */}
+              <div className="space-y-3">
+                <div>
+                  <FormLabel>Guest ID Documents</FormLabel>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload identification for each adult guest (JPEG, PNG, WebP, or PDF, max 5MB)
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  {Array.from({ length: watchedAdults || 1 }, (_, i) => i + 1).map((guestNumber) => {
+                    const fileData = guestIdFiles.get(guestNumber);
+                    
+                    return (
+                      <Card key={guestNumber} className="overflow-hidden">
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium min-w-[80px]">
+                              Guest {guestNumber} ID
+                            </span>
+                            
+                            {fileData ? (
+                              <div className="flex items-center gap-3 flex-1">
+                                {fileData.type === "image" ? (
+                                  <div className="relative h-12 w-16 rounded overflow-hidden border">
+                                    <img
+                                      src={fileData.preview}
+                                      alt={`Guest ${guestNumber} ID`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <span className="text-sm text-muted-foreground truncate flex-1">
+                                  {fileData.fileName}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => removeIdFile(guestNumber)}
+                                >
+                                  <X className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <label className="flex-1">
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                                  className="hidden"
+                                  onChange={(e) => handleIdUpload(guestNumber, e)}
+                                />
+                                <div className="flex items-center justify-center gap-2 py-2 px-4 border-2 border-dashed rounded-md cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors">
+                                  <Upload className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">
+                                    Click to upload ID
+                                  </span>
+                                </div>
+                              </label>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Notes */}
               <div className="grid grid-cols-2 gap-4">

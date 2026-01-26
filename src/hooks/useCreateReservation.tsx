@@ -21,6 +21,7 @@ export interface CreateReservationInput {
     adults: number;
     children: number;
   }>;
+  idFiles?: Map<number, { file: File; type: string; fileName: string }>;
 }
 
 export function useCreateReservation() {
@@ -120,6 +121,50 @@ export function useCreateReservation() {
         });
 
       if (folioError) throw folioError;
+
+      // Upload guest ID documents if provided
+      if (input.idFiles && input.idFiles.size > 0) {
+        const { data: userData } = await supabase.auth.getUser();
+        
+        for (const [guestNumber, fileData] of input.idFiles) {
+          const fileExtension = fileData.fileName.split('.').pop() || 'jpg';
+          const filePath = `${tenantId}/${reservation.id}/guest-${guestNumber}-${Date.now()}.${fileExtension}`;
+          
+          // Upload to storage
+          const { error: uploadError } = await supabase.storage
+            .from('guest-documents')
+            .upload(filePath, fileData.file);
+          
+          if (uploadError) {
+            console.error(`Failed to upload ID for guest ${guestNumber}:`, uploadError);
+            continue; // Don't fail the entire reservation for upload errors
+          }
+
+          // Get the URL (using signed URL for private bucket)
+          const { data: signedUrlData } = await supabase.storage
+            .from('guest-documents')
+            .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
+
+          const documentUrl = signedUrlData?.signedUrl || filePath;
+
+          // Insert record into reservation_guest_ids
+          const { error: insertError } = await supabase
+            .from('reservation_guest_ids')
+            .insert({
+              tenant_id: tenantId,
+              reservation_id: reservation.id,
+              guest_number: guestNumber,
+              document_url: documentUrl,
+              document_type: fileData.type,
+              file_name: fileData.fileName,
+              uploaded_by: userData?.user?.id || null,
+            });
+
+          if (insertError) {
+            console.error(`Failed to save ID record for guest ${guestNumber}:`, insertError);
+          }
+        }
+      }
 
       return reservation;
     },
