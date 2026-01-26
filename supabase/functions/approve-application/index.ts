@@ -218,13 +218,14 @@ Deno.serve(async (req) => {
       await adminClient.from("tenants").delete().eq("id", existingProfile.tenant_id);
     }
 
-    // Update the profile with correct tenant
+    // Update the profile with correct tenant and both emails
     const { error: profileError } = await adminClient
       .from("profiles")
       .upsert({
         id: newUserId,
         username: application.username,
-        email: application.email,
+        email: application.email,           // Public contact email
+        auth_email: internalEmail,          // Internal auth email for login
         full_name: application.full_name,
         phone: application.phone,
         tenant_id: tenant.id,
