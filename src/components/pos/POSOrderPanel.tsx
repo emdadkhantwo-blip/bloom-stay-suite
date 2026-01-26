@@ -12,11 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Minus, Plus, Trash2, ShoppingCart, Send } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, Send, Receipt, Users } from "lucide-react";
 import { POSItem, POSOutlet, useCreatePOSOrder, useActiveFolios } from "@/hooks/usePOS";
 import { useTenant } from "@/hooks/useTenant";
 import { useRooms } from "@/hooks/useRooms";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface CartItem {
   item: POSItem;
@@ -92,48 +93,57 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
   };
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="pb-3">
+    <Card className="flex h-full flex-col border-none shadow-lg bg-gradient-to-b from-card to-muted/20">
+      <CardHeader className="pb-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
         <CardTitle className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5" />
+          <div className="p-2 bg-white/20 rounded-lg">
+            <ShoppingCart className="h-5 w-5" />
+          </div>
           Current Order
+          {cart.length > 0 && (
+            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded-full text-sm">
+              {cart.reduce((sum, c) => sum + c.quantity, 0)} items
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col gap-4 overflow-hidden pb-0">
+      <CardContent className="flex flex-1 flex-col gap-4 overflow-hidden pb-0 pt-4">
         {/* Order Details */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Table #</Label>
+            <Label className="text-xs text-muted-foreground">Table #</Label>
             <Input
               placeholder="e.g., T1"
               value={tableNumber}
               onChange={(e) => setTableNumber(e.target.value)}
-              className="h-8"
+              className="h-9 bg-muted/50 border-none"
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Covers</Label>
+            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+              <Users className="h-3 w-3" /> Covers
+            </Label>
             <Input
               type="number"
               min="1"
               value={covers}
               onChange={(e) => setCovers(e.target.value)}
-              className="h-8"
+              className="h-9 bg-muted/50 border-none"
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Room (for room service)</Label>
+          <Label className="text-xs text-muted-foreground">Room (for room service)</Label>
           <Select
             value={selectedRoomId || "none"}
             onValueChange={(v) => setSelectedRoomId(v === "none" ? null : v)}
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger className="h-9 bg-muted/50 border-none">
               <SelectValue placeholder="Select room" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="none">No room</SelectItem>
               {occupiedRooms.map((room) => (
                 <SelectItem key={room.id} value={room.id}>
@@ -145,15 +155,17 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Post to Folio</Label>
+          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+            <Receipt className="h-3 w-3" /> Post to Folio
+          </Label>
           <Select
             value={selectedFolioId || "none"}
             onValueChange={(v) => setSelectedFolioId(v === "none" ? null : v)}
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger className="h-9 bg-muted/50 border-none">
               <SelectValue placeholder="Select folio (optional)" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="none">Pay at counter</SelectItem>
               {folios.map((folio) => (
                 <SelectItem key={folio.id} value={folio.id}>
@@ -169,45 +181,51 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
         {/* Cart Items */}
         <ScrollArea className="flex-1">
           {cart.length === 0 ? (
-            <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-              No items in order
+            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+              <ShoppingCart className="h-8 w-8 mb-2 opacity-50" />
+              <p className="text-sm">No items in order</p>
+              <p className="text-xs">Click items from menu to add</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {cart.map((cartItem) => (
+              {cart.map((cartItem, idx) => (
                 <div
                   key={cartItem.item.id}
-                  className="rounded-lg border bg-card p-3"
+                  className={cn(
+                    "rounded-xl border bg-card p-3 transition-all hover:shadow-md",
+                    "border-l-4",
+                    idx % 2 === 0 ? "border-l-blue-500" : "border-l-indigo-500"
+                  )}
                 >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium">{cartItem.item.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          ৳{Number(cartItem.item.price).toFixed(2)} each
-                        </p>
-                      </div>
-                      <p className="font-semibold">
-                        ৳{(cartItem.item.price * cartItem.quantity).toFixed(2)}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold">{cartItem.item.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        ৳{Number(cartItem.item.price).toFixed(0)} each
+                      </p>
+                    </div>
+                    <p className="font-bold text-lg">
+                      ৳{(cartItem.item.price * cartItem.quantity).toFixed(0)}
                     </p>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-3 flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8 rounded-full bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100"
                       onClick={() =>
                         onUpdateItem(cartItem.item.id, cartItem.quantity - 1)
                       }
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-8 text-center font-medium">
+                    <span className="w-10 text-center font-bold text-lg">
                       {cartItem.quantity}
                     </span>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8 rounded-full bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100"
                       onClick={() =>
                         onUpdateItem(cartItem.item.id, cartItem.quantity + 1)
                       }
@@ -217,10 +235,10 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="ml-auto h-7 w-7 text-destructive"
+                      className="ml-auto h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                       onClick={() => onUpdateItem(cartItem.item.id, 0)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                   <Input
@@ -229,7 +247,7 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
                     onChange={(e) =>
                       onUpdateItem(cartItem.item.id, cartItem.quantity, e.target.value)
                     }
-                    className="mt-2 h-7 text-xs"
+                    className="mt-2 h-8 text-xs bg-muted/50 border-none"
                   />
                 </div>
               ))}
@@ -238,25 +256,25 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
         </ScrollArea>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-3 pt-4">
+      <CardFooter className="flex flex-col gap-3 pt-4 bg-muted/30 rounded-b-lg">
         {/* Totals */}
-        <div className="w-full space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span>৳{subtotal.toFixed(2)}</span>
+        <div className="w-full space-y-1.5 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Subtotal</span>
+            <span>৳{subtotal.toFixed(0)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-            <span>৳{taxAmount.toFixed(2)}</span>
+          <div className="flex justify-between text-muted-foreground">
+            <span>Tax ({taxRate}%)</span>
+            <span>৳{taxAmount.toFixed(0)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Service ({serviceChargeRate}%)</span>
-            <span>৳{serviceCharge.toFixed(2)}</span>
+          <div className="flex justify-between text-muted-foreground">
+            <span>Service ({serviceChargeRate}%)</span>
+            <span>৳{serviceCharge.toFixed(0)}</span>
           </div>
           <Separator className="my-2" />
-          <div className="flex justify-between text-lg font-bold">
+          <div className="flex justify-between text-xl font-bold">
             <span>Total</span>
-            <span>৳{total.toFixed(2)}</span>
+            <span className="text-emerald-600">৳{total.toFixed(0)}</span>
           </div>
         </div>
 
@@ -264,14 +282,14 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
         <div className="flex w-full gap-2">
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50"
             onClick={onClearCart}
             disabled={cart.length === 0}
           >
             Clear
           </Button>
           <Button
-            className="flex-1"
+            className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg"
             onClick={handleSubmitOrder}
             disabled={cart.length === 0 || createOrder.isPending}
           >

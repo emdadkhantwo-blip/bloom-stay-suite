@@ -167,47 +167,51 @@ export default function POS() {
 
         {/* Stats Bar */}
         <div className="grid grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <ShoppingCart className="h-5 w-5 text-primary" />
+          <Card className="relative overflow-hidden border-none shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
+            <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+            <CardContent className="relative z-10 flex items-center gap-4 p-4">
+              <div className="rounded-xl bg-white/20 p-3">
+                <ShoppingCart className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Orders</p>
-                <p className="text-2xl font-bold">{activeOrders.length}</p>
+                <p className="text-sm text-white/80">Active Orders</p>
+                <p className="text-2xl font-bold text-white">{activeOrders.length}</p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-lg bg-yellow-500/10 p-3">
-                <Receipt className="h-5 w-5 text-yellow-600" />
+          <Card className="relative overflow-hidden border-none shadow-lg bg-gradient-to-br from-amber-500 to-orange-600">
+            <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+            <CardContent className="relative z-10 flex items-center gap-4 p-4">
+              <div className="rounded-xl bg-white/20 p-3">
+                <Receipt className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold">{pendingCount}</p>
+                <p className="text-sm text-white/80">Pending</p>
+                <p className="text-2xl font-bold text-white">{pendingCount}</p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-lg bg-orange-500/10 p-3">
-                <ChefHat className="h-5 w-5 text-orange-600" />
+          <Card className="relative overflow-hidden border-none shadow-lg bg-gradient-to-br from-orange-500 to-red-600">
+            <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+            <CardContent className="relative z-10 flex items-center gap-4 p-4">
+              <div className="rounded-xl bg-white/20 p-3">
+                <ChefHat className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Preparing</p>
-                <p className="text-2xl font-bold">{preparingCount}</p>
+                <p className="text-sm text-white/80">Preparing</p>
+                <p className="text-2xl font-bold text-white">{preparingCount}</p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-lg bg-green-500/10 p-3">
-                <UtensilsCrossed className="h-5 w-5 text-green-600" />
+          <Card className="relative overflow-hidden border-none shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600">
+            <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/10" />
+            <CardContent className="relative z-10 flex items-center gap-4 p-4">
+              <div className="rounded-xl bg-white/20 p-3">
+                <UtensilsCrossed className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Today's Orders</p>
-                <p className="text-2xl font-bold">{orders.length}</p>
+                <p className="text-sm text-white/80">Today's Orders</p>
+                <p className="text-2xl font-bold text-white">{orders.length}</p>
               </div>
             </CardContent>
           </Card>
