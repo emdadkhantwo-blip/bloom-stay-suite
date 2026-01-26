@@ -14,34 +14,37 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("No authorization header");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create Supabase client with user's token
+    // Create Supabase clients
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // Create client with user's auth
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Verify the user is a superadmin
+    // Validate the JWT using getClaims
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await userClient.auth.getUser(token);
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     
-    if (claimsError || !claimsData.user) {
-      console.error("Auth error:", claimsError);
+    if (claimsError || !claimsData?.claims) {
+      console.error("Claims validation error:", claimsError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const userId = claimsData.user.id;
+    const userId = claimsData.claims.sub as string;
+    console.log("Authenticated user:", userId);
 
     // Check if user is superadmin using service role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -54,12 +57,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (roleError || !roleData) {
-      console.error("Role check error:", roleError);
+      console.error("Role check error:", roleError, "roleData:", roleData);
       return new Response(
         JSON.stringify({ error: "Only superadmins can approve applications" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("User is superadmin, proceeding with approval");
 
     // Get the application ID and plan ID from request body
     const { applicationId, planId } = await req.json();
