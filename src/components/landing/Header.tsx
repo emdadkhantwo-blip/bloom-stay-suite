@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Hotel, Phone, Menu, X } from "lucide-react";
+import { Phone, Menu, X } from "lucide-react";
 import { useState } from "react";
+import beehotelLogo from "@/assets/beehotel-logo.png";
 
 const navLinks = [
   { label: "ফিচার", href: "#features" },
@@ -19,13 +20,7 @@ export function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info text-info-foreground">
-            <Hotel className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-lg font-bold text-foreground">HotelPMS</span>
-            <span className="hidden sm:block text-xs text-muted-foreground">Hotel Management System</span>
-          </div>
+          <img src={beehotelLogo} alt="BeeHotel" className="h-10 w-auto" />
         </Link>
 
         {/* Desktop Navigation */}

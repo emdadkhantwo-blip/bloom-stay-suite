@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Hotel, MapPin, Phone, Mail, Facebook, Youtube, Heart } from "lucide-react";
+import { MapPin, Phone, Mail, Facebook, Youtube, Heart } from "lucide-react";
+import beehotelLogo from "@/assets/beehotel-logo.png";
 
 const quickLinks = [
   { label: "ফিচার", href: "#features" },
@@ -24,10 +25,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info text-info-foreground">
-                <Hotel className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-bold">HotelPMS</span>
+              <img src={beehotelLogo} alt="BeeHotel" className="h-12 w-auto bg-white rounded-lg p-1" />
             </div>
             <p className="text-primary-foreground/70 mb-6">
               বাংলাদেশের রিসোর্ট ও হোটেলের জন্য স্মার্ট হোটেল ম্যানেজমেন্ট সিস্টেম।
@@ -114,7 +112,7 @@ export function Footer() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60">
             <div className="flex items-center gap-1">
-              © {new Date().getFullYear()} HotelPMS | Made with 
+              © {new Date().getFullYear()} BeeHotel | Made with 
               <Heart className="h-4 w-4 text-destructive fill-destructive mx-1" /> 
               in Bangladesh
             </div>
