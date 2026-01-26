@@ -475,9 +475,11 @@ export function ReservationDetailDrawer({
                   </div>
                   
                   {/* Last Updated */}
-                  <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                    Last updated: {format(new Date(folio.updated_at), "MMM d, yyyy 'at' h:mm a")}
-                  </div>
+                  {folio.updated_at && (
+                    <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                      Last updated: {format(new Date(folio.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                    </div>
+                  )}
                   
                   {/* Action Buttons for Open Folios */}
                   {folio.status === 'open' && (
