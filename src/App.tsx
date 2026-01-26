@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth, getRoleDashboard } from "@/hooks/useAuth";
 import { TenantProvider } from "@/hooks/useTenant";
+import { OfflineDetector } from "@/components/OfflineDetector";
 import { type AppRole } from "@/types/database";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -387,15 +388,17 @@ const AppRoutes = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <TenantProvider>
-            <AppRoutes />
-          </TenantProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <OfflineDetector>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <TenantProvider>
+              <AppRoutes />
+            </TenantProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </OfflineDetector>
     </TooltipProvider>
   </QueryClientProvider>
 );
