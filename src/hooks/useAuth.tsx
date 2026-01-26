@@ -50,6 +50,7 @@ interface AuthContextType {
   hasRole: (role: AppRole) => boolean;
   hasAnyRole: (roles: AppRole[]) => boolean;
   hasPermission: (permission: string) => boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -197,6 +198,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!error && profileData) {
+        setProfile(profileData as Profile);
+      }
+    }
+  }, [user]);
+
   const isSuperAdmin = roles.includes('superadmin');
   const tenantId = profile?.tenant_id ?? null;
 
@@ -235,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         hasAnyRole,
         hasPermission,
+        refreshProfile,
       }}
     >
       {children}
