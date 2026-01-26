@@ -1,96 +1,112 @@
 
+# Fix: Folio Charge Calculation Bug
 
-# Offline Fallback Page Implementation Plan
+## Problem Summary
+When adding VAT, Tax, and extra services to a reservation during checkout, the room cost is being reduced instead of increased. This is due to incorrect total calculations in the folio charge system.
 
-## Overview
-This plan implements an offline fallback page that automatically displays when users lose their internet connection. The solution uses browser APIs to detect connectivity changes and provides a user-friendly experience while offline.
+## Root Cause
+The `useAddFolioCharge` function in `src/hooks/useFolios.tsx` has multiple calculation errors:
 
-## What You'll Get
-- A visually appealing offline page that matches your app's design
-- Automatic detection when the connection is lost or restored
-- A retry button to attempt reconnection
-- Smooth transitions between online and offline states
+1. **Incorrect Service Charge Calculation**: The service charge is being recalculated on the entire subtotal instead of adding an incremental service charge for the new item
+2. **Service Charge Field Not Updated**: The `service_charge` column in the folio is never updated when adding charges
+3. **Void Function Missing Service Charge**: The void function doesn't account for service charges in its total calculation
 
 ---
 
-## Implementation Details
+## Solution
 
-### 1. Create Offline Page Component
-**New file: `src/pages/Offline.tsx`**
+### File: `src/hooks/useFolios.tsx`
 
-A dedicated page component that displays:
-- Wi-Fi off icon indicating no connection
-- Clear "You're Offline" message
-- Helpful explanation text
-- "Try Again" button to check connection status
-- Auto-redirect when connection is restored
+#### Fix 1: Update `useAddFolioCharge` (Lines 165-242)
 
-The page will use the existing design system with gradient backgrounds and the vibrant color scheme.
+**Current (Buggy) Calculation:**
+```typescript
+const newTotal = newSubtotal + newTaxAmount + (serviceChargeRate / 100) * newSubtotal;
+```
 
-### 2. Create Network Status Hook
-**New file: `src/hooks/useNetworkStatus.tsx`**
+**Fixed Calculation:**
+```typescript
+// Calculate incremental service charge for this charge only
+const serviceChargeForItem = totalPrice * (serviceChargeRate / 100);
+const newServiceCharge = Number(folio.service_charge) + serviceChargeForItem;
+const newTotal = newSubtotal + newTaxAmount + newServiceCharge;
+```
 
-A custom React hook that:
-- Monitors `navigator.onLine` for initial status
-- Listens to `window` online/offline events
-- Provides real-time connectivity status to components
-- Handles cleanup of event listeners
+**Changes Required:**
+- Fetch `service_charge` field from the folio (add to select query)
+- Calculate incremental service charge for the new item only
+- Update `service_charge` field when saving to database
+- Use correct formula: `newTotal = newSubtotal + newTaxAmount + newServiceCharge`
 
-### 3. Create Offline Detection Wrapper
-**New file: `src/components/OfflineDetector.tsx`**
+#### Fix 2: Update `useVoidFolioItem` (Lines 346-423)
 
-A wrapper component that:
-- Uses the network status hook
-- Shows the offline page when disconnected
-- Renders normal app content when connected
-- Provides smooth transition animations
+**Current (Buggy) Calculation:**
+```typescript
+const newTotal = newSubtotal + newTaxAmount;  // Missing service charge!
+```
 
-### 4. Integrate with App Root
-**Update: `src/App.tsx`**
+**Fixed Calculation:**
+```typescript
+// Calculate service charge for the voided item
+const serviceChargeForItem = Number(item.total_price) * (serviceChargeRate / 100);
+const newServiceCharge = Number(folio.service_charge) - serviceChargeForItem;
+const newTotal = newSubtotal + newTaxAmount + newServiceCharge;
+```
 
-Wrap the entire application with the OfflineDetector component so that:
-- All routes are protected by offline detection
-- Users see the offline page regardless of which route they're on
-- The app automatically recovers when connection returns
+**Changes Required:**
+- Fetch `service_charge` from folio and get property service charge rate
+- Calculate the service charge that was applied to the voided item
+- Subtract it from the folio's service charge
+- Update `service_charge` field in the database update
+- Use correct formula that includes service charge
+
+---
+
+## Implementation Steps
+
+1. **Update `useAddFolioCharge` mutation:**
+   - Add `service_charge` to the folio select query
+   - Calculate incremental service charge for the new charge
+   - Add new service charge to existing folio service charge
+   - Include `service_charge` in the folio update
+
+2. **Update `useVoidFolioItem` mutation:**
+   - Add `service_charge` to the folio select query
+   - Calculate the service charge portion of the voided item
+   - Subtract from folio service charge
+   - Include `service_charge` in the folio update
 
 ---
 
 ## Technical Details
 
-### Network Detection Flow
-```text
-+------------------+     Connection Lost     +------------------+
-|   Normal App     | ----------------------> |   Offline Page   |
-|   (Any Route)    |                         |   (Full Screen)  |
-+------------------+                         +------------------+
-        ^                                            |
-        |            Connection Restored             |
-        +--------------------------------------------+
+### Updated `useAddFolioCharge` Logic
+
+| Field | Current Formula | Fixed Formula |
+|-------|----------------|---------------|
+| `newSubtotal` | `folio.subtotal + totalPrice` | Same |
+| `newTaxAmount` | `folio.tax_amount + taxAmount` | Same |
+| `newServiceCharge` | Not calculated | `folio.service_charge + (totalPrice * serviceRate / 100)` |
+| `newTotal` | `newSubtotal + newTaxAmount + (rate/100 * newSubtotal)` | `newSubtotal + newTaxAmount + newServiceCharge` |
+
+### Database Fields Updated
+
+```sql
+UPDATE folios SET
+  subtotal = newSubtotal,
+  tax_amount = newTaxAmount,
+  service_charge = newServiceCharge,  -- NEW: This was missing!
+  total_amount = newTotal,
+  balance = newBalance
+WHERE id = folioId;
 ```
-
-### Files to Create
-| File | Purpose |
-|------|---------|
-| `src/pages/Offline.tsx` | Offline fallback UI |
-| `src/hooks/useNetworkStatus.tsx` | Network monitoring hook |
-| `src/components/OfflineDetector.tsx` | Wrapper component |
-
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Wrap app with OfflineDetector |
 
 ---
 
-## Design Preview
-
-The offline page will feature:
-- Centered content with a gradient background
-- Large Wi-Fi off icon
-- Bold "You're Offline" heading
-- Subtitle explaining the situation
-- Primary color "Try Again" button
-- Auto-refresh capability when connection returns
-
-The design follows your existing Hotel PMS design system with vibrant colors and modern styling.
-
+## Testing Checklist
+After implementation, verify:
+- [ ] Adding a charge increases the total (not decreases)
+- [ ] Service charge is correctly calculated on new items
+- [ ] Voiding an item correctly reduces the total
+- [ ] Balance due calculation remains accurate
+- [ ] Multiple charges accumulate correctly
