@@ -26,8 +26,13 @@ interface Profile {
   full_name: string | null;
   username: string;
   email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
   is_active: boolean;
   must_change_password: boolean;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
 }
 
 interface AuthContextType {
