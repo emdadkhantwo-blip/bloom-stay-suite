@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import beehotelLogo from "@/assets/beehotel-logo.png";
 
 const applicationSchema = z.object({
   fullName: z.string().min(2, "Full name is required").max(100),
@@ -187,9 +188,7 @@ export function AdminApplicationDialog({ open, onOpenChange }: AdminApplicationD
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white">
-              <Building2 className="h-5 w-5" />
-            </div>
+            <img src={beehotelLogo} alt="BeeHotel" className="h-12 w-auto" />
             <div>
               <DialogTitle className="text-xl">হোটেল ম্যানেজমেন্ট আবেদন</DialogTitle>
               <DialogDescription>
