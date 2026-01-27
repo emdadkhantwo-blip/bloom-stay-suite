@@ -2,6 +2,7 @@ import { useState } from "react";
 import { differenceInCalendarDays, parseISO, startOfDay } from "date-fns";
 import { useCalendarReservations, type CalendarReservation } from "@/hooks/useCalendarReservations";
 import { useCheckIn, useCheckOut, useCancelReservation, useMoveReservationToRoom, useDeleteReservation, useUpdateReservation, type Reservation, type CheckoutResult } from "@/hooks/useReservations";
+import { useReservationNotifications } from "@/hooks/useReservationNotifications";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
@@ -14,6 +15,9 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Calendar() {
+  // Enable real-time notifications for reservations
+  useReservationNotifications();
+
   const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState(() => startOfDay(new Date()));
   const [numDays, setNumDays] = useState(14);

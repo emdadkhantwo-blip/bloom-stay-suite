@@ -21,11 +21,15 @@ import {
   useMyHousekeepingStats,
   type HousekeepingTask,
 } from '@/hooks/useHousekeeping';
+import { useHousekeepingNotifications } from '@/hooks/useHousekeepingNotifications';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Housekeeping() {
+  // Enable real-time notifications for housekeeping tasks
+  useHousekeepingNotifications();
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasAnyRole, hasRole } = useAuth();

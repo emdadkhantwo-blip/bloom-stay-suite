@@ -11,6 +11,7 @@ import {
   type Reservation,
   type CheckoutResult,
 } from "@/hooks/useReservations";
+import { useReservationNotifications } from "@/hooks/useReservationNotifications";
 import { ReservationStatsBar } from "@/components/reservations/ReservationStatsBar";
 import { ReservationFilters } from "@/components/reservations/ReservationFilters";
 import { ReservationListItem } from "@/components/reservations/ReservationListItem";
@@ -39,6 +40,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Reservations() {
+  // Enable real-time notifications for reservations
+  useReservationNotifications();
+
   const { data: reservations, isLoading } = useReservations();
   const { data: stats, isLoading: isLoadingStats } = useReservationStats();
   const checkIn = useCheckIn();
