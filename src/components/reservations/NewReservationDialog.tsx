@@ -160,6 +160,15 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     }
   }, [watchedAdults]);
 
+  // Auto-calculate totals from room selections
+  useEffect(() => {
+    const totalAdults = selectedRooms.reduce((sum, room) => sum + (room.adults || 0), 0);
+    const totalChildren = selectedRooms.reduce((sum, room) => sum + (room.children || 0), 0);
+    
+    form.setValue("adults", Math.max(1, totalAdults));
+    form.setValue("children", totalChildren);
+  }, [selectedRooms, form]);
+
   const nights = useMemo(() => {
     if (!checkInDate || !checkOutDate) return 0;
     return Math.max(0, differenceInDays(checkOutDate, checkInDate));
@@ -600,7 +609,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                           type="number"
                           min={1}
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          readOnly
+                          className="bg-muted"
                         />
                       </FormControl>
                       <FormMessage />
@@ -618,7 +628,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                           type="number"
                           min={0}
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          readOnly
+                          className="bg-muted"
                         />
                       </FormControl>
                       <FormMessage />
