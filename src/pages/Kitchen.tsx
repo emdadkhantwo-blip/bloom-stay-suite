@@ -6,6 +6,7 @@ import { ChefHat, Clock, Flame, CheckCircle } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { KitchenDisplay } from "@/components/pos/KitchenDisplay";
 import { usePOSOutlets, useKitchenOrders } from "@/hooks/usePOS";
+import { usePOSNotifications } from "@/hooks/usePOSNotifications";
 import { cn } from "@/lib/utils";
 
 function KitchenStatsBar({ outletId }: { outletId?: string }) {
@@ -80,6 +81,9 @@ function KitchenStatsBar({ outletId }: { outletId?: string }) {
 export default function Kitchen() {
   const { data: outlets = [], isLoading: outletsLoading } = usePOSOutlets();
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
+
+  // Enable real-time notifications for POS orders
+  usePOSNotifications();
 
   // Auto-select first outlet
   const activeOutletId = selectedOutletId || outlets[0]?.id;
