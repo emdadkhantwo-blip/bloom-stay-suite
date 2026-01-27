@@ -14,6 +14,7 @@ export type Reservation = Tables<"reservations"> & {
     email: string | null;
     phone: string | null;
     is_vip: boolean;
+    corporate_account_id?: string | null;
   } | null;
   reservation_rooms: Array<{
     id: string;
@@ -52,7 +53,7 @@ export function useReservations(dateRange?: { from: Date; to: Date }) {
         .from("reservations")
         .select(`
           *,
-          guest:guests(id, first_name, last_name, email, phone, is_vip),
+          guest:guests(id, first_name, last_name, email, phone, is_vip, corporate_account_id),
           reservation_rooms(
             id,
             room_id,

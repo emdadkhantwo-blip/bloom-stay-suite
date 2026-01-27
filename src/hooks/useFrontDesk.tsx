@@ -20,7 +20,7 @@ export function useTodayArrivals() {
         .from("reservations")
         .select(`
           *,
-          guest:guests(id, first_name, last_name, email, phone, is_vip),
+          guest:guests(id, first_name, last_name, email, phone, is_vip, corporate_account_id),
           reservation_rooms(
             id,
             room_id,
@@ -66,7 +66,7 @@ export function useTodayDepartures() {
         .from("reservations")
         .select(`
           *,
-          guest:guests(id, first_name, last_name, email, phone, is_vip),
+          guest:guests(id, first_name, last_name, email, phone, is_vip, corporate_account_id),
           reservation_rooms(
             id,
             room_id,
@@ -110,7 +110,7 @@ export function useInHouseGuests() {
         .from("reservations")
         .select(`
           *,
-          guest:guests(id, first_name, last_name, email, phone, is_vip),
+          guest:guests(id, first_name, last_name, email, phone, is_vip, corporate_account_id),
           reservation_rooms(
             id,
             room_id,
