@@ -221,6 +221,52 @@ export function useCreatePOSCategory() {
   });
 }
 
+export function useDeletePOSCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (categoryId: string) => {
+      const { error } = await supabase
+        .from("pos_categories")
+        .update({ is_active: false })
+        .eq("id", categoryId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos-categories"] });
+      toast.success("Category deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete category: ${error.message}`);
+    },
+  });
+}
+
+export function useUpdatePOSCategoryOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (categories: { id: string; sort_order: number }[]) => {
+      // Update each category's sort_order
+      const updates = categories.map(cat => 
+        supabase
+          .from("pos_categories")
+          .update({ sort_order: cat.sort_order })
+          .eq("id", cat.id)
+      );
+      
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos-categories"] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to reorder categories: ${error.message}`);
+    },
+  });
+}
+
 // ============= ITEMS =============
 
 export function usePOSItems(outletId?: string) {
