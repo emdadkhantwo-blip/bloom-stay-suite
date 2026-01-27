@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { LogIn, LogOut, Hotel, Clock } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useTodayArrivals, useTodayDepartures, useInHouseGuests } from "@/hooks/useFrontDesk";
-import { useCheckIn, useCheckOut, type CheckoutResult } from "@/hooks/useReservations";
+import { useCheckIn, type CheckoutResult } from "@/hooks/useReservations";
 import { useRoomStats } from "@/hooks/useRooms";
 import { useReservationNotifications } from "@/hooks/useReservationNotifications";
 import { useHousekeepingNotifications } from "@/hooks/useHousekeepingNotifications";
@@ -15,16 +15,7 @@ import { GuestSearchDialog } from "@/components/front-desk/GuestSearchDialog";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
 import { NewReservationDialog } from "@/components/reservations/NewReservationDialog";
 import { CheckoutSuccessModal, type CheckoutData } from "@/components/front-desk/CheckoutSuccessModal";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { CheckoutDialog } from "@/components/front-desk/CheckoutDialog";
 import type { FrontDeskReservation } from "@/hooks/useFrontDesk";
 import type { Reservation } from "@/hooks/useReservations";
 import { useNavigate } from "react-router-dom";
@@ -46,7 +37,6 @@ export default function FrontDesk() {
 
   // Mutations
   const checkInMutation = useCheckIn();
-  const checkOutMutation = useCheckOut();
 
   // UI State
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -95,19 +85,11 @@ export default function FrontDesk() {
     }
   };
 
-  const confirmCheckOut = () => {
-    if (pendingCheckOut) {
-      checkOutMutation.mutate(pendingCheckOut.id, {
-        onSuccess: (data: CheckoutResult) => {
-          setCheckOutDialogOpen(false);
-          setPendingCheckOut(null);
-          if (data.checkoutData) {
-            setCheckoutData(data.checkoutData);
-            setCheckoutSuccessOpen(true);
-          }
-        },
-      });
-    }
+  const handleCheckoutSuccess = (data: CheckoutData) => {
+    setCheckOutDialogOpen(false);
+    setPendingCheckOut(null);
+    setCheckoutData(data);
+    setCheckoutSuccessOpen(true);
   };
 
   const handleGuestSelect = (guestId: string) => {
@@ -244,27 +226,16 @@ export default function FrontDesk() {
         onSelectReservation={handleReservationSelect}
       />
 
-      {/* Check-Out Confirmation Dialog */}
-      <AlertDialog open={checkOutDialogOpen} onOpenChange={setCheckOutDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Check-Out</AlertDialogTitle>
-            <AlertDialogDescription>
-              Check out{" "}
-              <strong>
-                {pendingCheckOut?.guest?.first_name} {pendingCheckOut?.guest?.last_name}
-              </strong>
-              ? This will mark the reservation as checked out and set rooms to dirty for housekeeping.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCheckOut}>
-              Check Out
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Checkout Dialog with Payment Selection */}
+      <CheckoutDialog
+        reservation={pendingCheckOut}
+        open={checkOutDialogOpen}
+        onOpenChange={(open) => {
+          setCheckOutDialogOpen(open);
+          if (!open) setPendingCheckOut(null);
+        }}
+        onSuccess={handleCheckoutSuccess}
+      />
 
       {/* Checkout Success Modal with Invoice */}
       <CheckoutSuccessModal

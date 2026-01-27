@@ -115,6 +115,43 @@ export function useFolioById(folioId: string | null) {
   });
 }
 
+export function useFolioByReservationId(reservationId: string | null) {
+  const { currentProperty } = useTenant();
+  const currentPropertyId = currentProperty?.id;
+
+  return useQuery({
+    queryKey: ["folio-by-reservation", reservationId],
+    queryFn: async (): Promise<Folio | null> => {
+      if (!reservationId || !currentPropertyId) return null;
+
+      const { data, error } = await supabase
+        .from("folios")
+        .select(`
+          *,
+          guest:guests(id, first_name, last_name, email, phone, corporate_account_id),
+          reservation:reservations(id, confirmation_number, check_in_date, check_out_date, status),
+          folio_items(*),
+          payments(*)
+        `)
+        .eq("reservation_id", reservationId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) return null;
+
+      return {
+        ...data,
+        guest: data.guest as Folio["guest"],
+        reservation: data.reservation as Folio["reservation"],
+        folio_items: (data.folio_items || []) as FolioItem[],
+        payments: (data.payments || []) as Payment[],
+      };
+    },
+    enabled: !!reservationId && !!currentPropertyId,
+  });
+}
+
 export function useFolioStats() {
   const { currentProperty } = useTenant();
   const currentPropertyId = currentProperty?.id;
