@@ -392,7 +392,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
         balance={Number(displayFolio.balance)}
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
-        guestCorporateAccountId={displayFolio.guest?.corporate_account_id}
+        guestId={displayFolio.guest_id}
       />
       <AddAdjustmentDialog
         folioId={displayFolio.id}
