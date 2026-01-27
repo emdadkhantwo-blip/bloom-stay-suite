@@ -28,6 +28,7 @@ import NightAudit from "./pages/NightAudit";
 import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
 import CorporateAccounts from "./pages/CorporateAccounts";
+import CorporateStatements from "./pages/CorporateStatements";
 import References from "./pages/References";
 import AdminTenants from "./pages/admin/Tenants";
 import AdminApplications from "./pages/admin/Applications";
@@ -42,8 +43,8 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
   superadmin: ['*'],
   owner: ['*'],
   manager: ['*'],
-  front_desk: ['/dashboard', '/reservations', '/calendar', '/rooms', '/guests', '/front-desk', '/housekeeping', '/maintenance', '/folios'],
-  accountant: ['/dashboard', '/folios', '/reports', '/night-audit'],
+  front_desk: ['/dashboard', '/reservations', '/calendar', '/rooms', '/guests', '/front-desk', '/housekeeping', '/maintenance', '/folios', '/corporate', '/corporate/statements'],
+  accountant: ['/dashboard', '/folios', '/reports', '/night-audit', '/corporate/statements'],
   housekeeping: ['/housekeeping'],
   maintenance: ['/maintenance'],
   kitchen: ['/kitchen'],
@@ -336,6 +337,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={['front_desk']} route="/corporate">
           <DashboardLayout title="Corporate Accounts">
             <CorporateAccounts />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/corporate/statements"
+      element={
+        <RoleProtectedRoute allowedRoles={['front_desk', 'accountant']} route="/corporate/statements">
+          <DashboardLayout title="Corporate Statements">
+            <CorporateStatements />
           </DashboardLayout>
         </RoleProtectedRoute>
       }
