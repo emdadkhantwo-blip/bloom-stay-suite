@@ -1,4 +1,4 @@
-import { Users, Star, Ban, DollarSign } from "lucide-react";
+import { Users, Star, Ban, Wallet } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -42,8 +42,8 @@ export function GuestStatsBar({
     },
     {
       label: "Total Revenue",
-      value: `$${totalRevenue.toLocaleString()}`,
-      icon: DollarSign,
+      value: `৳${totalRevenue.toLocaleString()}`,
+      icon: Wallet,
       gradient: "from-emerald-500 to-teal-600",
       iconBg: "bg-white/20",
       isRevenue: true,

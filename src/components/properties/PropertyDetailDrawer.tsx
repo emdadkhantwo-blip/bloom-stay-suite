@@ -58,7 +58,7 @@ const TIMEZONES = [
   "Australia/Sydney",
 ];
 
-const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR", "SGD"];
+const CURRENCIES = ["BDT", "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR", "SGD"];
 
 export function PropertyDetailDrawer({
   property,
@@ -77,7 +77,7 @@ export function PropertyDetailDrawer({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [timezone, setTimezone] = useState("UTC");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("BDT");
   const [taxRate, setTaxRate] = useState("");
   const [serviceChargeRate, setServiceChargeRate] = useState("");
 
@@ -93,7 +93,7 @@ export function PropertyDetailDrawer({
       setPhone(property.phone || "");
       setEmail(property.email || "");
       setTimezone(property.timezone || "UTC");
-      setCurrency(property.currency || "USD");
+      setCurrency(property.currency || "BDT");
       setTaxRate(property.tax_rate?.toString() || "0");
       setServiceChargeRate(property.service_charge_rate?.toString() || "0");
     }

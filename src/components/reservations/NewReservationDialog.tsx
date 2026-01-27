@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, differenceInDays } from "date-fns";
-import { CalendarIcon, Plus, Trash2, Tags, Percent, DollarSign, Upload, X, FileText } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Tags, Percent, Upload, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -641,7 +641,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                       {selectedReference.discount_type === "percentage" ? (
                         <Percent className="h-3 w-3" />
                       ) : (
-                        <DollarSign className="h-3 w-3" />
+                        <span className="text-xs font-bold">৳</span>
                       )}
                       Discount applied: -{formatCurrency(discountAmount)}
                     </p>

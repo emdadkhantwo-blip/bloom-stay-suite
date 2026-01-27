@@ -42,7 +42,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   timezone: z.string().default("UTC"),
-  currency: z.string().default("USD"),
+  currency: z.string().default("BDT"),
   tax_rate: z.coerce.number().min(0).max(100).default(0),
   service_charge_rate: z.coerce.number().min(0).max(100).default(0),
 });
@@ -68,7 +68,7 @@ const TIMEZONES = [
   "Australia/Sydney",
 ];
 
-const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR", "SGD"];
+const CURRENCIES = ["BDT", "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR", "SGD"];
 
 export function CreatePropertyDialog({
   open,
@@ -87,7 +87,7 @@ export function CreatePropertyDialog({
       phone: "",
       email: "",
       timezone: "UTC",
-      currency: "USD",
+      currency: "BDT",
       tax_rate: 0,
       service_charge_rate: 0,
     },
