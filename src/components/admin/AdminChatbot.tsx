@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Minimize2, Trash2, Plus, History } from 'lucide-react';
+import { X, Minimize2, Trash2, Plus, History } from 'lucide-react';
+import beechatLogo from '@/assets/beechat-logo.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -73,9 +74,9 @@ export function AdminChatbot() {
             <Button
               onClick={() => setIsOpen(true)}
               size="lg"
-              className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 p-0 overflow-hidden"
             >
-              <MessageCircle className="h-6 w-6" />
+              <img src={beechatLogo} alt="BeeChat" className="w-10 h-10 object-contain" />
             </Button>
             
             {/* Notification dot when has unread */}
@@ -106,14 +107,14 @@ export function AdminChatbot() {
             )}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                    <MessageCircle className="h-5 w-5" />
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center">
+                    <img src={beechatLogo} alt="BeeChat" className="w-8 h-8 object-contain" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">সখী (Sakhi)</h3>
+                    <h3 className="font-semibold">BeeChat</h3>
                     <p className="text-xs text-white/80">Hotel Management Assistant</p>
                   </div>
                 </div>

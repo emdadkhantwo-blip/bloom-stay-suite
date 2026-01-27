@@ -25,7 +25,7 @@ interface DbChatMessage {
   created_at: string;
 }
 
-const SESSION_KEY = 'sakhi_chat_session';
+const SESSION_KEY = 'beechat_session';
 
 export function useAdminChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -278,7 +278,7 @@ export function useAdminChat() {
       setMessages([{
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `নমস্কার! 👋 আমি **সখী**, আপনার হোটেল ম্যানেজমেন্ট সহকারী।
+        content: `Hello Sir! 👋 আমি **BeeChat**, আপনার হোটেল ম্যানেজমেন্ট সহকারী।
 
 আমি আপনার হোটেলের সব তথ্য জানি - রুম, গেস্ট, স্টাফ, রিজার্ভেশন সব!
 
