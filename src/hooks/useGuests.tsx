@@ -27,6 +27,7 @@ export type GuestUpdate = Partial<GuestInsert> & {
   is_vip?: boolean;
   is_blacklisted?: boolean;
   blacklist_reason?: string | null;
+  corporate_account_id?: string | null;
 };
 
 export function useGuests(searchQuery?: string) {

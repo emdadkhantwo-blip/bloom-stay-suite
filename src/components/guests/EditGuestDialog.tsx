@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUpdateGuest } from "@/hooks/useGuests";
+import { useCorporateAccounts } from "@/hooks/useCorporateAccounts";
 import type { Guest } from "@/hooks/useGuests";
 
 const editGuestSchema = z.object({
@@ -49,6 +50,7 @@ const editGuestSchema = z.object({
   is_vip: z.boolean(),
   is_blacklisted: z.boolean(),
   blacklist_reason: z.string().optional(),
+  corporate_account_id: z.string().optional(),
 });
 
 type EditGuestFormData = z.infer<typeof editGuestSchema>;
@@ -72,6 +74,10 @@ export function EditGuestDialog({
   onOpenChange,
 }: EditGuestDialogProps) {
   const updateGuestMutation = useUpdateGuest();
+  const { data: corporateAccounts = [] } = useCorporateAccounts();
+
+  // Filter to only active accounts
+  const activeAccounts = corporateAccounts.filter((a) => a.is_active);
 
   const form = useForm<EditGuestFormData>({
     resolver: zodResolver(editGuestSchema),
@@ -91,6 +97,7 @@ export function EditGuestDialog({
       is_vip: false,
       is_blacklisted: false,
       blacklist_reason: "",
+      corporate_account_id: "",
     },
   });
 
@@ -113,6 +120,7 @@ export function EditGuestDialog({
         is_vip: guest.is_vip || false,
         is_blacklisted: guest.is_blacklisted || false,
         blacklist_reason: guest.blacklist_reason || "",
+        corporate_account_id: guest.corporate_account_id || "",
       });
     }
   }, [guest, form]);
@@ -129,6 +137,9 @@ export function EditGuestDialog({
         email: data.email || null,
         date_of_birth: data.date_of_birth || null,
         blacklist_reason: data.is_blacklisted ? data.blacklist_reason : null,
+        corporate_account_id: data.corporate_account_id === "none" || !data.corporate_account_id 
+          ? null 
+          : data.corporate_account_id,
       },
       {
         onSuccess: () => {
@@ -211,6 +222,38 @@ export function EditGuestDialog({
                 )}
               />
             </div>
+
+            <Separator />
+
+            {/* Corporate Account */}
+            <FormField
+              control={form.control}
+              name="corporate_account_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Corporate Account</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || "none"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select corporate account" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {activeAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.company_name} ({account.account_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <Separator />
 
