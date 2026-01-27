@@ -54,12 +54,11 @@ export function useCorporateAccounts() {
 
       if (error) throw error;
 
-      // Get linked guest counts
+      // Get linked guest counts from the join table
       const { data: guestCounts } = await supabase
-        .from("guests")
+        .from("guest_corporate_accounts")
         .select("corporate_account_id")
-        .eq("tenant_id", tenant.id)
-        .not("corporate_account_id", "is", null);
+        .eq("tenant_id", tenant.id);
 
       const countMap = new Map<string, number>();
       guestCounts?.forEach((g) => {
@@ -108,10 +107,22 @@ export function useCorporateAccountGuests(accountId: string | undefined) {
     queryFn: async () => {
       if (!accountId || !tenant) return [];
 
+      // Fetch guest IDs from the join table
+      const { data: links, error: linksError } = await supabase
+        .from("guest_corporate_accounts")
+        .select("guest_id")
+        .eq("corporate_account_id", accountId)
+        .eq("tenant_id", tenant.id);
+
+      if (linksError) throw linksError;
+      if (!links || links.length === 0) return [];
+
+      const guestIds = links.map((l) => l.guest_id);
+
       const { data, error } = await supabase
         .from("guests")
         .select("*")
-        .eq("corporate_account_id", accountId)
+        .in("id", guestIds)
         .eq("tenant_id", tenant.id)
         .order("last_name", { ascending: true });
 
@@ -119,6 +130,50 @@ export function useCorporateAccountGuests(accountId: string | undefined) {
       return data;
     },
     enabled: !!accountId && !!tenant,
+  });
+}
+
+// Fetch all corporate accounts linked to a specific guest
+export function useGuestCorporateAccounts(guestId: string | undefined) {
+  const { tenant } = useTenant();
+
+  return useQuery({
+    queryKey: ["guest-corporate-accounts", guestId],
+    queryFn: async () => {
+      if (!guestId || !tenant) return [];
+
+      // Fetch corporate account IDs from the join table
+      const { data: links, error: linksError } = await supabase
+        .from("guest_corporate_accounts")
+        .select("corporate_account_id, is_primary")
+        .eq("guest_id", guestId)
+        .eq("tenant_id", tenant.id);
+
+      if (linksError) throw linksError;
+      if (!links || links.length === 0) return [];
+
+      const accountIds = links.map((l) => l.corporate_account_id);
+
+      const { data, error } = await supabase
+        .from("corporate_accounts")
+        .select("*")
+        .in("id", accountIds)
+        .eq("tenant_id", tenant.id)
+        .eq("is_active", true)
+        .order("company_name", { ascending: true });
+
+      if (error) throw error;
+
+      // Add is_primary flag to each account
+      return data.map((account) => {
+        const link = links.find((l) => l.corporate_account_id === account.id);
+        return {
+          ...account,
+          is_primary: link?.is_primary || false,
+        };
+      }) as (CorporateAccount & { is_primary: boolean })[];
+    },
+    enabled: !!guestId && !!tenant,
   });
 }
 
@@ -202,7 +257,7 @@ export function useDeleteCorporateAccount() {
 
   return useMutation({
     mutationFn: async (accountId: string) => {
-      // First unlink any guests
+      // The join table will cascade delete, but also clean up old-style links
       const { error: unlinkError } = await supabase
         .from("guests")
         .update({ corporate_account_id: null })
@@ -220,6 +275,7 @@ export function useDeleteCorporateAccount() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["guests"] });
+      queryClient.invalidateQueries({ queryKey: ["guest-corporate-accounts"] });
       toast({
         title: "Account Deleted",
         description: "Corporate account has been deleted.",
@@ -235,8 +291,10 @@ export function useDeleteCorporateAccount() {
   });
 }
 
+// Link guest to corporate account using the join table
 export function useLinkGuestToCorporateAccount() {
   const queryClient = useQueryClient();
+  const { tenant } = useTenant();
   const { toast } = useToast();
 
   return useMutation({
@@ -247,20 +305,81 @@ export function useLinkGuestToCorporateAccount() {
       guestId: string;
       accountId: string | null;
     }) => {
-      const { error } = await supabase
-        .from("guests")
-        .update({ corporate_account_id: accountId })
-        .eq("id", guestId);
+      if (!tenant) throw new Error("No tenant");
 
-      if (error) throw error;
+      if (accountId === null) {
+        // Unlink: remove from join table
+        const { error } = await supabase
+          .from("guest_corporate_accounts")
+          .delete()
+          .eq("guest_id", guestId);
+
+        if (error) throw error;
+      } else {
+        // Link: insert into join table (upsert to handle duplicates)
+        const { error } = await supabase
+          .from("guest_corporate_accounts")
+          .upsert({
+            guest_id: guestId,
+            corporate_account_id: accountId,
+            tenant_id: tenant.id,
+            is_primary: false,
+          }, {
+            onConflict: "guest_id,corporate_account_id",
+          });
+
+        if (error) throw error;
+      }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["corporate-account-guests"] });
+      queryClient.invalidateQueries({ queryKey: ["guest-corporate-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["guests"] });
       toast({
         title: "Guest Updated",
         description: "Guest corporate account link has been updated.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+}
+
+// Unlink a specific guest from a specific corporate account
+export function useUnlinkGuestFromCorporateAccount() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      guestId,
+      accountId,
+    }: {
+      guestId: string;
+      accountId: string;
+    }) => {
+      const { error } = await supabase
+        .from("guest_corporate_accounts")
+        .delete()
+        .eq("guest_id", guestId)
+        .eq("corporate_account_id", accountId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["corporate-account-guests"] });
+      queryClient.invalidateQueries({ queryKey: ["guest-corporate-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["guests"] });
+      toast({
+        title: "Guest Unlinked",
+        description: "Guest has been unlinked from the corporate account.",
       });
     },
     onError: (error: Error) => {

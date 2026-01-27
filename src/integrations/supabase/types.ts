@@ -429,6 +429,55 @@ export type Database = {
           },
         ]
       }
+      guest_corporate_accounts: {
+        Row: {
+          corporate_account_id: string
+          created_at: string
+          guest_id: string
+          id: string
+          is_primary: boolean
+          tenant_id: string
+        }
+        Insert: {
+          corporate_account_id: string
+          created_at?: string
+          guest_id: string
+          id?: string
+          is_primary?: boolean
+          tenant_id: string
+        }
+        Update: {
+          corporate_account_id?: string
+          created_at?: string
+          guest_id?: string
+          id?: string
+          is_primary?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_corporate_accounts_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_corporate_accounts_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_corporate_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_notes: {
         Row: {
           author_id: string

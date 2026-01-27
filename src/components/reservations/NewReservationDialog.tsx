@@ -49,7 +49,7 @@ import { useRoomTypes } from "@/hooks/useRoomTypes";
 import { useRooms } from "@/hooks/useRooms";
 import { useCreateReservation } from "@/hooks/useCreateReservation";
 import { useActiveReferences, calculateDiscount, type Reference } from "@/hooks/useReferences";
-import { useCorporateAccountById } from "@/hooks/useCorporateAccounts";
+import { useCorporateAccountById, useGuestCorporateAccounts, type CorporateAccount } from "@/hooks/useCorporateAccounts";
 import { formatCurrency } from "@/lib/currency";
 import type { Guest } from "@/hooks/useGuests";
 
@@ -112,9 +112,13 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   ]);
   const [guestIdFiles, setGuestIdFiles] = useState<Map<number, { file: File; preview: string; type: string; fileName: string }>>(new Map());
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [selectedCorporateAccountId, setSelectedCorporateAccountId] = useState<string | null>(null);
 
-  // Fetch corporate account if guest is linked to one
-  const { data: corporateAccount } = useCorporateAccountById(selectedGuest?.corporate_account_id || null);
+  // Fetch all corporate accounts linked to the guest
+  const { data: guestCorporateAccounts = [] } = useGuestCorporateAccounts(selectedGuest?.id);
+  
+  // Fetch the selected corporate account details
+  const { data: corporateAccount } = useCorporateAccountById(selectedCorporateAccountId);
 
   const form = useForm<ReservationFormData>({
     resolver: zodResolver(reservationSchema),
@@ -211,11 +215,28 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   const handleGuestSelect = (guest: Guest | null) => {
     form.setValue("guest_id", guest?.id || "");
     setSelectedGuest(guest);
+    // Reset corporate account selection when guest changes
+    setSelectedCorporateAccountId(null);
   };
+
+  // Auto-select corporate account when guest's corporate accounts are loaded
+  // If only one account, auto-select it. If multiple, user must choose.
+  useMemo(() => {
+    if (watchedSource === "corporate" && guestCorporateAccounts.length > 0 && !selectedCorporateAccountId) {
+      // Auto-select if there's only one account, or select the primary one
+      const primaryAccount = guestCorporateAccounts.find(a => a.is_primary);
+      if (guestCorporateAccounts.length === 1) {
+        setSelectedCorporateAccountId(guestCorporateAccounts[0].id);
+      } else if (primaryAccount) {
+        setSelectedCorporateAccountId(primaryAccount.id);
+      }
+    }
+  }, [watchedSource, guestCorporateAccounts, selectedCorporateAccountId]);
 
   const handleGuestCreated = (guest: Guest) => {
     form.setValue("guest_id", guest.id);
     setSelectedGuest(guest);
+    setSelectedCorporateAccountId(null);
   };
 
   const addRoom = () => {
@@ -371,6 +392,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
       form.reset();
       setSelectedReference(null);
       setSelectedRooms([{ id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 }]);
+      setSelectedGuest(null);
+      setSelectedCorporateAccountId(null);
       
       // Cleanup file previews
       guestIdFiles.forEach((fileData) => {
@@ -688,48 +711,107 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
 
               {/* Corporate Account Info Card */}
               {watchedSource === "corporate" && selectedGuest && (
-                <div className="space-y-2">
-                  {corporateAccount ? (
-                    <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Building2 className="h-5 w-5 text-blue-500" />
-                          <span className="font-semibold">Corporate Account</span>
+                <div className="space-y-3">
+                  {guestCorporateAccounts.length > 0 ? (
+                    <>
+                      {/* Corporate Account Selector - show when multiple accounts */}
+                      {guestCorporateAccounts.length > 1 && (
+                        <div className="space-y-2">
+                          <FormLabel>Select Corporate Account</FormLabel>
+                          <Select
+                            value={selectedCorporateAccountId || ""}
+                            onValueChange={setSelectedCorporateAccountId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a corporate account..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {guestCorporateAccounts.map((account) => (
+                                <SelectItem key={account.id} value={account.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 text-blue-500" />
+                                    <span>{account.company_name}</span>
+                                    <Badge variant="outline" className="ml-1 text-xs">
+                                      {account.account_code}
+                                    </Badge>
+                                    {account.discount_percentage > 0 && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {account.discount_percentage}% off
+                                      </Badge>
+                                    )}
+                                    {account.is_primary && (
+                                      <Badge className="text-xs bg-primary/10 text-primary">
+                                        Primary
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Company:</span>
-                            <span className="ml-2 font-medium">{corporateAccount.company_name}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Account Code:</span>
-                            <span className="ml-2 font-medium">{corporateAccount.account_code}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Discount:</span>
-                            <span className="ml-2 font-medium">
-                              {corporateAccount.discount_percentage > 0 
-                                ? `${corporateAccount.discount_percentage}%` 
-                                : "None"}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Credit Limit:</span>
-                            <span className="ml-2 font-medium">
-                              {corporateAccount.credit_limit > 0 
-                                ? formatCurrency(corporateAccount.credit_limit) 
-                                : "Unlimited"}
-                            </span>
-                          </div>
-                        </div>
-                        {corporateAccount.discount_percentage > 0 && (
-                          <Badge variant="secondary" className="mt-3 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-                            <Percent className="h-3 w-3 mr-1" />
-                            {corporateAccount.discount_percentage}% discount will be auto-applied
-                          </Badge>
-                        )}
-                      </CardContent>
-                    </Card>
+                      )}
+
+                      {/* Corporate Account Details Card */}
+                      {corporateAccount && (
+                        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Building2 className="h-5 w-5 text-blue-500" />
+                              <span className="font-semibold">Corporate Account</span>
+                              {guestCorporateAccounts.length > 1 && (
+                                <Badge variant="outline" className="ml-auto text-xs">
+                                  {guestCorporateAccounts.length} accounts linked
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Company:</span>
+                                <span className="ml-2 font-medium">{corporateAccount.company_name}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Account Code:</span>
+                                <span className="ml-2 font-medium">{corporateAccount.account_code}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Discount:</span>
+                                <span className="ml-2 font-medium">
+                                  {corporateAccount.discount_percentage > 0 
+                                    ? `${corporateAccount.discount_percentage}%` 
+                                    : "None"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Credit Limit:</span>
+                                <span className="ml-2 font-medium">
+                                  {corporateAccount.credit_limit > 0 
+                                    ? formatCurrency(corporateAccount.credit_limit) 
+                                    : "Unlimited"}
+                                </span>
+                              </div>
+                            </div>
+                            {corporateAccount.discount_percentage > 0 && (
+                              <Badge variant="secondary" className="mt-3 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                                <Percent className="h-3 w-3 mr-1" />
+                                {corporateAccount.discount_percentage}% discount will be auto-applied
+                              </Badge>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Prompt to select when multiple accounts exist but none selected */}
+                      {guestCorporateAccounts.length > 1 && !selectedCorporateAccountId && (
+                        <Alert>
+                          <Building2 className="h-4 w-4" />
+                          <AlertTitle>Multiple Corporate Accounts</AlertTitle>
+                          <AlertDescription>
+                            This guest is linked to {guestCorporateAccounts.length} corporate accounts. Please select one to apply the corporate rate.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
                   ) : (
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
