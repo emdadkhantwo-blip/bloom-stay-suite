@@ -6,11 +6,15 @@ import { NightAuditChecklist } from '@/components/night-audit/NightAuditChecklis
 import { NightAuditStats } from '@/components/night-audit/NightAuditStats';
 import { NightAuditActions } from '@/components/night-audit/NightAuditActions';
 import { NightAuditHistory } from '@/components/night-audit/NightAuditHistory';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { NightAuditDetailTabs } from '@/components/night-audit/NightAuditDetailTabs';
+import { NightAuditExportButtons } from '@/components/night-audit/NightAuditExportButtons';
+import { NightAuditTrendCharts } from '@/components/night-audit/NightAuditTrendCharts';
+import { openNightAuditReportView } from '@/components/night-audit/NightAuditReportView';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Moon, Calendar, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Moon, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 
 export default function NightAudit() {
   const {
@@ -19,12 +23,20 @@ export default function NightAudit() {
     preAuditData,
     auditStats,
     businessDate,
+    roomDetails,
+    guestDetails,
+    outstandingFolios,
+    paymentsByMethod,
+    revenueByCategory,
     isLoading,
+    isLoadingDetails,
     startAudit,
     postRoomCharges,
     completeAudit,
     refetchPreAudit,
     refetchStats,
+    exportCSV,
+    getReportData,
   } = useNightAudit();
 
   const [activeTab, setActiveTab] = useState('audit');
@@ -40,6 +52,11 @@ export default function NightAudit() {
       default:
         return <Badge variant="outline">Not Started</Badge>;
     }
+  };
+
+  const handleExportPDF = () => {
+    const reportData = getReportData();
+    openNightAuditReportView(reportData);
   };
 
   return (
@@ -58,12 +75,19 @@ export default function NightAudit() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>Business Date: {format(new Date(businessDate), 'MMMM d, yyyy')}</span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <NightAuditExportButtons
+              onExportCSV={exportCSV}
+              onExportPDF={handleExportPDF}
+              isLoading={isLoading}
+            />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>Business Date: {format(new Date(businessDate), 'MMMM d, yyyy')}</span>
+              </div>
+              {getStatusBadge(currentAudit?.status)}
             </div>
-            {getStatusBadge(currentAudit?.status)}
           </div>
         </div>
 
@@ -104,7 +128,8 @@ export default function NightAudit() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="audit">Run Audit</TabsTrigger>
-            <TabsTrigger value="history">Audit History</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="history">History & Trends</TabsTrigger>
           </TabsList>
 
           <TabsContent value="audit" className="space-y-6">
@@ -143,8 +168,26 @@ export default function NightAudit() {
             )}
           </TabsContent>
 
-          <TabsContent value="history">
-            <NightAuditHistory audits={auditHistory} isLoading={isLoading} />
+          <TabsContent value="details" className="space-y-6">
+            <NightAuditDetailTabs
+              rooms={roomDetails}
+              guests={guestDetails}
+              outstandingFolios={outstandingFolios}
+              paymentsByMethod={paymentsByMethod}
+              revenueByCategory={revenueByCategory}
+              totalRevenue={auditStats?.totalRevenue || 0}
+              totalPayments={auditStats?.totalPayments || 0}
+              isLoading={isLoadingDetails}
+            />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-6">
+            <NightAuditTrendCharts audits={auditHistory} />
+            <NightAuditHistory 
+              audits={auditHistory} 
+              isLoading={isLoading}
+              onExportCSV={() => exportCSV('history')}
+            />
           </TabsContent>
         </Tabs>
       </div>

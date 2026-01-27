@@ -1,25 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, BarChart3, BedDouble, Wallet, Users } from 'lucide-react';
+import { RefreshCw, BarChart3, BedDouble, Wallet, Users, CreditCard, Banknote } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-
-interface AuditStatistics {
-  totalRooms: number;
-  occupiedRooms: number;
-  vacantRooms: number;
-  occupancyRate: number;
-  roomRevenue: number;
-  fbRevenue: number;
-  otherRevenue: number;
-  totalRevenue: number;
-  totalPayments: number;
-  adr: number;
-  revpar: number;
-  arrivalsToday: number;
-  departuresToday: number;
-  stayovers: number;
-  noShows: number;
-}
+import { formatCurrency } from '@/lib/currency';
+import type { AuditStatistics } from '@/hooks/useNightAudit';
 
 interface NightAuditStatsProps {
   stats?: AuditStatistics;
@@ -27,10 +11,6 @@ interface NightAuditStatsProps {
 }
 
 export function NightAuditStats({ stats, onRefresh }: NightAuditStatsProps) {
-  const formatCurrency = (value: number) => {
-    return `৳${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   const formatPercent = (value: number) => {
     return `${value.toFixed(1)}%`;
   };
@@ -130,7 +110,7 @@ export function NightAuditStats({ stats, onRefresh }: NightAuditStatsProps) {
             </div>
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Total Payments</span>
-              <span>{formatCurrency(stats?.totalPayments || 0)}</span>
+              <span className="text-green-600 font-medium">{formatCurrency(stats?.totalPayments || 0)}</span>
             </div>
           </div>
         </div>
@@ -139,13 +119,15 @@ export function NightAuditStats({ stats, onRefresh }: NightAuditStatsProps) {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
+          <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 p-3 text-center border border-primary/20">
             <p className="text-xs text-muted-foreground mb-1">ADR</p>
-            <p className="text-lg font-bold">{formatCurrency(stats?.adr || 0)}</p>
+            <p className="text-lg font-bold text-primary">{formatCurrency(stats?.adr || 0)}</p>
+            <p className="text-[10px] text-muted-foreground">Average Daily Rate</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
+          <div className="rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 p-3 text-center border border-emerald-500/20">
             <p className="text-xs text-muted-foreground mb-1">RevPAR</p>
-            <p className="text-lg font-bold">{formatCurrency(stats?.revpar || 0)}</p>
+            <p className="text-lg font-bold text-emerald-600">{formatCurrency(stats?.revpar || 0)}</p>
+            <p className="text-[10px] text-muted-foreground">Revenue Per Available Room</p>
           </div>
         </div>
       </CardContent>
