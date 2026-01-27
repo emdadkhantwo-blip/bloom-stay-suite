@@ -1,242 +1,203 @@
 
-# Fix: User Guidance When Rooms Are Not Configured
+# Fix: Prevent Check-In Without Room Assignment
 
-## Problem Summary
+## Problem Identified
 
-Users cannot create reservations or perform check-ins when the hotel has no room types or rooms configured. The current UI silently fails or shows empty dropdowns without explaining the prerequisite setup steps.
+There are multiple code paths where a guest can be checked in without being assigned to a physical room:
 
-**Dependency chain that must exist:**
-```
-Room Types → Rooms → Reservations → Check-In
-```
+1. **Calendar View Check-In Bypass**: In `src/pages/Calendar.tsx`, the `handleCheckIn` function (lines 93-105) filters existing room assignments and passes them directly. If no rooms were pre-assigned during reservation creation, it sends an empty array, and the check-in succeeds without any room.
+
+2. **Hook Allows Empty Assignments**: In `src/hooks/useReservations.tsx`, the `useCheckIn` mutation (lines 151-188) treats `roomAssignments` as optional. If empty or undefined, the status changes to `checked_in` without any room being assigned.
+
+3. **ReservationDetailDrawer Direct Check-In**: The drawer's "Check In" button (line 590) directly calls `onCheckIn` without ensuring rooms are assigned first.
 
 ---
 
 ## Solution Overview
 
-Add clear, helpful guidance throughout the reservation workflow when room infrastructure is missing. Instead of showing empty dropdowns and confusing users, guide them to set up their hotel properly first.
+Enforce room assignment requirement at multiple levels:
+
+1. **Hook-Level Validation**: Add explicit validation in `useCheckIn` to throw an error if no room assignments are provided
+2. **Calendar Check-In Flow**: Route Calendar check-ins through the `RoomAssignmentDialog` like Front Desk does
+3. **ReservationDetailDrawer**: Show warning if trying to check in without rooms assigned
+4. **UI Feedback**: Disable check-in button or show clear message when rooms are not assigned
 
 ---
-
-## Changes to Implement
-
-### 1. NewReservationDialog - Empty State for Room Types
-
-When opening the new reservation dialog and no room types exist, show a helpful message:
-
-```
-+--------------------------------------------+
-|  Room Setup Required                        |
-|                                            |
-|  Before creating reservations, you need    |
-|  to set up your room types and rooms.      |
-|                                            |
-|  [Go to Rooms Setup]  [Dismiss]            |
-+--------------------------------------------+
-```
-
-**Files to modify:** `src/components/reservations/NewReservationDialog.tsx`
-
-**Changes:**
-- Check if `roomTypes` array is empty after loading
-- If empty, show an `Alert` component explaining the setup requirement
-- Add a button to navigate to the Rooms page
-- Disable the room selection section with a clear message
-
-### 2. Enhanced Room Type Select with Warning
-
-When selecting a room type in the reservation form:
-- If the selected room type has no rooms created, show an inline warning
-- Allow the reservation to be created (room assignment at check-in)
-- But warn that no physical rooms exist for assignment yet
-
-**Additional query needed:** Check if rooms exist for selected room type
-
-**Changes:**
-- Add a query to count rooms per room type
-- Show amber warning badge: "No rooms configured for this type yet"
-
-### 3. RoomAssignmentDialog - Better Empty State
-
-When opening room assignment and no rooms are available:
-
-```
-+--------------------------------------------+
-|  No Rooms Available                         |
-|                                            |
-|  There are no vacant rooms of type         |
-|  "Deluxe Suite" available for check-in.    |
-|                                            |
-|  This could be because:                     |
-|  • No rooms have been created for this type|
-|  • All rooms are currently occupied        |
-|  • All rooms are under maintenance         |
-|                                            |
-|  [Go to Rooms Page]  [Cancel]              |
-+--------------------------------------------+
-```
-
-**Files to modify:** `src/components/front-desk/RoomAssignmentDialog.tsx`
-
-### 4. Reservations Page - Setup Reminder Banner
-
-When the reservations page loads and room infrastructure is missing, show a banner:
-
-```
-+--------------------------------------------+
-|  Complete Your Hotel Setup                  |
-|                                            |
-|  To start accepting reservations, you need:|
-|  ✓ Room types (e.g., Deluxe, Standard)     |
-|  ✗ Physical rooms (e.g., Room 101, 102)    |
-|                                            |
-|  [Set Up Rooms]                            |
-+--------------------------------------------+
-```
-
-**Files to modify:** `src/pages/Reservations.tsx`
-
-**Changes:**
-- Add queries for room type count and room count
-- If either is zero, show a setup reminder banner
-- Include navigation to Rooms page
-
----
-
-## Implementation Details
-
-### New Hook: useRoomSetupStatus
-
-Create a simple hook to check if room infrastructure is configured:
-
-```typescript
-// src/hooks/useRoomSetupStatus.tsx
-export function useRoomSetupStatus() {
-  const { data: roomTypes } = useRoomTypes();
-  const { data: rooms } = useRooms();
-  
-  return {
-    hasRoomTypes: (roomTypes?.length || 0) > 0,
-    hasRooms: (rooms?.length || 0) > 0,
-    isReady: (roomTypes?.length || 0) > 0 && (rooms?.length || 0) > 0,
-    roomTypesCount: roomTypes?.length || 0,
-    roomsCount: rooms?.length || 0,
-  };
-}
-```
-
-### NewReservationDialog Changes
-
-```typescript
-// At the top of the component
-const { hasRoomTypes, hasRooms, isReady } = useRoomSetupStatus();
-
-// In the JSX, before room selection
-{!hasRoomTypes && (
-  <Alert variant="destructive">
-    <AlertCircle className="h-4 w-4" />
-    <AlertTitle>Room Types Required</AlertTitle>
-    <AlertDescription>
-      You need to create room types before making reservations.
-      <Button 
-        variant="link" 
-        onClick={() => navigate('/rooms')}
-        className="p-0 h-auto ml-2"
-      >
-        Go to Rooms →
-      </Button>
-    </AlertDescription>
-  </Alert>
-)}
-
-{hasRoomTypes && !hasRooms && (
-  <Alert>
-    <AlertCircle className="h-4 w-4" />
-    <AlertTitle>No Rooms Created</AlertTitle>
-    <AlertDescription>
-      Room types exist, but no physical rooms have been added yet.
-      Reservations can be made, but check-in will require rooms.
-    </AlertDescription>
-  </Alert>
-)}
-```
-
-### Reservations Page Banner
-
-```typescript
-// src/pages/Reservations.tsx
-const { hasRoomTypes, hasRooms, isReady } = useRoomSetupStatus();
-
-// Before the stats bar
-{!isReady && (
-  <Card className="border-warning bg-warning/10">
-    <CardContent className="flex items-center justify-between p-4">
-      <div className="flex items-center gap-3">
-        <AlertTriangle className="h-5 w-5 text-warning" />
-        <div>
-          <h4 className="font-medium">Complete Your Hotel Setup</h4>
-          <p className="text-sm text-muted-foreground">
-            {!hasRoomTypes && "Create room types "}
-            {!hasRoomTypes && !hasRooms && "and "}
-            {!hasRooms && "add rooms "}
-            to start accepting reservations.
-          </p>
-        </div>
-      </div>
-      <Button onClick={() => navigate('/rooms')}>
-        Set Up Rooms
-      </Button>
-    </CardContent>
-  </Card>
-)}
-```
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/hooks/useRoomSetupStatus.tsx` | Hook to check room infrastructure status |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/Reservations.tsx` | Add setup reminder banner |
-| `src/components/reservations/NewReservationDialog.tsx` | Add room types empty state alert |
-| `src/components/front-desk/RoomAssignmentDialog.tsx` | Improve empty state messaging |
+| `src/hooks/useReservations.tsx` | Add validation requiring room assignments for check-in |
+| `src/pages/Calendar.tsx` | Add RoomAssignmentDialog flow for check-in |
+| `src/components/reservations/ReservationDetailDrawer.tsx` | Add room assignment check before check-in |
 
 ---
 
-## User Experience Flow After Fix
+## Technical Implementation
 
-### Scenario: New Hotel with No Rooms
+### 1. useCheckIn Hook - Add Validation
 
-1. User opens Reservations page
-2. **NEW:** Banner shows "Complete Your Hotel Setup" with button to Rooms page
-3. User clicks "Set Up Rooms" → navigates to Rooms page
-4. User creates room types and rooms
-5. User returns to Reservations → banner is gone
-6. User can now create reservations normally
+In `src/hooks/useReservations.tsx`, add a validation check at the start of the mutation function:
 
-### Scenario: Room Type Exists but No Rooms
+```typescript
+mutationFn: async ({ reservationId, roomAssignments }: { 
+  reservationId: string; 
+  roomAssignments?: Array<{ reservationRoomId: string; roomId: string }>;
+}) => {
+  // NEW: Validate that room assignments are provided
+  if (!roomAssignments || roomAssignments.length === 0) {
+    throw new Error("Cannot check in without assigning a room. Please assign rooms first.");
+  }
+  
+  // ... rest of the function
+}
+```
 
-1. User opens New Reservation dialog
-2. User selects a room type from dropdown
-3. **NEW:** Warning shows "No rooms configured for this type yet"
-4. User can still create reservation (room assigned later)
-5. At check-in time, if still no rooms, clear message explains why
+Update `onError` to show the validation message:
+
+```typescript
+onError: (error) => {
+  console.error("Check-in error:", error);
+  toast.error(error instanceof Error ? error.message : "Failed to check in guest");
+},
+```
+
+### 2. Calendar Page - Add Room Assignment Dialog
+
+In `src/pages/Calendar.tsx`, add state and dialog similar to Front Desk:
+
+```typescript
+// Add state
+const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
+const [pendingCheckIn, setPendingCheckIn] = useState<Reservation | null>(null);
+
+// Modify handleCheckIn to open dialog instead of directly checking in
+const handleCheckIn = () => {
+  if (selectedReservation) {
+    // Check if all rooms are already assigned
+    const allRoomsAssigned = selectedReservation.reservation_rooms.every(rr => rr.room_id);
+    
+    if (allRoomsAssigned) {
+      // Proceed directly if all rooms already have assignments
+      checkIn.mutate({ 
+        reservationId: selectedReservation.id,
+        roomAssignments: selectedReservation.reservation_rooms.map(rr => ({
+          reservationRoomId: rr.id,
+          roomId: rr.room_id!
+        }))
+      });
+      setDrawerOpen(false);
+    } else {
+      // Open room assignment dialog
+      setPendingCheckIn(selectedReservation);
+      setRoomAssignmentOpen(true);
+      setDrawerOpen(false);
+    }
+  }
+};
+
+// Add confirm handler
+const confirmCheckIn = (assignments: Array<{ reservationRoomId: string; roomId: string }>) => {
+  if (pendingCheckIn) {
+    checkIn.mutate(
+      { reservationId: pendingCheckIn.id, roomAssignments: assignments },
+      {
+        onSuccess: () => {
+          setRoomAssignmentOpen(false);
+          setPendingCheckIn(null);
+        },
+      }
+    );
+  }
+};
+```
+
+Add the `RoomAssignmentDialog` component to the JSX:
+
+```tsx
+<RoomAssignmentDialog
+  reservation={pendingCheckIn}
+  open={roomAssignmentOpen}
+  onOpenChange={(open) => {
+    setRoomAssignmentOpen(open);
+    if (!open) setPendingCheckIn(null);
+  }}
+  onConfirm={confirmCheckIn}
+  isLoading={checkIn.isPending}
+/>
+```
+
+### 3. ReservationDetailDrawer - Visual Guidance
+
+Add a visual indicator when rooms are not assigned and check-in is attempted. In `src/components/reservations/ReservationDetailDrawer.tsx`:
+
+```typescript
+// Calculate if any rooms need assignment
+const hasUnassignedRooms = reservation.reservation_rooms.some(rr => !rr.room_id);
+
+// In the Room Assignments card, add emphasis when rooms are missing
+{hasUnassignedRooms && canCheckIn && (
+  <Alert variant="warning" className="mt-2">
+    <AlertCircle className="h-4 w-4" />
+    <AlertDescription>
+      Rooms must be assigned during check-in
+    </AlertDescription>
+  </Alert>
+)}
+```
+
+Update the Check In button to show a more helpful label:
+
+```tsx
+{canCheckIn && onCheckIn && (
+  <Button className="flex-1" onClick={onCheckIn}>
+    {hasUnassignedRooms ? "Check In & Assign Rooms" : "Check In"}
+  </Button>
+)}
+```
+
+---
+
+## User Experience After Fix
+
+### Scenario 1: Check-In from Calendar (No Rooms Assigned)
+1. User clicks reservation on calendar
+2. Opens detail drawer, clicks "Check In & Assign Rooms"
+3. **NEW:** Room Assignment Dialog opens
+4. User selects room for each reservation room
+5. Clicks "Confirm Check-In"
+6. Guest is checked in with room properly assigned
+
+### Scenario 2: Check-In from Calendar (Rooms Pre-Assigned)
+1. User clicks reservation with rooms already assigned
+2. Clicks "Check In"
+3. Check-in proceeds immediately (no dialog needed)
+
+### Scenario 3: Attempted Check-In via API with Empty Assignments
+1. If any code path tries to call `useCheckIn` without assignments
+2. **NEW:** Error thrown: "Cannot check in without assigning a room"
+3. Toast shows the error message
+4. Check-in is prevented
+
+---
+
+## Safety Measures
+
+This solution provides **defense in depth**:
+
+1. **UI Layer**: Calendar now routes through RoomAssignmentDialog
+2. **UI Feedback**: Drawer shows "Check In & Assign Rooms" when rooms are missing
+3. **Business Logic Layer**: `useCheckIn` throws if no rooms assigned (catches any bypass)
+4. **Visual Guidance**: Alert in room assignments card warns about missing rooms
 
 ---
 
 ## Summary
 
-This fix adds **proactive guidance** throughout the reservation workflow:
+This fix ensures that **no guest can be checked in without a room number** by:
 
-1. **Page-level banner** when setup is incomplete
-2. **Dialog-level alerts** when room types are missing
-3. **Inline warnings** when selected room type has no rooms
-4. **Improved empty states** in room assignment dialog
-
-Users will never be confused about why they can't create reservations or check-in guests - they'll always have clear guidance on what's needed.
+1. Adding validation in the `useCheckIn` hook that throws an error if `roomAssignments` is empty
+2. Updating Calendar page to use `RoomAssignmentDialog` for check-ins (matching Front Desk behavior)
+3. Improving the ReservationDetailDrawer to show clear guidance when rooms need assignment
+4. Providing visual feedback with an updated button label and warning alert
