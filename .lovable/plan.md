@@ -1,166 +1,249 @@
 
-# Fix Floor Plan Table Selection Functionality
+# Add "Close Table" and "Add Table" Features to POS Floor Plan
 
-## Problem Analysis
-Currently, in the Floor Plan section of the POS page, tables are **disabled** when they don't have active orders. This means clicking on available/empty tables does nothing, which breaks the expected workflow where staff should be able to click a table to start a new order for that table.
-
-## Solution Overview
-Make all tables clickable and implement the following behavior:
-- **Empty table clicked**: Switch to "New Order" tab and pre-fill the table number
-- **Occupied table clicked**: Show the existing table details dialog (already working)
+## Overview
+This plan adds two new features to the POS Floor Plan:
+1. **Close Table Button** - A quick action to mark all orders for a table as "posted" and clear the table
+2. **Add Table Button** - Allows users to add new tables to the floor plan layout during edit mode
 
 ---
 
-## Implementation Steps
+## Feature 1: Close Table Button
 
-### Step 1: Update POS.tsx - Add Table Selection State
-Add a callback function to handle table selection from the TableManagement component.
+### What It Does
+When a table is occupied, staff can click a "Close Table" button in the table details dialog. This will:
+- Mark all active orders on that table as "posted" 
+- Clear the table so it becomes available for new guests
+- Show a confirmation dialog to prevent accidental closures
 
-**Changes to `src/pages/POS.tsx`:**
+### Technical Implementation
 
-| Item | Details |
-|------|---------|
-| New state | None needed (use existing `setActiveTab`) |
-| New callback | `handleSelectTable(tableId: string)` |
-| Behavior | Switches to "order" tab and updates table number in order panel |
+**File: `src/hooks/usePOS.tsx`**
 
-```tsx
-// Add new state for pre-selected table number
-const [preSelectedTable, setPreSelectedTable] = useState<string>("");
+Add a new hook `useCloseTable` that:
+- Accepts a table number and outlet ID
+- Fetches all active orders for that table (status not "posted" or "cancelled")
+- Updates all matching orders to "posted" status in a single batch operation
+- Invalidates the `pos-orders` query cache
 
-// Handler for table selection
-const handleSelectTable = (tableId: string) => {
-  setPreSelectedTable(tableId);
-  setActiveTab("order");
+```typescript
+export function useCloseTable() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      tableNumber, 
+      outletId 
+    }: { 
+      tableNumber: string; 
+      outletId: string 
+    }) => {
+      // Update all active orders for this table to "posted"
+      const { error } = await supabase
+        .from("pos_orders")
+        .update({ 
+          status: "posted",
+          posted_at: new Date().toISOString()
+        })
+        .eq("table_number", tableNumber)
+        .eq("outlet_id", outletId)
+        .not("status", "in", '("posted","cancelled")');
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos-orders"] });
+      toast.success("Table closed successfully");
+    },
+  });
+}
+```
+
+**File: `src/components/pos/TableManagement.tsx`**
+
+| Change | Details |
+|--------|---------|
+| New import | `AlertDialog` components for confirmation |
+| New state | `tableToClose: TableInfo \| null` for confirmation flow |
+| New handler | `handleCloseTable()` to execute the close operation |
+| UI addition | "Close Table" button in the table details dialog |
+
+The button will appear in the dialog footer, styled with a distinct color (red/destructive gradient) to indicate it's a significant action.
+
+**Confirmation Dialog Content:**
+- Title: "Close Table {tableNumber}?"
+- Description: "This will mark all {orderCount} orders as posted. The table will become available for new guests."
+- Actions: Cancel / Close Table
+
+---
+
+## Feature 2: Add Table Button
+
+### What It Does
+During floor plan edit mode, users can click an "Add Table" button to create a new table. A dialog will prompt for:
+- Table ID/Name (e.g., "T9", "VIP1", "Patio 1")
+- Number of seats (2, 4, 6, 8)
+
+The new table will be placed in the first available grid position and saved to the outlet's settings.
+
+### Technical Implementation
+
+**File: `src/components/pos/TableManagement.tsx`**
+
+| Change | Details |
+|--------|---------|
+| New state | `showAddTableDialog: boolean` |
+| New state | `newTableId: string` for form input |
+| New state | `newTableSeats: number` for form input |
+| New handler | `handleAddTable()` to validate and add table |
+| UI addition | "Add Table" button in edit mode header |
+| UI addition | Dialog with form fields for table creation |
+
+**Add Table Logic:**
+```typescript
+const handleAddTable = () => {
+  // Validate unique ID
+  if (tableLayout.some(t => t.id === newTableId)) {
+    toast.error("Table ID already exists");
+    return;
+  }
+  
+  // Find first empty grid position
+  const occupiedPositions = new Set(
+    tableLayout.map(t => `${t.x},${t.y}`)
+  );
+  
+  let newX = 0, newY = 0;
+  outer: for (let y = 0; y <= 3; y++) {
+    for (let x = 0; x < 4; x++) {
+      if (!occupiedPositions.has(`${x},${y}`)) {
+        newX = x;
+        newY = y;
+        break outer;
+      }
+    }
+  }
+  
+  // Add to layout
+  setTableLayout(prev => [...prev, {
+    id: newTableId,
+    name: newTableId,
+    seats: newTableSeats,
+    x: newX,
+    y: newY,
+  }]);
+  
+  setShowAddTableDialog(false);
+  setNewTableId("");
+  setNewTableSeats(4);
 };
 ```
 
-### Step 2: Update TableManagement Component Props
-Add a callback prop for when an empty table is selected.
+**Delete Table (Bonus):**
+During edit mode, each table will show a small "X" button to remove it from the layout. This only removes from the local state; changes are saved when "Save Layout" is clicked.
 
-**Changes to `src/components/pos/TableManagement.tsx`:**
+---
 
-| Item | Current | New |
-|------|---------|-----|
-| Interface | `{ orders, outletId }` | `{ orders, outletId, onSelectEmptyTable? }` |
-| Button disabled | `disabled={!isOccupied}` | Remove `disabled` entirely |
-| onClick behavior | Only opens dialog for occupied tables | Also calls `onSelectEmptyTable` for empty tables |
+## UI Layout Changes
 
-```tsx
-interface TableManagementProps {
-  orders: POSOrder[];
-  outletId: string;
-  onSelectEmptyTable?: (tableId: string) => void;
-}
-
-// In button click handler:
-onClick={() => {
-  if (tableInfo) {
-    setSelectedTable(tableInfo);
-  } else {
-    onSelectEmptyTable?.(table.id);
-  }
-}}
-// Remove: disabled={!isOccupied}
+### Edit Mode Header (Updated)
+Current:
+```
+[Reset] [Cancel] [Save Layout]
 ```
 
-### Step 3: Update POSOrderPanel to Accept Pre-Selected Table
-Allow the table number to be controlled from parent.
-
-**Changes to `src/components/pos/POSOrderPanel.tsx`:**
-
-| Item | Current | New |
-|------|---------|-----|
-| Props interface | No table prop | Add `initialTableNumber?: string` |
-| State initialization | `useState("")` | `useState(initialTableNumber \|\| "")` |
-| Effect | None | Add useEffect to sync when `initialTableNumber` changes |
-
-```tsx
-interface POSOrderPanelProps {
-  cart: CartItem[];
-  outlet: POSOutlet;
-  onUpdateItem: (itemId: string, quantity: number, notes?: string) => void;
-  onClearCart: () => void;
-  initialTableNumber?: string;
-  onTableNumberChange?: (table: string) => void;
-}
-
-// Add effect to sync table number
-useEffect(() => {
-  if (initialTableNumber) {
-    setTableNumber(initialTableNumber);
-  }
-}, [initialTableNumber]);
+New:
+```
+[+ Add Table] [Reset] [Cancel] [Save Layout]
 ```
 
-### Step 4: Wire Everything Together in POS.tsx
-Pass the callbacks and props through.
-
-```tsx
-// In POS.tsx render:
-<TabsContent value="tables" className="mt-4 flex-1">
-  <TableManagement 
-    orders={orders} 
-    outletId={selectedOutletId!}
-    onSelectEmptyTable={handleSelectTable}
-  />
-</TabsContent>
-
-// POSOrderPanel with table prop:
-<POSOrderPanel
-  cart={cart}
-  outlet={selectedOutlet!}
-  onUpdateItem={handleUpdateCartItem}
-  onClearCart={handleClearCart}
-  initialTableNumber={preSelectedTable}
-  onTableNumberChange={setPreSelectedTable}
-/>
+### Table Details Dialog Footer (Updated)
+Current:
+```
+[Mark Ready] or [Mark Served] (depending on order status)
 ```
 
-### Step 5: Visual Enhancement for Empty Tables
-Make empty tables look clickable with hover effects.
-
-**Update table button styling in TableManagement.tsx:**
-
-```tsx
-// Current empty table style:
-"border-dashed border-muted-foreground/30 bg-muted/20"
-
-// New style (add cursor and hover):
-"border-dashed border-muted-foreground/30 bg-muted/20 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+New (added at bottom of dialog):
+```
+─────────────────────────────
+[Close Table] (red gradient button)
 ```
 
 ---
 
-## Summary of File Changes
+## Component Structure
+
+### New Add Table Dialog
+```text
+┌─────────────────────────────────────┐
+│  Add New Table                      │
+├─────────────────────────────────────┤
+│  Table ID/Name *                    │
+│  ┌─────────────────────────────┐    │
+│  │ T9                          │    │
+│  └─────────────────────────────┘    │
+│                                     │
+│  Number of Seats                    │
+│  ┌─────────────────────────────┐    │
+│  │ 4                         ▼ │    │
+│  └─────────────────────────────┘    │
+│                                     │
+│           [Cancel]  [Add Table]     │
+└─────────────────────────────────────┘
+```
+
+### Close Table Confirmation Dialog
+```text
+┌─────────────────────────────────────┐
+│  Close Table T3?                    │
+├─────────────────────────────────────┤
+│  This will mark all 2 orders as     │
+│  posted. The table will become      │
+│  available for new guests.          │
+│                                     │
+│  Total: ৳1,250                      │
+│                                     │
+│           [Cancel]  [Close Table]   │
+└─────────────────────────────────────┘
+```
+
+---
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/POS.tsx` | Add `preSelectedTable` state, `handleSelectTable` callback, pass props to components |
-| `src/components/pos/TableManagement.tsx` | Add `onSelectEmptyTable` prop, make all tables clickable, add hover styles |
-| `src/components/pos/POSOrderPanel.tsx` | Add `initialTableNumber` prop with useEffect sync |
+| `src/hooks/usePOS.tsx` | Add `useCloseTable` mutation hook |
+| `src/components/pos/TableManagement.tsx` | Add Close Table button, Add Table dialog, delete table in edit mode |
 
 ---
 
-## User Flow After Fix
+## User Flow
 
-```text
-1. User navigates to POS > Tables tab
-2. User sees Floor Plan with available tables (T1, T2, etc.)
-3. User clicks on empty table "T3"
-   → Tab switches to "New Order"
-   → Table # field auto-fills with "T3"
-4. User adds menu items and submits order
-5. User returns to Tables tab
-   → T3 now shows as occupied with order status
-```
+### Close Table Flow
+1. Staff clicks on an occupied table in the floor plan
+2. Table details dialog opens showing all orders
+3. Staff clicks "Close Table" button at the bottom
+4. Confirmation dialog appears with order count and total
+5. Staff confirms by clicking "Close Table"
+6. All orders are marked as posted
+7. Dialog closes, table now shows as available
+
+### Add Table Flow
+1. Staff clicks "Edit Layout" to enter edit mode
+2. Staff clicks "+ Add Table" button
+3. Dialog appears prompting for Table ID and seats
+4. Staff enters details (e.g., "T9", 4 seats)
+5. New table appears in first available grid position
+6. Staff can drag it to desired location
+7. Staff clicks "Save Layout" to persist changes
 
 ---
 
-## Technical Notes
+## Edge Cases Handled
 
-1. **State Synchronization**: The `preSelectedTable` state needs to be cleared after an order is submitted to avoid stale pre-selection on the next table click.
-
-2. **Controlled vs Uncontrolled**: The table number input will become semi-controlled - it syncs from parent when a table is clicked but can still be manually edited by the user.
-
-3. **No Database Changes**: This is purely a frontend UX fix with no backend modifications required.
+1. **Duplicate Table ID**: Shows error toast if ID already exists
+2. **Grid Full**: Expands grid to add new row if all positions occupied
+3. **Empty Table Close**: Button only appears for occupied tables
+4. **Delete Table with Orders**: Confirmation warns if table has active orders
+5. **Unsaved Changes**: Cancel button reverts to last saved layout
