@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { isSameDay } from "date-fns";
 import { BedDouble, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   Dialog,
@@ -24,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import type { Reservation } from "@/hooks/useReservations";
 import { cn } from "@/lib/utils";
+import { RoomStatusBadge } from "@/components/rooms/RoomStatusBadge";
+import type { RoomStatus } from "@/types/database";
 
 interface RoomAssignment {
   reservationRoomId: string;
@@ -45,23 +48,76 @@ interface RoomAssignmentDialogProps {
   isLoading?: boolean;
 }
 
-function useVacantRoomsByType(roomTypeId: string | null, propertyId: string | null) {
+/**
+ * Hook to get available rooms for check-in assignment.
+ * - For same-day check-in: Only shows vacant rooms (physically ready)
+ * - For future check-in: Shows all rooms without date conflicts (includes occupied/dirty)
+ */
+function useAvailableRoomsByType(
+  roomTypeId: string | null,
+  propertyId: string | null,
+  checkInDate: Date | null,
+  checkOutDate: Date | null
+) {
+  const isToday = checkInDate ? isSameDay(checkInDate, new Date()) : true;
+
   return useQuery({
-    queryKey: ["vacant-rooms", propertyId, roomTypeId],
+    queryKey: ["available-rooms-assignment", propertyId, roomTypeId, checkInDate?.toISOString(), checkOutDate?.toISOString()],
     queryFn: async (): Promise<AvailableRoom[]> => {
       if (!propertyId || !roomTypeId) return [];
 
-      const { data, error } = await supabase
+      // Build base query for all active rooms of this type
+      let query = supabase
         .from("rooms")
         .select("id, room_number, floor, status")
         .eq("property_id", propertyId)
         .eq("room_type_id", roomTypeId)
         .eq("is_active", true)
-        .eq("status", "vacant")
         .order("room_number");
 
-      if (error) throw error;
-      return data || [];
+      // For same-day check-in, only show vacant rooms (must be physically ready)
+      if (isToday) {
+        query = query.eq("status", "vacant");
+      }
+
+      const { data: rooms, error: roomsError } = await query;
+      if (roomsError) throw roomsError;
+
+      // For future dates, also filter by reservation conflicts
+      if (!isToday && checkInDate && checkOutDate) {
+        const checkInStr = checkInDate.toISOString().split("T")[0];
+        const checkOutStr = checkOutDate.toISOString().split("T")[0];
+
+        // Get rooms with conflicting reservations
+        const { data: bookedRooms, error: bookedError } = await supabase
+          .from("reservation_rooms")
+          .select(`
+            room_id,
+            reservation:reservations!inner(
+              check_in_date,
+              check_out_date,
+              status
+            )
+          `)
+          .not("room_id", "is", null)
+          .in("reservation.status", ["confirmed", "checked_in"]);
+
+        if (bookedError) throw bookedError;
+
+        const bookedRoomIds = new Set(
+          bookedRooms
+            ?.filter((br) => {
+              const res = br.reservation as any;
+              // Check for date overlap
+              return res.check_in_date < checkOutStr && res.check_out_date > checkInStr;
+            })
+            .map((br) => br.room_id)
+        );
+
+        return rooms?.filter((room) => !bookedRoomIds.has(room.id)) || [];
+      }
+
+      return rooms || [];
     },
     enabled: !!propertyId && !!roomTypeId,
   });
@@ -78,6 +134,8 @@ interface RoomSelectorProps {
   selectedRoomId: string | null;
   onSelectRoom: (roomId: string) => void;
   usedRoomIds: Set<string>;
+  checkInDate: Date;
+  checkOutDate: Date;
 }
 
 function RoomSelector({
@@ -86,10 +144,15 @@ function RoomSelector({
   selectedRoomId,
   onSelectRoom,
   usedRoomIds,
+  checkInDate,
+  checkOutDate,
 }: RoomSelectorProps) {
-  const { data: availableRooms, isLoading } = useVacantRoomsByType(
+  const isToday = isSameDay(checkInDate, new Date());
+  const { data: availableRooms, isLoading } = useAvailableRoomsByType(
     reservationRoom.room_type?.id ?? null,
-    propertyId
+    propertyId,
+    checkInDate,
+    checkOutDate
   );
 
   // Filter out rooms already selected for other reservation_rooms
@@ -123,7 +186,7 @@ function RoomSelector({
       ) : (
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">
-            Select Room {filteredRooms?.length === 0 && "(No vacant rooms available)"}
+            Select Room {filteredRooms?.length === 0 && (isToday ? "(No vacant rooms available)" : "(No rooms available for these dates)")}
           </Label>
           <Select
             value={selectedRoomId || ""}
@@ -147,6 +210,13 @@ function RoomSelector({
                       <span className="text-xs text-muted-foreground">
                         Floor {room.floor}
                       </span>
+                    )}
+                    {/* Show status badge for non-vacant rooms (future bookings) */}
+                    {room.status !== "vacant" && (
+                      <RoomStatusBadge 
+                        status={room.status as RoomStatus} 
+                        size="sm" 
+                      />
                     )}
                   </div>
                 </SelectItem>
@@ -240,6 +310,8 @@ export function RoomAssignmentDialog({
               selectedRoomId={assignments.get(rr.id) || null}
               onSelectRoom={(roomId) => handleSelectRoom(rr.id, roomId)}
               usedRoomIds={usedRoomIds}
+              checkInDate={new Date(reservation.check_in_date)}
+              checkOutDate={new Date(reservation.check_out_date)}
             />
           ))}
         </div>

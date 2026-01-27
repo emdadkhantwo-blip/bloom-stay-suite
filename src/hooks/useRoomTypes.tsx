@@ -129,23 +129,31 @@ export function useDeleteRoomType() {
   });
 }
 
+export interface AvailableRoom {
+  id: string;
+  room_number: string;
+  floor: string | null;
+  status: string;
+}
+
 export function useAvailableRooms(roomTypeId: string | null, checkIn: Date | null, checkOut: Date | null) {
   const { currentProperty } = useTenant();
   const propertyId = currentProperty?.id;
 
   return useQuery({
     queryKey: ["available-rooms", propertyId, roomTypeId, checkIn?.toISOString(), checkOut?.toISOString()],
-    queryFn: async () => {
+    queryFn: async (): Promise<AvailableRoom[]> => {
       if (!propertyId || !roomTypeId || !checkIn || !checkOut) return [];
 
-      // Get all rooms of this type
+      // Get ALL active rooms of this type (regardless of current status)
+      // This allows booking occupied rooms for future dates
       const { data: rooms, error: roomsError } = await supabase
         .from("rooms")
         .select("id, room_number, floor, status")
         .eq("property_id", propertyId)
         .eq("room_type_id", roomTypeId)
         .eq("is_active", true)
-        .in("status", ["vacant", "dirty"]);
+        .order("room_number");
 
       if (roomsError) throw roomsError;
 
@@ -173,12 +181,13 @@ export function useAvailableRooms(roomTypeId: string | null, checkIn: Date | nul
         bookedRooms
           ?.filter((br) => {
             const res = br.reservation as any;
-            // Check for date overlap
+            // Check for date overlap: room is booked if reservation overlaps with requested dates
             return res.check_in_date < checkOutStr && res.check_out_date > checkInStr;
           })
           .map((br) => br.room_id)
       );
 
+      // Return available rooms with their current status for display
       return rooms?.filter((room) => !bookedRoomIds.has(room.id)) || [];
     },
     enabled: !!propertyId && !!roomTypeId && !!checkIn && !!checkOut,
