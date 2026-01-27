@@ -31,6 +31,7 @@ import CorporateAccounts from "./pages/CorporateAccounts";
 import References from "./pages/References";
 import AdminTenants from "./pages/admin/Tenants";
 import AdminApplications from "./pages/admin/Applications";
+import AdminSecurity from "./pages/admin/Security";
 import Profile from "./pages/Profile";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
@@ -365,6 +366,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={[]} route="/admin/applications">
           <DashboardLayout title="Applications">
             <AdminApplications />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/admin/security"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/admin/security">
+          <DashboardLayout title="Security Dashboard">
+            <AdminSecurity />
           </DashboardLayout>
         </RoleProtectedRoute>
       }
