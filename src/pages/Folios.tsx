@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFolios, useFolioStats } from "@/hooks/useFolios";
+import { useFolioNotifications } from "@/hooks/useFolioNotifications";
 import { FolioStatsBar } from "@/components/folios/FolioStatsBar";
 import { FolioCard } from "@/components/folios/FolioCard";
 import { FolioDetailDrawer } from "@/components/folios/FolioDetailDrawer";
@@ -11,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Folio } from "@/hooks/useFolios";
 
 export default function Folios() {
+  // Enable real-time notifications for folios and payments
+  useFolioNotifications();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"open" | "closed">("open");
   const [selectedFolio, setSelectedFolio] = useState<Folio | null>(null);
