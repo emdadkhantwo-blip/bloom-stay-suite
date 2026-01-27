@@ -122,26 +122,19 @@ export default function FrontDesk() {
 
   return (
     <div className="space-y-6">
-      {/* Header with time - Enhanced */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-6 text-white shadow-xl">
-        {/* Decorative background elements */}
-        <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/10 blur-xl" />
-        <div className="absolute top-1/2 right-1/4 h-24 w-24 rounded-full bg-white/5 blur-lg" />
-        
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Front Desk</h1>
-            <p className="text-white/80 text-sm">
-              {currentProperty?.name} — {format(currentTime, "EEEE, MMMM d, yyyy")}
-            </p>
-          </div>
-          <div className="flex items-center gap-3 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
-            <Clock className="h-5 w-5 text-white/90" />
-            <span className="text-2xl font-bold tabular-nums tracking-wide">
-              {format(currentTime, "HH:mm")}
-            </span>
-          </div>
+      {/* Header with time */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Front Desk</h1>
+          <p className="text-sm text-muted-foreground">
+            {currentProperty?.name} — {format(currentTime, "EEEE, MMMM d, yyyy")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span className="text-lg font-medium tabular-nums">
+            {format(currentTime, "HH:mm")}
+          </span>
         </div>
       </div>
 
