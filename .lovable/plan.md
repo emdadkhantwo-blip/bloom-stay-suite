@@ -1,203 +1,129 @@
 
-# Fix: Prevent Check-In Without Room Assignment
+# Replace Dollar Sign ($) with Taka Symbol (৳) Throughout the Codebase
 
-## Problem Identified
+## Overview
 
-There are multiple code paths where a guest can be checked in without being assigned to a physical room:
+The project has been migrating from USD ($) to Bangladeshi Taka (BDT/৳) as the primary currency. While most places have been updated, there are still several files containing the `$` dollar sign that need to be replaced with `৳`.
 
-1. **Calendar View Check-In Bypass**: In `src/pages/Calendar.tsx`, the `handleCheckIn` function (lines 93-105) filters existing room assignments and passes them directly. If no rooms were pre-assigned during reservation creation, it sends an empty array, and the check-in succeeds without any room.
-
-2. **Hook Allows Empty Assignments**: In `src/hooks/useReservations.tsx`, the `useCheckIn` mutation (lines 151-188) treats `roomAssignments` as optional. If empty or undefined, the status changes to `checked_in` without any room being assigned.
-
-3. **ReservationDetailDrawer Direct Check-In**: The drawer's "Check In" button (line 590) directly calls `onCheckIn` without ensuring rooms are assigned first.
+This plan identifies all remaining instances and outlines the changes needed.
 
 ---
 
-## Solution Overview
+## Files Requiring Changes
 
-Enforce room assignment requirement at multiple levels:
+### 1. Guest Analytics Tab
+**File:** `src/components/guests/GuestAnalyticsTab.tsx`
 
-1. **Hook-Level Validation**: Add explicit validation in `useCheckIn` to throw an error if no room assignments are provided
-2. **Calendar Check-In Flow**: Route Calendar check-ins through the `RoomAssignmentDialog` like Front Desk does
-3. **ReservationDetailDrawer**: Show warning if trying to check in without rooms assigned
-4. **UI Feedback**: Disable check-in button or show clear message when rooms are not assigned
+**Changes:**
+- Line 5: Remove unused `DollarSign` import from lucide-react
+- Line 82: Change `${analytics.averageSpendPerStay.toFixed(0)}` to `৳${analytics.averageSpendPerStay.toFixed(0)}`
+- Line 197: Change `$${month.revenue.toLocaleString()}` to `৳${month.revenue.toLocaleString()}`
+- Line 200: Change `$${month.revenue.toLocaleString()}` to `৳${month.revenue.toLocaleString()}`
 
----
+### 2. Guest History Tab
+**File:** `src/components/guests/GuestHistoryTab.tsx`
 
-## Files to Modify
+**Changes:**
+- Line 2: Remove unused `DollarSign` import from lucide-react
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useReservations.tsx` | Add validation requiring room assignments for check-in |
-| `src/pages/Calendar.tsx` | Add RoomAssignmentDialog flow for check-in |
-| `src/components/reservations/ReservationDetailDrawer.tsx` | Add room assignment check before check-in |
+### 3. References Page
+**File:** `src/pages/References.tsx`
 
----
+**Changes:**
+- Line 2: Remove unused `DollarSign` import from lucide-react
 
-## Technical Implementation
+### 4. Reports - Room Type Performance Chart
+**File:** `src/components/reports/RoomTypePerformanceChart.tsx`
 
-### 1. useCheckIn Hook - Add Validation
+**Changes:**
+- Line 45: Change `$${value.toLocaleString()}` to `৳${value.toLocaleString()}`
+- Line 63: Change `$${value.toLocaleString()}` to `৳${value.toLocaleString()}`
+- Line 88: Change `${rt.revenue.toLocaleString()}` to `৳${rt.revenue.toLocaleString()}`
+- Line 89: Change `${rt.adr}` to `৳${rt.adr}`
 
-In `src/hooks/useReservations.tsx`, add a validation check at the start of the mutation function:
+### 5. Reports - Booking Source Chart
+**File:** `src/components/reports/BookingSourceChart.tsx`
 
-```typescript
-mutationFn: async ({ reservationId, roomAssignments }: { 
-  reservationId: string; 
-  roomAssignments?: Array<{ reservationRoomId: string; roomId: string }>;
-}) => {
-  // NEW: Validate that room assignments are provided
-  if (!roomAssignments || roomAssignments.length === 0) {
-    throw new Error("Cannot check in without assigning a room. Please assign rooms first.");
-  }
-  
-  // ... rest of the function
-}
-```
+**Changes:**
+- Line 97: Change `$${source.revenue.toLocaleString()}` to `৳${source.revenue.toLocaleString()}`
+- Line 106: Change `$${totalRevenue.toLocaleString()}` to `৳${totalRevenue.toLocaleString()}`
 
-Update `onError` to show the validation message:
+### 6. POS - Transfer Items Dialog
+**File:** `src/components/pos/TransferItemsDialog.tsx`
 
-```typescript
-onError: (error) => {
-  console.error("Check-in error:", error);
-  toast.error(error instanceof Error ? error.message : "Failed to check in guest");
-},
-```
+**Changes:**
+- Line 146: Change `$${Number(item.total_price).toFixed(2)}` to `৳${Number(item.total_price).toFixed(2)}`
+- Line 157: Change `$${selectedTotal.toFixed(2)}` to `৳${selectedTotal.toFixed(2)}`
+- Line 196: Change `$${Number(order.total_amount).toFixed(2)}` to `৳${Number(order.total_amount).toFixed(2)}`
+- Line 221: Change `$${Number(destinationOrder.total_amount).toFixed(2)}` to `৳${Number(destinationOrder.total_amount).toFixed(2)}`
+- Line 227: Change `$${(Number(destinationOrder.total_amount) + selectedTotal).toFixed(2)}` to `৳${(Number(destinationOrder.total_amount) + selectedTotal).toFixed(2)}`
 
-### 2. Calendar Page - Add Room Assignment Dialog
+### 7. Folios - Add Charge Dialog
+**File:** `src/components/folios/AddChargeDialog.tsx`
 
-In `src/pages/Calendar.tsx`, add state and dialog similar to Front Desk:
+**Changes:**
+- Line 118: Change `$${total.toFixed(2)}` to `৳${total.toFixed(2)}`
 
-```typescript
-// Add state
-const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
-const [pendingCheckIn, setPendingCheckIn] = useState<Reservation | null>(null);
+### 8. Folios - Record Payment Dialog
+**File:** `src/components/folios/RecordPaymentDialog.tsx`
 
-// Modify handleCheckIn to open dialog instead of directly checking in
-const handleCheckIn = () => {
-  if (selectedReservation) {
-    // Check if all rooms are already assigned
-    const allRoomsAssigned = selectedReservation.reservation_rooms.every(rr => rr.room_id);
-    
-    if (allRoomsAssigned) {
-      // Proceed directly if all rooms already have assignments
-      checkIn.mutate({ 
-        reservationId: selectedReservation.id,
-        roomAssignments: selectedReservation.reservation_rooms.map(rr => ({
-          reservationRoomId: rr.id,
-          roomId: rr.room_id!
-        }))
-      });
-      setDrawerOpen(false);
-    } else {
-      // Open room assignment dialog
-      setPendingCheckIn(selectedReservation);
-      setRoomAssignmentOpen(true);
-      setDrawerOpen(false);
-    }
-  }
-};
+**Changes:**
+- Line 70: Change `$${balance.toFixed(2)}` to `৳${balance.toFixed(2)}`
+- Line 91: Change `Amount ($)` label to `Amount (৳)`
+- Line 136: Change `Record $${parseFloat(amount || "0").toFixed(2)}` to `Record ৳${parseFloat(amount || "0").toFixed(2)}`
 
-// Add confirm handler
-const confirmCheckIn = (assignments: Array<{ reservationRoomId: string; roomId: string }>) => {
-  if (pendingCheckIn) {
-    checkIn.mutate(
-      { reservationId: pendingCheckIn.id, roomAssignments: assignments },
-      {
-        onSuccess: () => {
-          setRoomAssignmentOpen(false);
-          setPendingCheckIn(null);
-        },
-      }
-    );
-  }
-};
-```
+### 9. Night Audit Hook
+**File:** `src/hooks/useNightAudit.tsx`
 
-Add the `RoomAssignmentDialog` component to the JSX:
+**Changes:**
+- Line 779: Change `$${data.totalRevenue.toFixed(2)}` to `৳${data.totalRevenue.toFixed(2)}`
 
-```tsx
-<RoomAssignmentDialog
-  reservation={pendingCheckIn}
-  open={roomAssignmentOpen}
-  onOpenChange={(open) => {
-    setRoomAssignmentOpen(open);
-    if (!open) setPendingCheckIn(null);
-  }}
-  onConfirm={confirmCheckIn}
-  isLoading={checkIn.isPending}
-/>
-```
+### 10. Landing Page - Hero Section
+**File:** `src/components/landing/HeroSection.tsx`
 
-### 3. ReservationDetailDrawer - Visual Guidance
+**Changes:**
+- Line 151: Change `$12.4K` to `৳12.4K` (demo/sample data display)
 
-Add a visual indicator when rooms are not assigned and check-in is attempted. In `src/components/reservations/ReservationDetailDrawer.tsx`:
+### 11. Property Card (Default Currency Fallback)
+**File:** `src/components/properties/PropertyCard.tsx`
 
-```typescript
-// Calculate if any rooms need assignment
-const hasUnassignedRooms = reservation.reservation_rooms.some(rr => !rr.room_id);
-
-// In the Room Assignments card, add emphasis when rooms are missing
-{hasUnassignedRooms && canCheckIn && (
-  <Alert variant="warning" className="mt-2">
-    <AlertCircle className="h-4 w-4" />
-    <AlertDescription>
-      Rooms must be assigned during check-in
-    </AlertDescription>
-  </Alert>
-)}
-```
-
-Update the Check In button to show a more helpful label:
-
-```tsx
-{canCheckIn && onCheckIn && (
-  <Button className="flex-1" onClick={onCheckIn}>
-    {hasUnassignedRooms ? "Check In & Assign Rooms" : "Check In"}
-  </Button>
-)}
-```
+**Changes:**
+- Line 184: Change fallback from `"USD"` to `"BDT"` for `{property.currency || "BDT"}`
 
 ---
 
-## User Experience After Fix
+## Summary Table
 
-### Scenario 1: Check-In from Calendar (No Rooms Assigned)
-1. User clicks reservation on calendar
-2. Opens detail drawer, clicks "Check In & Assign Rooms"
-3. **NEW:** Room Assignment Dialog opens
-4. User selects room for each reservation room
-5. Clicks "Confirm Check-In"
-6. Guest is checked in with room properly assigned
+| File | Changes Count |
+|------|---------------|
+| `src/components/guests/GuestAnalyticsTab.tsx` | 4 |
+| `src/components/guests/GuestHistoryTab.tsx` | 1 (import cleanup) |
+| `src/pages/References.tsx` | 1 (import cleanup) |
+| `src/components/reports/RoomTypePerformanceChart.tsx` | 4 |
+| `src/components/reports/BookingSourceChart.tsx` | 2 |
+| `src/components/pos/TransferItemsDialog.tsx` | 5 |
+| `src/components/folios/AddChargeDialog.tsx` | 1 |
+| `src/components/folios/RecordPaymentDialog.tsx` | 3 |
+| `src/hooks/useNightAudit.tsx` | 1 |
+| `src/components/landing/HeroSection.tsx` | 1 |
+| `src/components/properties/PropertyCard.tsx` | 1 |
 
-### Scenario 2: Check-In from Calendar (Rooms Pre-Assigned)
-1. User clicks reservation with rooms already assigned
-2. Clicks "Check In"
-3. Check-in proceeds immediately (no dialog needed)
-
-### Scenario 3: Attempted Check-In via API with Empty Assignments
-1. If any code path tries to call `useCheckIn` without assignments
-2. **NEW:** Error thrown: "Cannot check in without assigning a room"
-3. Toast shows the error message
-4. Check-in is prevented
+**Total: 11 files, ~24 changes**
 
 ---
 
-## Safety Measures
+## Technical Notes
 
-This solution provides **defense in depth**:
+### What Will NOT Change
+- **Settings Currency List**: The `CURRENCIES` array in `src/components/settings/SystemDefaultsSettings.tsx` intentionally includes USD, EUR, and other currencies as selectable options - these should remain as they are for multi-currency support
+- **Template Literal Syntax**: Uses of `${}` for JavaScript template literals are not currency symbols and will not be changed
+- **Regex Patterns**: Uses of `$` in regular expressions are not currency symbols
 
-1. **UI Layer**: Calendar now routes through RoomAssignmentDialog
-2. **UI Feedback**: Drawer shows "Check In & Assign Rooms" when rooms are missing
-3. **Business Logic Layer**: `useCheckIn` throws if no rooms assigned (catches any bypass)
-4. **Visual Guidance**: Alert in room assignments card warns about missing rooms
+### Currency Utility
+The project already has a `formatCurrency` utility in `src/lib/currency.ts` that correctly uses the `৳` symbol. Some of the updated files could optionally be refactored to use this utility for consistency, but direct symbol replacement is the minimal change approach.
 
 ---
 
-## Summary
+## Result After Implementation
 
-This fix ensures that **no guest can be checked in without a room number** by:
-
-1. Adding validation in the `useCheckIn` hook that throws an error if `roomAssignments` is empty
-2. Updating Calendar page to use `RoomAssignmentDialog` for check-ins (matching Front Desk behavior)
-3. Improving the ReservationDetailDrawer to show clear guidance when rooms need assignment
-4. Providing visual feedback with an updated button label and warning alert
+All currency displays throughout the application will consistently show the Bangladeshi Taka symbol (৳) instead of the US Dollar symbol ($), completing the localization effort for the Bangladesh market.
