@@ -3,12 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Users,
   Clock,
@@ -19,8 +40,11 @@ import {
   Save,
   X,
   RotateCcw,
+  Plus,
+  Trash2,
+  DoorClosed,
 } from "lucide-react";
-import { POSOrder, POSOutlet, useUpdatePOSOrderStatus, useUpdatePOSOutlet } from "@/hooks/usePOS";
+import { POSOrder, POSOutlet, useUpdatePOSOrderStatus, useUpdatePOSOutlet, useCloseTable } from "@/hooks/usePOS";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -118,8 +142,17 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }
   const [tableLayout, setTableLayout] = useState<TablePosition[]>(defaultTableLayout);
   const [draggedTable, setDraggedTable] = useState<string | null>(null);
   
+  // Close table states
+  const [tableToClose, setTableToClose] = useState<TableInfo | null>(null);
+  
+  // Add table states
+  const [showAddTableDialog, setShowAddTableDialog] = useState(false);
+  const [newTableId, setNewTableId] = useState("");
+  const [newTableSeats, setNewTableSeats] = useState(4);
+  
   const updateOrderStatus = useUpdatePOSOrderStatus();
   const updateOutlet = useUpdatePOSOutlet();
+  const closeTable = useCloseTable();
 
   // Load saved layout from outlet settings
   useEffect(() => {
@@ -274,6 +307,90 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }
     setIsEditMode(false);
   };
 
+  // Handle close table action
+  const handleCloseTable = async () => {
+    if (!tableToClose) return;
+    
+    try {
+      await closeTable.mutateAsync({
+        tableNumber: tableToClose.tableNumber,
+        outletId,
+      });
+      setTableToClose(null);
+      setSelectedTable(null);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  // Handle add table
+  const handleAddTable = () => {
+    const trimmedId = newTableId.trim();
+    
+    if (!trimmedId) {
+      toast.error("Please enter a table ID");
+      return;
+    }
+    
+    // Validate unique ID
+    if (tableLayout.some(t => t.id.toLowerCase() === trimmedId.toLowerCase())) {
+      toast.error("Table ID already exists");
+      return;
+    }
+    
+    // Find first empty grid position
+    const occupiedPositions = new Set(
+      tableLayout.map(t => `${t.x},${t.y}`)
+    );
+    
+    let newX = 0, newY = 0;
+    let found = false;
+    
+    // Check existing grid first
+    outer: for (let y = 0; y <= 2; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        if (!occupiedPositions.has(`${x},${y}`)) {
+          newX = x;
+          newY = y;
+          found = true;
+          break outer;
+        }
+      }
+    }
+    
+    // If no space found, add to a new row
+    if (!found) {
+      newX = 0;
+      newY = Math.max(...tableLayout.map(t => t.y)) + 1;
+    }
+    
+    // Add to layout
+    setTableLayout(prev => [...prev, {
+      id: trimmedId,
+      name: trimmedId,
+      seats: newTableSeats,
+      x: newX,
+      y: newY,
+    }]);
+    
+    setShowAddTableDialog(false);
+    setNewTableId("");
+    setNewTableSeats(4);
+    toast.success(`Table ${trimmedId} added`);
+  };
+
+  // Handle delete table in edit mode
+  const handleDeleteTable = (tableId: string) => {
+    // Check if table has active orders
+    const hasOrders = tableOrders[tableId]?.length > 0;
+    if (hasOrders) {
+      toast.error("Cannot delete table with active orders");
+      return;
+    }
+    
+    setTableLayout(prev => prev.filter(t => t.id !== tableId));
+  };
+
   const stats = [
     {
       label: "Occupied Tables",
@@ -357,6 +474,15 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => setShowAddTableDialog(true)}
+                    className="gap-1 border-primary text-primary hover:bg-primary/10"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Table
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleResetLayout}
                     className="gap-1"
                   >
@@ -432,8 +558,9 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }
               const isOccupied = !!tableInfo;
 
               if (isEditMode) {
+                const hasOrders = tableOrders[table.id]?.length > 0;
                 return (
-                  <motion.button
+                  <motion.div
                     key={table.id}
                     drag
                     dragMomentum={false}
@@ -453,13 +580,30 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }
                     }}
                   >
                     <Move className="absolute top-2 right-2 h-4 w-4 text-primary/50" />
+                    {!hasOrders && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTable(table.id);
+                        }}
+                        className="absolute top-2 left-2 p-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors"
+                        title="Delete table"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                     <span className="text-2xl font-bold text-primary">
                       {table.id}
                     </span>
                     <span className="mt-2 text-sm text-muted-foreground">
                       {table.seats} seats
                     </span>
-                  </motion.button>
+                    {hasOrders && (
+                      <Badge variant="secondary" className="mt-1 text-xs bg-amber-100 text-amber-700">
+                        In use
+                      </Badge>
+                    )}
+                  </motion.div>
                 );
               }
 
@@ -653,7 +797,110 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }
                 })}
               </div>
             </ScrollArea>
+            
+            {/* Close Table Action */}
+            <div className="border-t pt-4 mt-4">
+              <Button
+                className="w-full gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white hover:from-rose-600 hover:to-red-700"
+                onClick={() => selectedTable && setTableToClose(selectedTable)}
+                disabled={closeTable.isPending}
+              >
+                <DoorClosed className="h-4 w-4" />
+                Close Table
+              </Button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Table Confirmation Dialog */}
+      <AlertDialog open={!!tableToClose} onOpenChange={() => setTableToClose(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <DoorClosed className="h-5 w-5 text-rose-500" />
+              Close Table {tableToClose?.tableNumber}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark all {tableToClose?.orders.length} order{(tableToClose?.orders.length || 0) > 1 ? 's' : ''} as posted. 
+              The table will become available for new guests.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="p-4 bg-muted/50 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total Amount</span>
+              <span className="text-xl font-bold">৳{tableToClose?.totalAmount.toFixed(0)}</span>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCloseTable}
+              className="bg-gradient-to-r from-rose-500 to-red-600 text-white hover:from-rose-600 hover:to-red-700"
+              disabled={closeTable.isPending}
+            >
+              {closeTable.isPending ? "Closing..." : "Close Table"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Table Dialog */}
+      <Dialog open={showAddTableDialog} onOpenChange={setShowAddTableDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Add New Table
+            </DialogTitle>
+            <DialogDescription>
+              Enter the details for the new table. It will be placed in the first available position.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="table-id">Table ID / Name *</Label>
+              <Input
+                id="table-id"
+                placeholder="e.g., T9, VIP1, Patio 1"
+                value={newTableId}
+                onChange={(e) => setNewTableId(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddTable();
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="table-seats">Number of Seats</Label>
+              <Select 
+                value={newTableSeats.toString()} 
+                onValueChange={(v) => setNewTableSeats(parseInt(v))}
+              >
+                <SelectTrigger id="table-seats">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2">2 seats</SelectItem>
+                  <SelectItem value="4">4 seats</SelectItem>
+                  <SelectItem value="6">6 seats</SelectItem>
+                  <SelectItem value="8">8 seats</SelectItem>
+                  <SelectItem value="10">10 seats</SelectItem>
+                  <SelectItem value="12">12 seats</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddTableDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddTable} className="gap-1">
+              <Plus className="h-4 w-4" />
+              Add Table
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

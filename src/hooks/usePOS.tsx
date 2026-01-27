@@ -788,3 +788,42 @@ export function useActiveFolios() {
     enabled: !!currentProperty?.id,
   });
 }
+
+// ============= CLOSE TABLE =============
+
+export function useCloseTable() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      tableNumber,
+      outletId,
+    }: {
+      tableNumber: string;
+      outletId: string;
+    }) => {
+      // Update all active orders for this table to "posted"
+      const { error } = await supabase
+        .from("pos_orders")
+        .update({
+          status: "posted" as POSOrderStatus,
+          posted_at: new Date().toISOString(),
+          posted_by: user?.id,
+        })
+        .eq("table_number", tableNumber)
+        .eq("outlet_id", outletId)
+        .not("status", "in", '("posted","cancelled")');
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["kitchen-orders"] });
+      toast.success("Table closed successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to close table: ${error.message}`);
+    },
+  });
+}
