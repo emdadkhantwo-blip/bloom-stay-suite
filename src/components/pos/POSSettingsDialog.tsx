@@ -15,13 +15,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import {
   POSOutlet,
+  POSCategory,
   useUpdatePOSOutlet,
   usePOSCategories,
   usePOSItems,
   useCreatePOSCategory,
+  useDeletePOSCategory,
+  useUpdatePOSCategoryOrder,
   useCreatePOSItem,
   useUpdatePOSItem,
 } from "@/hooks/usePOS";
@@ -50,6 +53,8 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
 
   const updateOutlet = useUpdatePOSOutlet();
   const createCategory = useCreatePOSCategory();
+  const deleteCategory = useDeletePOSCategory();
+  const updateCategoryOrder = useUpdatePOSCategoryOrder();
   const createItem = useCreatePOSItem();
   const updateItem = useUpdatePOSItem();
 
@@ -74,6 +79,31 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
       { outlet_id: outlet.id, name: newCategoryName, sort_order: categories.length },
       { onSuccess: () => setNewCategoryName("") }
     );
+  };
+
+  const handleDeleteCategory = (categoryId: string) => {
+    deleteCategory.mutate(categoryId);
+  };
+
+  const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
+    if (
+      (direction === 'up' && index === 0) ||
+      (direction === 'down' && index === categories.length - 1)
+    ) {
+      return;
+    }
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const newCategories = [...categories];
+    const [moved] = newCategories.splice(index, 1);
+    newCategories.splice(newIndex, 0, moved);
+
+    const updates = newCategories.map((cat, idx) => ({
+      id: cat.id,
+      sort_order: idx,
+    }));
+
+    updateCategoryOrder.mutate(updates);
   };
 
   const handleAddItem = () => {
@@ -162,7 +192,7 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
             </div>
             <ScrollArea className="h-[300px]">
               <div className="space-y-2">
-                {categories.map((category) => (
+                {categories.map((category, index) => (
                   <Card key={category.id}>
                     <CardContent className="flex items-center gap-3 p-3">
                       <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -170,6 +200,35 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
                       <span className="text-sm text-muted-foreground">
                         {items.filter((i) => i.category_id === category.id).length} items
                       </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleMoveCategory(index, 'up')}
+                          disabled={index === 0 || updateCategoryOrder.isPending}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleMoveCategory(index, 'down')}
+                          disabled={index === categories.length - 1 || updateCategoryOrder.isPending}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteCategory(category.id)}
+                          disabled={deleteCategory.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
