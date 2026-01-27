@@ -11,6 +11,8 @@ import {
   Users,
   UserPlus,
   UserMinus,
+  Receipt,
+  DollarSign,
 } from "lucide-react";
 import {
   Sheet,
@@ -48,12 +50,14 @@ interface CorporateAccountDetailDrawerProps {
   account: CorporateAccount | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRecordPayment?: (account: CorporateAccount) => void;
 }
 
 export function CorporateAccountDetailDrawer({
   account,
   open,
   onOpenChange,
+  onRecordPayment,
 }: CorporateAccountDetailDrawerProps) {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [unlinkGuestId, setUnlinkGuestId] = useState<string | null>(null);
@@ -139,11 +143,24 @@ export function CorporateAccountDetailDrawer({
               </Card>
               <Card>
                 <CardContent className="p-3 text-center">
-                  <p className="text-xl font-bold">{guests.length}</p>
-                  <p className="text-xs text-muted-foreground">Guests</p>
+                  <p className="text-xl font-bold text-amber-600">
+                    ৳{account.current_balance.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Outstanding</p>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Record Payment Button */}
+            {onRecordPayment && account.current_balance > 0 && (
+              <Button
+                onClick={() => onRecordPayment(account)}
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white border-none"
+              >
+                <Receipt className="h-4 w-4 mr-2" />
+                Record Bulk Payment
+              </Button>
+            )}
           </SheetHeader>
 
           <Separator className="my-4" />

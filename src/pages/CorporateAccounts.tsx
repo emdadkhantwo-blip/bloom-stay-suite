@@ -9,6 +9,8 @@ import {
   Percent,
   Eye,
   CheckCircle,
+  Receipt,
+  DollarSign,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -44,12 +46,15 @@ import {
 } from "@/hooks/useCorporateAccounts";
 import { CreateCorporateAccountDialog } from "@/components/corporate/CreateCorporateAccountDialog";
 import { CorporateAccountDetailDrawer } from "@/components/corporate/CorporateAccountDetailDrawer";
+import { BulkCorporatePaymentDialog } from "@/components/corporate/BulkCorporatePaymentDialog";
 
 export default function CorporateAccounts() {
   const [search, setSearch] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<CorporateAccount | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentAccount, setPaymentAccount] = useState<CorporateAccount | null>(null);
 
   const { data: accounts = [], isLoading } = useCorporateAccounts();
   const deleteAccount = useDeleteCorporateAccount();
@@ -72,6 +77,11 @@ export default function CorporateAccounts() {
     setDrawerOpen(true);
   };
 
+  const handleRecordPayment = (account: CorporateAccount) => {
+    setPaymentAccount(account);
+    setPaymentDialogOpen(true);
+  };
+
   const handleDelete = (account: CorporateAccount) => {
     if (
       confirm(
@@ -81,6 +91,11 @@ export default function CorporateAccounts() {
       deleteAccount.mutate(account.id);
     }
   };
+
+  const totalOutstandingBalance = accounts.reduce(
+    (acc, a) => acc + (a.current_balance || 0),
+    0
+  );
 
   const statItems = [
     {
@@ -94,6 +109,12 @@ export default function CorporateAccounts() {
       value: activeAccounts,
       icon: CheckCircle,
       gradient: "from-emerald-500 to-teal-600",
+    },
+    {
+      label: "Outstanding Balance",
+      value: `৳${totalOutstandingBalance.toLocaleString()}`,
+      icon: DollarSign,
+      gradient: "from-amber-500 to-orange-600",
     },
     {
       label: "Linked Guests",
@@ -129,13 +150,13 @@ export default function CorporateAccounts() {
 
       {/* Stats Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           {statItems.map((item) => (
             <Card 
               key={item.label}
@@ -299,6 +320,12 @@ export default function CorporateAccounts() {
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleRecordPayment(account)}
+                            >
+                              <Receipt className="mr-2 h-4 w-4" />
+                              Record Payment
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleDelete(account)}
@@ -330,6 +357,14 @@ export default function CorporateAccounts() {
         account={selectedAccount}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
+        onRecordPayment={handleRecordPayment}
+      />
+
+      {/* Bulk Payment Dialog */}
+      <BulkCorporatePaymentDialog
+        account={paymentAccount}
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
       />
     </div>
   );
