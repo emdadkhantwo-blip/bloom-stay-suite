@@ -100,8 +100,8 @@ export function AddChargeDialog({ folioId, open, onOpenChange }: AddChargeDialog
               />
             </div>
             <div className="space-y-2">
-              <Label>Unit Price ($)</Label>
-              <Input
+            <Label>Unit Price (৳)</Label>
+            <Input
                 type="number"
                 min="0"
                 step="0.01"
