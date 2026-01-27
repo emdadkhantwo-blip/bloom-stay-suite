@@ -29,6 +29,7 @@ import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react
 import {
   POSOutlet,
   POSCategory,
+  POSItem,
   useUpdatePOSOutlet,
   usePOSCategories,
   usePOSItems,
@@ -37,6 +38,7 @@ import {
   useUpdatePOSCategoryOrder,
   useCreatePOSItem,
   useUpdatePOSItem,
+  useDeletePOSItem,
 } from "@/hooks/usePOS";
 import { toast } from "sonner";
 
@@ -60,6 +62,7 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
 
   // Delete confirmation state
   const [categoryToDelete, setCategoryToDelete] = useState<POSCategory | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<POSItem | null>(null);
 
   const { data: categories = [] } = usePOSCategories(outlet?.id);
   const { data: items = [] } = usePOSItems(outlet?.id);
@@ -70,6 +73,7 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
   const updateCategoryOrder = useUpdatePOSCategoryOrder();
   const createItem = useCreatePOSItem();
   const updateItem = useUpdatePOSItem();
+  const deleteItem = useDeletePOSItem();
 
   useEffect(() => {
     if (outlet) {
@@ -98,6 +102,13 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
     if (!categoryToDelete) return;
     deleteCategory.mutate(categoryToDelete.id, {
       onSuccess: () => setCategoryToDelete(null),
+    });
+  };
+
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+    deleteItem.mutate(itemToDelete.id, {
+      onSuccess: () => setItemToDelete(null),
     });
   };
 
@@ -344,6 +355,15 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
                             handleToggleItemAvailability(item.id, checked)
                           }
                         />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setItemToDelete(item)}
+                          disabled={deleteItem.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -387,6 +407,27 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteCategory.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Item Confirmation Dialog */}
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{itemToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteItem.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
