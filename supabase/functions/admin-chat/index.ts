@@ -3225,7 +3225,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, tenantId, propertyId } = await req.json();
+    const { messages, tenantId: clientTenantId, propertyId: clientPropertyId } = await req.json();
     
     if (!messages || !Array.isArray(messages)) {
       throw new Error("Messages array is required");
@@ -3249,6 +3249,50 @@ serve(async (req) => {
       const { data: { user } } = await supabase.auth.getUser(token);
       userId = user?.id || '';
     }
+
+    // Server-side validation: Get user's tenant from their profile
+    let validatedTenantId = clientTenantId;
+    let validatedPropertyId = clientPropertyId;
+    
+    if (userId) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', userId)
+        .single();
+      
+      if (profileError || !profile?.tenant_id) {
+        console.error('User profile not found or has no tenant:', profileError);
+        throw new Error('User does not belong to a tenant');
+      }
+      
+      // Use the tenant from the user's profile, not from client
+      validatedTenantId = profile.tenant_id;
+      
+      // Validate that the property belongs to this tenant
+      if (clientPropertyId) {
+        const { data: property, error: propError } = await supabase
+          .from('properties')
+          .select('id, tenant_id')
+          .eq('id', clientPropertyId)
+          .single();
+        
+        if (propError || !property) {
+          console.error('Property not found:', clientPropertyId);
+          throw new Error('Invalid property ID');
+        }
+        
+        if (property.tenant_id !== validatedTenantId) {
+          console.error(`Security: Cross-tenant access attempt. User tenant: ${validatedTenantId}, Property tenant: ${property.tenant_id}`);
+          throw new Error('Property does not belong to your organization');
+        }
+        
+        validatedPropertyId = property.id;
+      }
+    }
+    
+    const tenantId = validatedTenantId;
+    const propertyId = validatedPropertyId;
 
     const hotelContext = await getHotelContext(supabase, tenantId);
     const fullSystemPrompt = baseSystemPrompt + hotelContext;
