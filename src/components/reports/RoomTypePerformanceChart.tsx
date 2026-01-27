@@ -42,7 +42,7 @@ export function RoomTypePerformanceChart({ data, isLoading }: RoomTypePerformanc
               tick={{ fontSize: 12 }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value.toLocaleString()}`}
+              tickFormatter={(value) => `৳${value.toLocaleString()}`}
               className="text-muted-foreground"
             />
             <YAxis
@@ -60,7 +60,7 @@ export function RoomTypePerformanceChart({ data, isLoading }: RoomTypePerformanc
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
               }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
+              formatter={(value: number) => [`৳${value.toLocaleString()}`, "Revenue"]}
             />
             <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
               {sortedData.map((entry, index) => (
@@ -85,8 +85,8 @@ export function RoomTypePerformanceChart({ data, isLoading }: RoomTypePerformanc
             <TableRow key={rt.code}>
               <TableCell className="font-medium">{rt.name}</TableCell>
               <TableCell className="text-right">{rt.nights}</TableCell>
-              <TableCell className="text-right">${rt.revenue.toLocaleString()}</TableCell>
-              <TableCell className="text-right">${rt.adr}</TableCell>
+              <TableCell className="text-right">৳{rt.revenue.toLocaleString()}</TableCell>
+              <TableCell className="text-right">৳{rt.adr}</TableCell>
             </TableRow>
           ))}
         </TableBody>

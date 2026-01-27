@@ -2,7 +2,6 @@ import { format, parseISO } from "date-fns";
 import {
   TrendingUp,
   Calendar,
-  DollarSign,
   Clock,
   Home,
   Globe,
@@ -79,7 +78,7 @@ export function GuestAnalyticsTab({ analytics, isLoading }: GuestAnalyticsTabPro
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Avg. Spend/Stay</p>
-                <p className="text-lg font-bold">${analytics.averageSpendPerStay.toFixed(0)}</p>
+                <p className="text-lg font-bold">৳{analytics.averageSpendPerStay.toFixed(0)}</p>
               </div>
             </div>
           </CardContent>
@@ -194,10 +193,10 @@ export function GuestAnalyticsTab({ analytics, isLoading }: GuestAnalyticsTabPro
                     key={idx}
                     className="flex-1 bg-primary/20 rounded-t hover:bg-primary/40 transition-colors relative group"
                     style={{ height: `${Math.max(height, 2)}%` }}
-                    title={`${month.month}: $${month.revenue.toLocaleString()}`}
+                    title={`${month.month}: ৳${month.revenue.toLocaleString()}`}
                   >
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-popover border rounded px-1 py-0.5 text-[10px] whitespace-nowrap z-10">
-                      ${month.revenue.toLocaleString()}
+                      ৳{month.revenue.toLocaleString()}
                     </div>
                   </div>
                 );

@@ -67,7 +67,7 @@ export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: Re
         <div className="space-y-4 py-4">
           <div className="rounded-lg bg-muted p-3 text-center">
             <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-            <p className="text-2xl font-bold">${balance.toFixed(2)}</p>
+            <p className="text-2xl font-bold">৳{balance.toFixed(2)}</p>
           </div>
 
           <div className="space-y-2">
@@ -88,7 +88,7 @@ export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: Re
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Amount ($)</Label>
+              <Label>Amount (৳)</Label>
               <Button type="button" variant="link" size="sm" onClick={handlePayFull}>
                 Pay Full Balance
               </Button>
@@ -133,7 +133,7 @@ export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: Re
             onClick={handleSubmit}
             disabled={!amount || parseFloat(amount) <= 0 || recordPayment.isPending}
           >
-            {recordPayment.isPending ? "Recording..." : `Record $${parseFloat(amount || "0").toFixed(2)}`}
+            {recordPayment.isPending ? "Recording..." : `Record ৳${parseFloat(amount || "0").toFixed(2)}`}
           </Button>
         </DialogFooter>
       </DialogContent>

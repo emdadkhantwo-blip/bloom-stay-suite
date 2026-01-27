@@ -776,7 +776,7 @@ export function useNightAudit() {
       refetchStats();
       toast({
         title: 'Room Charges Posted',
-        description: `Posted ${data.chargesPosted} room charges totaling $${data.totalRevenue.toFixed(2)}`,
+        description: `Posted ${data.chargesPosted} room charges totaling ৳${data.totalRevenue.toFixed(2)}`,
       });
     },
     onError: (error: Error) => {

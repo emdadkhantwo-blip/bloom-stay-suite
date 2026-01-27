@@ -115,7 +115,7 @@ export function AddChargeDialog({ folioId, open, onOpenChange }: AddChargeDialog
           {total > 0 && (
             <div className="rounded-lg bg-muted p-3 text-center">
               <p className="text-sm text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold">${total.toFixed(2)}</p>
+              <p className="text-2xl font-bold">৳{total.toFixed(2)}</p>
             </div>
           )}
         </div>

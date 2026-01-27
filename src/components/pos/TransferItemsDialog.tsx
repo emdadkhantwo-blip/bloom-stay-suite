@@ -143,7 +143,7 @@ export function TransferItemsDialog({
                           <p className="text-xs text-muted-foreground">Note: {item.notes}</p>
                         )}
                       </div>
-                      <Badge variant="secondary">${Number(item.total_price).toFixed(2)}</Badge>
+                      <Badge variant="secondary">৳{Number(item.total_price).toFixed(2)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -154,7 +154,7 @@ export function TransferItemsDialog({
                   <span className="text-sm text-muted-foreground">
                     {selectedItems.length} item(s) selected
                   </span>
-                  <span className="font-medium">${selectedTotal.toFixed(2)}</span>
+                  <span className="font-medium">৳{selectedTotal.toFixed(2)}</span>
                 </div>
               )}
             </CardContent>
@@ -193,7 +193,7 @@ export function TransferItemsDialog({
                           {order.status}
                         </Badge>
                         <span className="text-muted-foreground">
-                          - ${Number(order.total_amount).toFixed(2)}
+                          - ৳{Number(order.total_amount).toFixed(2)}
                         </span>
                       </div>
                     </SelectItem>
@@ -218,13 +218,13 @@ export function TransferItemsDialog({
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Current total</p>
-                    <p className="font-medium">${Number(destinationOrder.total_amount).toFixed(2)}</p>
+                    <p className="font-medium">৳{Number(destinationOrder.total_amount).toFixed(2)}</p>
                   </div>
                 </div>
                 <div className="pt-2 border-t">
                   <p className="text-sm text-muted-foreground">After transfer:</p>
                   <p className="text-lg font-bold text-primary">
-                    ${(Number(destinationOrder.total_amount) + selectedTotal).toFixed(2)}
+                    ৳{(Number(destinationOrder.total_amount) + selectedTotal).toFixed(2)}
                   </p>
                 </div>
               </CardContent>
