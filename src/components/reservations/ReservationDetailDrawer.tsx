@@ -41,6 +41,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReservationStatusBadge } from "./ReservationStatusBadge";
@@ -174,6 +175,9 @@ export function ReservationDetailDrawer({
   const canExtendStay = reservation.status === "confirmed" || reservation.status === "checked_in";
   const canCancel = reservation.status === "confirmed";
   const canDelete = reservation.status === "confirmed" || reservation.status === "cancelled";
+  
+  // Check if any rooms need assignment
+  const hasUnassignedRooms = reservation.reservation_rooms.some(rr => !rr.room_id);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -325,6 +329,14 @@ export function ReservationDetailDrawer({
                       )}
                     </div>
                   ))}
+                  {hasUnassignedRooms && canCheckIn && (
+                    <Alert className="mt-3 border-amber-500/50 bg-amber-500/10">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-800">
+                        Rooms must be assigned during check-in
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No rooms assigned</p>
@@ -588,7 +600,7 @@ export function ReservationDetailDrawer({
           <div className="flex flex-wrap gap-2 pt-4">
             {canCheckIn && onCheckIn && (
               <Button className="flex-1" onClick={onCheckIn}>
-                Check In
+                {hasUnassignedRooms ? "Check In & Assign Rooms" : "Check In"}
               </Button>
             )}
             {canCheckOut && onCheckOut && (
