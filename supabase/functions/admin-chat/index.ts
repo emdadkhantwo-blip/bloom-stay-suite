@@ -108,8 +108,13 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
     case "toggle_guest_blacklist":
       return `✅ Guest ${data.is_blacklisted ? 'added to blacklist ⛔' : 'removed from blacklist'}`;
     
-    case "create_room":
-      return `✅ Created room **${data.room_number}** (${data.room_types?.name || 'N/A'})`;
+    case "create_room": {
+      let msg = `✅ Created room **${data.room_number}** (${data.room_types?.name || 'N/A'})`;
+      if (result.renamed) {
+        msg += `\n⚠️ ${result.renamed}`;
+      }
+      return msg;
+    }
     
     case "update_room":
       return `✅ Updated room **${data.room_number}**`;
@@ -120,8 +125,13 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
     case "update_room_status":
       return `✅ Updated room status to **${data.status}**`;
     
-    case "create_room_type":
-      return `✅ Created room type **${data.name}** (${data.code})\n- Rate: ৳${data.base_rate}/night\n- Max occupancy: ${data.max_occupancy}`;
+    case "create_room_type": {
+      let msg = `✅ Created room type **${data.name}** (${data.code})\n- Rate: ৳${data.base_rate}/night\n- Max occupancy: ${data.max_occupancy}`;
+      if (result.renamed) {
+        msg += `\n⚠️ ${result.renamed}`;
+      }
+      return msg;
+    }
     
     case "update_room_type":
       return `✅ Updated room type **${data.name}**`;
@@ -1764,7 +1774,7 @@ const tools = [
 ];
 
 // Tool execution handlers
-async function executeTool(toolName: string, args: any, supabase: any, tenantId: string, propertyId: string, userId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+async function executeTool(toolName: string, args: any, supabase: any, tenantId: string, propertyId: string, userId: string): Promise<{ success: boolean; data?: any; error?: string; renamed?: string | null }> {
   try {
     switch (toolName) {
       // ==================== DASHBOARD ====================
@@ -1915,12 +1925,42 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
       }
 
       case "create_room_type": {
+        // Check if code already exists
+        const { data: existingType } = await supabase.from('room_types')
+          .select('code')
+          .eq('property_id', propertyId)
+          .eq('code', args.code.toUpperCase())
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        let finalCode = args.code.toUpperCase();
+        let wasRenamed = false;
+        
+        if (existingType) {
+          // Generate unique code by adding number suffix
+          for (let i = 2; i <= 9; i++) {
+            const candidate = `${args.code.toUpperCase()}${i}`;
+            const { data: check } = await supabase.from('room_types')
+              .select('code')
+              .eq('property_id', propertyId)
+              .eq('code', candidate)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (!check) {
+              finalCode = candidate;
+              wasRenamed = true;
+              break;
+            }
+          }
+        }
+        
         const { data, error } = await supabase.from('room_types')
           .insert({
             tenant_id: tenantId,
             property_id: propertyId,
             name: args.name,
-            code: args.code.toUpperCase(),
+            code: finalCode,
             base_rate: args.base_rate,
             max_occupancy: args.max_occupancy,
             description: args.description || null,
@@ -1930,7 +1970,11 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
           .single();
         
         if (error) throw error;
-        return { success: true, data };
+        return { 
+          success: true, 
+          data,
+          renamed: wasRenamed ? `Code ${args.code.toUpperCase()} already existed, created as ${finalCode}` : null
+        };
       }
 
       case "update_room_type": {
@@ -1987,11 +2031,52 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
       }
 
       case "create_room": {
+        // Check if room number already exists
+        const { data: existingRoom } = await supabase.from('rooms')
+          .select('room_number')
+          .eq('property_id', propertyId)
+          .eq('room_number', args.room_number)
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        let finalRoomNumber = args.room_number;
+        let wasRenamed = false;
+        
+        if (existingRoom) {
+          // Generate a unique room number by appending a suffix
+          // Try: 101A, 101B, 101C, etc.
+          const suffixes = ['A', 'B', 'C', 'D', 'E', 'F'];
+          let found = false;
+          
+          for (const suffix of suffixes) {
+            const candidate = `${args.room_number}${suffix}`;
+            const { data: check } = await supabase.from('rooms')
+              .select('room_number')
+              .eq('property_id', propertyId)
+              .eq('room_number', candidate)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (!check) {
+              finalRoomNumber = candidate;
+              found = true;
+              wasRenamed = true;
+              break;
+            }
+          }
+          
+          if (!found) {
+            // Fallback: add timestamp suffix
+            finalRoomNumber = `${args.room_number}-${Date.now().toString().slice(-4)}`;
+            wasRenamed = true;
+          }
+        }
+        
         const { data, error } = await supabase.from('rooms')
           .insert({
             tenant_id: tenantId,
             property_id: propertyId,
-            room_number: args.room_number,
+            room_number: finalRoomNumber,
             room_type_id: args.room_type_id,
             floor: args.floor || null,
             notes: args.notes || null,
@@ -2001,7 +2086,11 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
           .single();
         
         if (error) throw error;
-        return { success: true, data };
+        return { 
+          success: true, 
+          data,
+          renamed: wasRenamed ? `Room ${args.room_number} already existed, created as ${finalRoomNumber}` : null
+        };
       }
 
       case "update_room": {
