@@ -4,7 +4,9 @@ import { Building2, CheckCircle, CreditCard, AlertTriangle } from "lucide-react"
 import { useFolioByReservationId, useRecordPayment, type PaymentMethod } from "@/hooks/useFolios";
 import { useCorporateAccountById } from "@/hooks/useCorporateAccounts";
 import { useCheckOut, type CheckoutResult } from "@/hooks/useReservations";
+import { useTenant } from "@/hooks/useTenant";
 import { formatCurrency } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +52,9 @@ export function CheckoutDialog({
   onSuccess,
 }: CheckoutDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "corporate">("cash");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  
+  const { currentProperty } = useTenant();
   
   const { data: folio, isLoading: folioLoading } = useFolioByReservationId(
     open ? reservation?.id ?? null : null
@@ -92,13 +97,44 @@ export function CheckoutDialog({
     ? afterPaymentBalance > Number(corporateAccount.credit_limit || 0)
     : false;
 
-  const isProcessing = recordPayment.isPending || checkOutMutation.isPending;
+  const isProcessing = recordPayment.isPending || checkOutMutation.isPending || isSendingEmail;
+
+  // Send corporate billing email
+  const sendCorporateBillingEmail = async (billedAmount: number) => {
+    if (!corporateAccountId || !reservation || !folio) return;
+    
+    try {
+      setIsSendingEmail(true);
+      await supabase.functions.invoke("send-corporate-billing-email", {
+        body: {
+          corporateAccountId,
+          reservationId: reservation.id,
+          guestName,
+          roomNumbers,
+          checkInDate: reservation.check_in_date,
+          checkOutDate: reservation.check_out_date,
+          billedAmount,
+          propertyName: currentProperty?.name || "Hotel",
+          folioNumber: folio.folio_number,
+        },
+      });
+      console.log("Corporate billing email sent successfully");
+    } catch (error) {
+      console.error("Failed to send corporate billing email:", error);
+      // Don't fail checkout if email fails
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   const handleCheckout = async () => {
     try {
+      let corporateBilledAmount = 0;
+      
       // If there's a balance and payment method selected, record payment first
       if (hasBalance && folio) {
         if (paymentMethod === "corporate" && corporateAccountId) {
+          corporateBilledAmount = balance;
           await recordPayment.mutateAsync({
             folioId: folio.id,
             amount: balance,
@@ -117,6 +153,12 @@ export function CheckoutDialog({
 
       // Then complete checkout
       const result: CheckoutResult = await checkOutMutation.mutateAsync(reservation.id);
+      
+      // Send corporate billing email if payment was billed to corporate account
+      if (corporateBilledAmount > 0 && corporateAccountId) {
+        // Fire and forget - don't block checkout
+        sendCorporateBillingEmail(corporateBilledAmount);
+      }
       
       onOpenChange(false);
       if (result.checkoutData) {
