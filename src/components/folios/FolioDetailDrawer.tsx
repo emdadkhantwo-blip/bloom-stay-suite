@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useCloseFolio, useFolioById, useReopenFolio } from "@/hooks/useFolios";
+import { useCloseFolio, useFolioById, useReopenFolio, type Folio as FolioType } from "@/hooks/useFolios";
 import { useTenant } from "@/hooks/useTenant";
 import { AddChargeDialog } from "./AddChargeDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
@@ -392,6 +392,7 @@ export function FolioDetailDrawer({ folio: initialFolio, open, onOpenChange }: F
         balance={Number(displayFolio.balance)}
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
+        guestCorporateAccountId={displayFolio.guest?.corporate_account_id}
       />
       <AddAdjustmentDialog
         folioId={displayFolio.id}

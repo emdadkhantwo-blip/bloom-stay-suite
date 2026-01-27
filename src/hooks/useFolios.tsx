@@ -17,6 +17,7 @@ export type Folio = Tables<"folios"> & {
     last_name: string;
     email: string | null;
     phone: string | null;
+    corporate_account_id: string | null;
   } | null;
   reservation: {
     id: string;
@@ -49,7 +50,7 @@ export function useFolios(status?: "open" | "closed") {
         .from("folios")
         .select(`
           *,
-          guest:guests(id, first_name, last_name, email, phone),
+          guest:guests(id, first_name, last_name, email, phone, corporate_account_id),
           reservation:reservations(id, confirmation_number, check_in_date, check_out_date, status),
           folio_items(*),
           payments(*)
@@ -90,7 +91,7 @@ export function useFolioById(folioId: string | null) {
         .from("folios")
         .select(`
           *,
-          guest:guests(id, first_name, last_name, email, phone),
+          guest:guests(id, first_name, last_name, email, phone, corporate_account_id),
           reservation:reservations(id, confirmation_number, check_in_date, check_out_date, status),
           folio_items(*),
           payments(*)
@@ -261,12 +262,14 @@ export function useRecordPayment() {
       paymentMethod,
       referenceNumber,
       notes,
+      corporateAccountId,
     }: {
       folioId: string;
       amount: number;
       paymentMethod: PaymentMethod;
       referenceNumber?: string;
       notes?: string;
+      corporateAccountId?: string;
     }) => {
       // Insert payment
       const { error: paymentError } = await supabase.from("payments").insert({
@@ -276,6 +279,7 @@ export function useRecordPayment() {
         payment_method: paymentMethod,
         reference_number: referenceNumber || null,
         notes: notes || null,
+        corporate_account_id: corporateAccountId || null,
       });
 
       if (paymentError) throw paymentError;
@@ -302,11 +306,38 @@ export function useRecordPayment() {
         .eq("id", folioId);
 
       if (updateError) throw updateError;
+
+      // If corporate payment, update corporate account balance
+      if (corporateAccountId) {
+        const { data: account, error: accountFetchError } = await supabase
+          .from("corporate_accounts")
+          .select("current_balance")
+          .eq("id", corporateAccountId)
+          .single();
+
+        if (accountFetchError) throw accountFetchError;
+
+        const newCorporateBalance = Number(account.current_balance) + amount;
+
+        const { error: accountUpdateError } = await supabase
+          .from("corporate_accounts")
+          .update({ 
+            current_balance: newCorporateBalance, 
+            updated_at: new Date().toISOString() 
+          })
+          .eq("id", corporateAccountId);
+
+        if (accountUpdateError) throw accountUpdateError;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["folios", currentPropertyId] });
       queryClient.invalidateQueries({ queryKey: ["folio", variables.folioId] });
       queryClient.invalidateQueries({ queryKey: ["folio-stats", currentPropertyId] });
+      if (variables.corporateAccountId) {
+        queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["corporate-account", variables.corporateAccountId] });
+      }
       toast.success("Payment recorded successfully");
     },
     onError: (error) => {

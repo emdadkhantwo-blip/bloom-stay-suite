@@ -169,6 +169,7 @@ export type Database = {
           contact_phone: string | null
           created_at: string | null
           credit_limit: number | null
+          current_balance: number
           discount_percentage: number | null
           id: string
           is_active: boolean | null
@@ -186,6 +187,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           credit_limit?: number | null
+          current_balance?: number
           discount_percentage?: number | null
           id?: string
           is_active?: boolean | null
@@ -203,6 +205,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           credit_limit?: number | null
+          current_balance?: number
           discount_percentage?: number | null
           id?: string
           is_active?: boolean | null
@@ -793,6 +796,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          corporate_account_id: string | null
           created_at: string
           folio_id: string
           id: string
@@ -808,6 +812,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          corporate_account_id?: string | null
           created_at?: string
           folio_id: string
           id?: string
@@ -823,6 +828,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          corporate_account_id?: string | null
           created_at?: string
           folio_id?: string
           id?: string
@@ -837,6 +843,13 @@ export type Database = {
           voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_folio_id_fkey"
             columns: ["folio_id"]

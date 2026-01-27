@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Check, ChevronsUpDown, Plus, Star, User } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Star, User, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { useGuests, type Guest } from "@/hooks/useGuests";
 
 interface GuestSearchSelectProps {
@@ -51,6 +52,9 @@ export function GuestSearchSelect({ value, onSelect, onCreateNew }: GuestSearchS
               </span>
               {selectedGuest.is_vip && (
                 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+              )}
+              {selectedGuest.corporate_account_id && (
+                <Building2 className="h-3 w-3 text-blue-500" />
               )}
             </div>
           ) : (
@@ -94,6 +98,12 @@ export function GuestSearchSelect({ value, onSelect, onCreateNew }: GuestSearchS
                         </span>
                         {guest.is_vip && (
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                        )}
+                        {guest.corporate_account_id && (
+                          <Badge variant="secondary" className="text-xs py-0 px-1">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            Corporate
+                          </Badge>
                         )}
                       </div>
                       {(guest.email || guest.phone) && (

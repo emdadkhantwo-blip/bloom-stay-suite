@@ -14,6 +14,7 @@ export interface CorporateAccount {
   billing_address: string | null;
   discount_percentage: number;
   credit_limit: number;
+  current_balance: number;
   payment_terms: string;
   notes: string | null;
   is_active: boolean;
@@ -268,5 +269,64 @@ export function useLinkGuestToCorporateAccount() {
         description: error.message,
       });
     },
+  });
+}
+
+export function useUpdateCorporateBalance() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      accountId,
+      amount,
+    }: {
+      accountId: string;
+      amount: number;
+    }) => {
+      // Get current balance
+      const { data: account, error: fetchError } = await supabase
+        .from("corporate_accounts")
+        .select("current_balance")
+        .eq("id", accountId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const newBalance = Number(account.current_balance) + amount;
+
+      const { error } = await supabase
+        .from("corporate_accounts")
+        .update({ current_balance: newBalance, updated_at: new Date().toISOString() })
+        .eq("id", accountId);
+
+      if (error) throw error;
+      
+      return newBalance;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
+    },
+  });
+}
+
+export function useCorporateAccountById(accountId: string | null) {
+  const { tenant } = useTenant();
+
+  return useQuery({
+    queryKey: ["corporate-account", accountId],
+    queryFn: async () => {
+      if (!accountId || !tenant) return null;
+
+      const { data, error } = await supabase
+        .from("corporate_accounts")
+        .select("*")
+        .eq("id", accountId)
+        .eq("tenant_id", tenant.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as CorporateAccount | null;
+    },
+    enabled: !!accountId && !!tenant,
   });
 }
