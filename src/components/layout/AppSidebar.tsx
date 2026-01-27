@@ -97,7 +97,6 @@ const hrItems = [
   { title: 'Leave Management', url: '/hr/leave', icon: CalendarDays, color: 'text-vibrant-amber' },
   { title: 'Payroll', url: '/hr/payroll', icon: Wallet, color: 'text-vibrant-green' },
   { title: 'Overtime', url: '/hr/overtime', icon: Timer, color: 'text-vibrant-orange' },
-  { title: 'Task Assignment', url: '/hr/tasks', icon: ListTodo, color: 'text-vibrant-indigo' },
   { title: 'Performance', url: '/hr/performance', icon: Star, color: 'text-vibrant-amber' },
   { title: 'Documents', url: '/hr/documents', icon: FolderOpen, color: 'text-vibrant-cyan' },
   { title: 'Activity Logs', url: '/hr/activity', icon: Activity, color: 'text-vibrant-rose' },
