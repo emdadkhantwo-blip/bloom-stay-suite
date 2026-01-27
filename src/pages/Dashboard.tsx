@@ -4,7 +4,7 @@ import {
   BedDouble,
   Users,
   Calendar,
-  DollarSign,
+  Wallet,
   TrendingUp,
   Clock,
   ArrowUpRight,
@@ -290,7 +290,7 @@ export default function Dashboard() {
               Today's Revenue
             </CardTitle>
             <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
-              <DollarSign className="h-5 w-5 text-white" />
+              <Wallet className="h-5 w-5 text-white" />
             </div>
           </CardHeader>
           <CardContent className="relative">

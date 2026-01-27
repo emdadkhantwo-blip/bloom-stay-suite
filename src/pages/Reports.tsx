@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
-import { Calendar as CalendarIcon, Download, TrendingUp, DollarSign, Bed, Users } from "lucide-react";
+import { Calendar as CalendarIcon, Download, TrendingUp, Wallet, Bed, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -113,7 +113,7 @@ export default function Reports() {
             Occupancy
           </TabsTrigger>
           <TabsTrigger value="revenue" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
+            <Wallet className="h-4 w-4" />
             Revenue
           </TabsTrigger>
           <TabsTrigger value="room-types" className="flex items-center gap-2">
