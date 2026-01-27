@@ -10,9 +10,18 @@ interface CreateStaffRequest {
   password: string;
   fullName: string;
   phone?: string;
+  email?: string;
   roles: string[];
   propertyIds: string[];
   mustChangePassword?: boolean;
+  // New HR fields
+  staffId?: string;
+  departmentId?: string;
+  joinDate?: string;
+  employmentType?: string;
+  salaryAmount?: number;
+  salaryCurrency?: string;
+  notes?: string;
 }
 
 Deno.serve(async (req) => {
@@ -113,7 +122,24 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body: CreateStaffRequest = await req.json();
-    const { username, password, fullName, phone, roles: staffRoles, propertyIds, mustChangePassword = true } = body;
+    const { 
+      username, 
+      password, 
+      fullName, 
+      phone, 
+      email,
+      roles: staffRoles, 
+      propertyIds, 
+      mustChangePassword = true,
+      // New HR fields
+      staffId,
+      departmentId,
+      joinDate,
+      employmentType = "full_time",
+      salaryAmount,
+      salaryCurrency = "BDT",
+      notes,
+    } = body;
 
     // Validate required fields
     if (!username || !password || !fullName || !staffRoles?.length || !propertyIds?.length) {
@@ -197,7 +223,8 @@ Deno.serve(async (req) => {
         username: username,
         full_name: fullName,
         phone: phone || null,
-        email: generatedEmail,
+        email: email || generatedEmail,
+        auth_email: generatedEmail,
         is_active: true,
         must_change_password: mustChangePassword,
       })
@@ -211,6 +238,34 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Failed to create staff profile" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Generate staff_id if not provided
+    let finalStaffId = staffId;
+    if (!finalStaffId) {
+      const year = new Date().getFullYear();
+      const randomNum = Math.floor(Math.random() * 9000) + 1000;
+      finalStaffId = `STF-${year}-${randomNum}`;
+    }
+
+    // Create hr_staff_profiles record
+    const { error: hrProfileError } = await adminClient
+      .from("hr_staff_profiles")
+      .insert({
+        tenant_id: tenantId,
+        profile_id: newUserId,
+        staff_id: finalStaffId,
+        department_id: departmentId || null,
+        join_date: joinDate || new Date().toISOString().split("T")[0],
+        employment_type: employmentType,
+        salary_amount: salaryAmount || 0,
+        salary_currency: salaryCurrency,
+        notes: notes || null,
+      });
+
+    if (hrProfileError) {
+      console.error("HR profile creation error:", hrProfileError);
+      // Don't fail - profile was created, HR data can be added later
     }
 
     // Delete any default roles created by trigger and insert the correct ones
@@ -256,7 +311,7 @@ Deno.serve(async (req) => {
       await adminClient.from("tenants").delete().eq("id", autoTenant.id);
     }
 
-    console.log("Staff created successfully:", { userId: newUserId, username, roles: staffRoles });
+    console.log("Staff created successfully:", { userId: newUserId, username, roles: staffRoles, staffId: finalStaffId });
 
     return new Response(
       JSON.stringify({
@@ -268,6 +323,7 @@ Deno.serve(async (req) => {
           fullName: fullName,
           roles: staffRoles,
           propertyIds: propertyIds,
+          staffId: finalStaffId,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
