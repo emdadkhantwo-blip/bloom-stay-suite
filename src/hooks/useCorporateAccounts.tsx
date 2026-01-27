@@ -257,7 +257,23 @@ export function useDeleteCorporateAccount() {
 
   return useMutation({
     mutationFn: async (accountId: string) => {
-      // The join table will cascade delete, but also clean up old-style links
+      // 1. Clear corporate_account_id from payments referencing this account
+      const { error: paymentsError } = await supabase
+        .from("payments")
+        .update({ corporate_account_id: null })
+        .eq("corporate_account_id", accountId);
+
+      if (paymentsError) throw paymentsError;
+
+      // 2. Delete links from the guest_corporate_accounts join table
+      const { error: joinTableError } = await supabase
+        .from("guest_corporate_accounts")
+        .delete()
+        .eq("corporate_account_id", accountId);
+
+      if (joinTableError) throw joinTableError;
+
+      // 3. Clean up old-style links from guests table
       const { error: unlinkError } = await supabase
         .from("guests")
         .update({ corporate_account_id: null })
@@ -265,6 +281,7 @@ export function useDeleteCorporateAccount() {
 
       if (unlinkError) throw unlinkError;
 
+      // 4. Finally delete the corporate account
       const { error } = await supabase
         .from("corporate_accounts")
         .delete()
@@ -276,6 +293,7 @@ export function useDeleteCorporateAccount() {
       queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["guests"] });
       queryClient.invalidateQueries({ queryKey: ["guest-corporate-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       toast({
         title: "Account Deleted",
         description: "Corporate account has been deleted.",
