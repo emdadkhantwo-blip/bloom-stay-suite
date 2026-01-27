@@ -8,6 +8,7 @@ import {
   useCheckOut,
   useCancelReservation,
   useDeleteReservation,
+  useAssignRooms,
   type ReservationStatus,
   type Reservation,
   type CheckoutResult,
@@ -55,6 +56,7 @@ export default function Reservations() {
   const checkOut = useCheckOut();
   const cancelReservation = useCancelReservation();
   const deleteReservation = useDeleteReservation();
+  const assignRooms = useAssignRooms();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,6 +76,10 @@ export default function Reservations() {
   // Room assignment dialog for check-in
   const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<Reservation | null>(null);
+  
+  // Quick room assignment dialog (assignment only, no check-in)
+  const [quickAssignmentOpen, setQuickAssignmentOpen] = useState(false);
+  const [pendingAssignment, setPendingAssignment] = useState<Reservation | null>(null);
 
   // Dialogs
   const [checkOutDialog, setCheckOutDialog] = useState<string | null>(null);
@@ -130,6 +136,28 @@ export default function Reservations() {
           onSuccess: () => {
             setRoomAssignmentOpen(false);
             setPendingCheckIn(null);
+          },
+        }
+      );
+    }
+  };
+
+  const handleQuickAssign = (reservationId: string) => {
+    const reservation = reservations?.find((r) => r.id === reservationId);
+    if (reservation) {
+      setPendingAssignment(reservation);
+      setQuickAssignmentOpen(true);
+    }
+  };
+
+  const confirmQuickAssign = (assignments: Array<{ reservationRoomId: string; roomId: string }>) => {
+    if (pendingAssignment) {
+      assignRooms.mutate(
+        { reservationId: pendingAssignment.id, roomAssignments: assignments },
+        {
+          onSuccess: () => {
+            setQuickAssignmentOpen(false);
+            setPendingAssignment(null);
           },
         }
       );
@@ -290,6 +318,7 @@ export default function Reservations() {
                   onCancel={handleCancel}
                   onView={handleView}
                   onDelete={(id) => deleteReservation.mutate(id)}
+                  onAssignRooms={handleQuickAssign}
                 />
               ))}
             </TableBody>
@@ -307,6 +336,19 @@ export default function Reservations() {
         }}
         onConfirm={confirmCheckIn}
         isLoading={checkIn.isPending}
+      />
+
+      {/* Quick Room Assignment Dialog (Pre-assignment without check-in) */}
+      <RoomAssignmentDialog
+        reservation={pendingAssignment}
+        open={quickAssignmentOpen}
+        onOpenChange={(open) => {
+          setQuickAssignmentOpen(open);
+          if (!open) setPendingAssignment(null);
+        }}
+        onConfirm={confirmQuickAssign}
+        isLoading={assignRooms.isPending}
+        assignmentOnly
       />
 
       {/* Check-Out Confirmation Dialog */}

@@ -206,6 +206,51 @@ export function useCheckIn() {
   });
 }
 
+/**
+ * Hook for assigning rooms to a reservation WITHOUT checking in.
+ * Use this for pre-assigning rooms before check-in day.
+ */
+export function useAssignRooms() {
+  const queryClient = useQueryClient();
+  const { currentProperty } = useTenant();
+  const currentPropertyId = currentProperty?.id;
+
+  return useMutation({
+    mutationFn: async ({ 
+      reservationId, 
+      roomAssignments 
+    }: { 
+      reservationId: string; 
+      roomAssignments: Array<{ reservationRoomId: string; roomId: string }>;
+    }) => {
+      if (!roomAssignments || roomAssignments.length === 0) {
+        throw new Error("No room assignments provided.");
+      }
+
+      // Update room assignments only (no status change, no room status change)
+      for (const assignment of roomAssignments) {
+        const { error: rrError } = await supabase
+          .from("reservation_rooms")
+          .update({ room_id: assignment.roomId, updated_at: new Date().toISOString() })
+          .eq("id", assignment.reservationRoomId);
+
+        if (rrError) throw rrError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations", currentPropertyId] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "calendar-reservations" 
+      });
+      toast.success("Rooms assigned successfully");
+    },
+    onError: (error) => {
+      console.error("Room assignment error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to assign rooms");
+    },
+  });
+}
+
 export interface CheckoutResult {
   assignedStaffNames: string[];
   checkoutData: {
