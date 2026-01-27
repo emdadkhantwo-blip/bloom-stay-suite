@@ -10,7 +10,11 @@ import {
   Receipt,
   Wallet,
   AlertCircle,
+  Mail,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -58,6 +62,7 @@ export default function CorporateStatements() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<Date>(startOfMonth(subMonths(new Date(), 1)));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
+  const [isSendingMail, setIsSendingMail] = useState(false);
 
   const { data: accounts = [], isLoading: accountsLoading } = useCorporateAccountsForSelect();
   const { data: statementData, isLoading: statementLoading } = useCorporateStatements(
@@ -281,6 +286,45 @@ export default function CorporateStatements() {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleSendMail = async () => {
+    if (!statementData || !statementData.account.contact_email) {
+      toast.error("No contact email configured for this account");
+      return;
+    }
+
+    setIsSendingMail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-corporate-statement-email", {
+        body: {
+          accountId: statementData.account.id,
+          companyName: statementData.account.company_name,
+          accountCode: statementData.account.account_code,
+          contactEmail: statementData.account.contact_email,
+          contactName: statementData.account.contact_name,
+          paymentTerms: statementData.account.payment_terms,
+          billingAddress: statementData.account.billing_address,
+          currentBalance: statementData.account.current_balance,
+          creditLimit: statementData.account.credit_limit,
+          totalBilled: statementData.totals.total_billed,
+          totalVoided: statementData.totals.total_voided,
+          payments: statementData.payments,
+          startDate: format(startDate, "yyyy-MM-dd"),
+          endDate: format(endDate, "yyyy-MM-dd"),
+          hotelName: tenant?.name || "Hotel",
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Statement sent to ${statementData.account.contact_email}`);
+    } catch (error: any) {
+      console.error("Error sending statement email:", error);
+      toast.error(error.message || "Failed to send statement email");
+    } finally {
+      setIsSendingMail(false);
+    }
+  };
+
   const statItems = [
     {
       label: "Total Billed",
@@ -468,6 +512,19 @@ export default function CorporateStatements() {
             <Button variant="outline" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleSendMail}
+              disabled={isSendingMail || !statementData.account.contact_email}
+              title={!statementData.account.contact_email ? "No contact email configured for this account" : "Send statement via email"}
+            >
+              {isSendingMail ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4 mr-2" />
+              )}
+              Send Mail
             </Button>
             <Button onClick={handlePrint} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white">
               <Printer className="h-4 w-4 mr-2" />
