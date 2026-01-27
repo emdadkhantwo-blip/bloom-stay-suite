@@ -1,5 +1,6 @@
-import { Bot, User, CheckCircle, XCircle, Loader2, Copy, Check, Wrench, AlertTriangle } from 'lucide-react';
+import { User, CheckCircle, XCircle, Loader2, Copy, Check, Wrench, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import beechatLogo from '@/assets/beechat-logo.png';
 import { ChatMessage as ChatMessageType } from '@/hooks/useAdminChat';
 import ReactMarkdown from 'react-markdown';
 import { useState } from 'react';
@@ -82,12 +83,14 @@ export function ChatMessage({ message, showDate }: ChatMessageProps) {
       )}>
         {/* Avatar */}
         <div className={cn(
-          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden",
           isUser 
             ? "bg-primary text-primary-foreground" 
-            : "bg-gradient-to-br from-purple-500 to-indigo-600 text-white"
+            : "bg-gradient-to-br from-blue-400 to-blue-600"
         )}>
-          {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+          {isUser ? <User className="h-4 w-4" /> : (
+            <img src={beechatLogo} alt="BeeChat" className="w-6 h-6 object-contain" />
+          )}
         </div>
 
         {/* Message Content */}
