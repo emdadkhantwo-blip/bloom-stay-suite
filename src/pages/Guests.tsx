@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Plus, Users } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useGuests, useGuestStats } from "@/hooks/useGuests";
+import { useGuestNotifications } from "@/hooks/useGuestNotifications";
 import { GuestStatsBar } from "@/components/guests/GuestStatsBar";
 import { GuestFilters } from "@/components/guests/GuestFilters";
 import { GuestCard } from "@/components/guests/GuestCard";
@@ -14,6 +15,9 @@ import type { Guest } from "@/hooks/useGuests";
 
 export default function Guests() {
   const { currentProperty } = useTenant();
+
+  // Enable real-time notifications for guests
+  useGuestNotifications();
   
   // State
   const [searchQuery, setSearchQuery] = useState("");
