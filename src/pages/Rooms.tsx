@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useRooms, useUpdateRoomStatus, useRoomStats } from "@/hooks/useRooms";
+import { useRoomNotifications } from "@/hooks/useRoomNotifications";
 import { RoomCard } from "@/components/rooms/RoomCard";
 import { RoomListItem } from "@/components/rooms/RoomListItem";
 import { RoomFilters } from "@/components/rooms/RoomFilters";
@@ -17,6 +18,9 @@ export default function Rooms() {
   const { data: rooms, isLoading } = useRooms();
   const { data: stats, isLoading: isLoadingStats } = useRoomStats();
   const updateStatus = useUpdateRoomStatus();
+  
+  // Enable real-time updates for rooms
+  useRoomNotifications();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
