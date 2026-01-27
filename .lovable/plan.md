@@ -1,121 +1,282 @@
 
-# Convert All Currency Symbols from "$" to "৳" (BDT)
+# Real-time Room Updates & Smart Duplicate Handling for Chatbot
 
 ## Overview
-The system is transitioning to Bangladeshi Taka (BDT) as the primary currency. While most components already use `৳`, several files still contain hardcoded `$` signs or use the `DollarSign` icon inappropriately for currency representation.
+This plan implements two key features:
+1. **Real-time data synchronization** - The Rooms page will automatically update when the chatbot creates/modifies rooms
+2. **Smart duplicate handling** - When the chatbot tries to create a room that already exists, it will automatically generate a new unique room number
 
 ---
 
-## Files Requiring Changes
+## Part 1: Enable Real-time Updates for Rooms
 
-### 1. `src/components/guests/GuestStatsBar.tsx`
+### Database Migration
+Enable real-time subscriptions for the `rooms` and `room_types` tables so changes made via the chatbot are reflected immediately in the UI.
 
-**Issue**: Uses `$` symbol and `DollarSign` icon for Total Revenue
+**New Migration SQL:**
+```sql
+-- Enable realtime for rooms management
+ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.room_types;
+```
 
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 1 | `import { Users, Star, Ban, DollarSign }` | `import { Users, Star, Ban, Wallet }` |
-| 45 | `value: \`$\${totalRevenue.toLocaleString()}\`` | `value: \`৳\${totalRevenue.toLocaleString()}\`` |
-| 46 | `icon: DollarSign` | `icon: Wallet` |
+### New Hook: `useRoomNotifications.tsx`
+**Location**: `src/hooks/useRoomNotifications.tsx`
 
-**Rationale**: Replace `DollarSign` with `Wallet` icon since there's no Taka-specific icon in lucide-react.
+A hook that subscribes to real-time changes on the `rooms` table and automatically invalidates React Query cache when changes occur.
 
----
+**Key Features**:
+- Subscribes to INSERT, UPDATE, DELETE events on `rooms` table
+- Filters by `property_id` to only receive relevant updates
+- Invalidates `rooms` and `room-stats` query keys when changes occur
+- Shows toast notifications for chatbot-triggered changes
 
-### 2. `src/components/reservations/NewReservationDialog.tsx`
+**Implementation Pattern** (following existing kitchen notifications):
+```typescript
+const channel = supabase
+  .channel(`rooms-${propertyId}`)
+  .on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'rooms',
+    filter: `property_id=eq.${propertyId}`
+  }, (payload) => {
+    queryClient.invalidateQueries({ queryKey: ["rooms", propertyId] });
+    queryClient.invalidateQueries({ queryKey: ["room-stats", propertyId] });
+    
+    // Show notification for new rooms
+    if (payload.eventType === 'INSERT') {
+      toast.info(`Room ${payload.new.room_number} added`);
+    }
+  })
+  .subscribe();
+```
 
-**Issue**: Uses `DollarSign` icon for fixed-amount discounts
+### Modify: `src/pages/Rooms.tsx`
+Add the `useRoomNotifications` hook to enable real-time subscriptions when viewing the Rooms page.
 
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 6 | `import { ..., DollarSign, ... }` | Remove `DollarSign` from imports |
-| 643-645 | `<DollarSign className="h-3 w-3" />` | `<span className="h-3 w-3 text-xs font-bold">৳</span>` |
+```typescript
+// Add import
+import { useRoomNotifications } from "@/hooks/useRoomNotifications";
 
-**Rationale**: Replace the DollarSign icon with the actual ৳ symbol as text for discount indication.
-
----
-
-### 3. `src/components/reports/MetricsCards.tsx`
-
-**Issue**: Uses `DollarSign` icon for ADR and Total Revenue
-
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 1 | `import { TrendingUp, DollarSign, Bed, Calendar }` | `import { TrendingUp, Wallet, Bed, Calendar }` |
-| 35 | `icon: DollarSign` | `icon: Wallet` |
-| 51 | `icon: DollarSign` | `icon: Wallet` |
-
-**Note**: The currency values already use `৳` (lines 33, 40, 49, 50), only the icons need updating.
-
----
-
-### 4. `src/components/settings/SystemDefaultsSettings.tsx`
-
-**Issue**: Uses `DollarSign` icon for currency section
-
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 8 | `import { Clock, DollarSign, Globe, Calendar, Save, Loader2, AlertTriangle }` | `import { Clock, Wallet, Globe, Calendar, Save, Loader2, AlertTriangle }` |
-
-Then find where `DollarSign` is used in the template and replace with `Wallet`.
-
-**Note**: The CURRENCIES array (lines 10-22) correctly lists multiple currencies with their symbols - this is intentional for a settings page and should NOT be changed since it allows users to select different currencies if needed.
-
----
-
-### 5. `src/components/properties/CreatePropertyDialog.tsx`
-
-**Issue**: Default currency is `"USD"` instead of `"BDT"`
-
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 45 | `currency: z.string().default("USD")` | `currency: z.string().default("BDT")` |
-| 71 | `const CURRENCIES = ["USD", "EUR", ...]` | `const CURRENCIES = ["BDT", "USD", "EUR", ...]` |
-
-**Rationale**: BDT should be the default and appear first in the list.
+// Add hook call inside component
+useRoomNotifications();
+```
 
 ---
 
-### 6. `src/components/properties/PropertyDetailDrawer.tsx`
+## Part 2: Smart Duplicate Handling in Chatbot
 
-**Issue**: Default state for currency is `"USD"`
+### Modify: `supabase/functions/admin-chat/index.ts`
 
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 80 | `const [currency, setCurrency] = useState("USD")` | `const [currency, setCurrency] = useState("BDT")` |
+Update the `create_room` case to check for existing rooms and auto-generate unique room numbers when duplicates are detected.
 
----
+**Current Behavior** (lines 1989-2005):
+```typescript
+case "create_room": {
+  const { data, error } = await supabase.from('rooms').insert({...});
+  if (error) throw error;  // Fails with duplicate key error
+  return { success: true, data };
+}
+```
 
-### 7. `src/hooks/useProperties.tsx`
+**New Behavior**:
+```typescript
+case "create_room": {
+  // Check if room number already exists
+  const { data: existingRoom } = await supabase.from('rooms')
+    .select('room_number')
+    .eq('property_id', propertyId)
+    .eq('room_number', args.room_number)
+    .eq('is_active', true)
+    .maybeSingle();
+  
+  let finalRoomNumber = args.room_number;
+  
+  if (existingRoom) {
+    // Generate a unique room number by appending a suffix
+    // Try: 101A, 101B, 101C, etc.
+    const suffixes = ['A', 'B', 'C', 'D', 'E', 'F'];
+    let found = false;
+    
+    for (const suffix of suffixes) {
+      const candidate = `${args.room_number}${suffix}`;
+      const { data: check } = await supabase.from('rooms')
+        .select('room_number')
+        .eq('property_id', propertyId)
+        .eq('room_number', candidate)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (!check) {
+        finalRoomNumber = candidate;
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      // Fallback: add timestamp suffix
+      finalRoomNumber = `${args.room_number}-${Date.now().toString().slice(-4)}`;
+    }
+  }
+  
+  const { data, error } = await supabase.from('rooms').insert({
+    tenant_id: tenantId,
+    property_id: propertyId,
+    room_number: finalRoomNumber,
+    room_type_id: args.room_type_id,
+    floor: args.floor || null,
+    notes: args.notes || null,
+    status: 'vacant'
+  })
+  .select('*, room_types(name)')
+  .single();
+  
+  if (error) throw error;
+  
+  // Include info about whether room number was modified
+  return { 
+    success: true, 
+    data,
+    renamed: existingRoom ? `Room ${args.room_number} already existed, created as ${finalRoomNumber}` : null
+  };
+}
+```
 
-**Issue**: Default fallback currency is `"USD"`
+### Update Tool Summary for create_room
 
-| Line | Current Code | Fixed Code |
-|------|--------------|------------|
-| 45 | `currency: input.currency \|\| "USD"` | `currency: input.currency \|\| "BDT"` |
+Update the `generateToolSummary` function to show when a room was renamed due to duplicate:
+
+```typescript
+case "create_room":
+  let msg = `Created room **${data.room_number}** (${data.room_types?.name || 'N/A'})`;
+  if (result.renamed) {
+    msg += `\n⚠️ ${result.renamed}`;
+  }
+  return msg;
+```
+
+### Apply Same Logic to create_room_type
+
+Update the `create_room_type` case to handle duplicate codes:
+
+```typescript
+case "create_room_type": {
+  // Check if code already exists
+  const { data: existingType } = await supabase.from('room_types')
+    .select('code')
+    .eq('property_id', propertyId)
+    .eq('code', args.code.toUpperCase())
+    .eq('is_active', true)
+    .maybeSingle();
+  
+  let finalCode = args.code.toUpperCase();
+  
+  if (existingType) {
+    // Generate unique code by adding number suffix
+    for (let i = 2; i <= 9; i++) {
+      const candidate = `${args.code.toUpperCase()}${i}`;
+      const { data: check } = await supabase.from('room_types')
+        .select('code')
+        .eq('property_id', propertyId)
+        .eq('code', candidate)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (!check) {
+        finalCode = candidate;
+        break;
+      }
+    }
+  }
+  
+  const { data, error } = await supabase.from('room_types').insert({
+    tenant_id: tenantId,
+    property_id: propertyId,
+    name: args.name,
+    code: finalCode,
+    base_rate: args.base_rate,
+    max_occupancy: args.max_occupancy,
+    description: args.description || null,
+    amenities: args.amenities || []
+  })
+  .select()
+  .single();
+  
+  if (error) throw error;
+  return { 
+    success: true, 
+    data,
+    renamed: existingType ? `Code ${args.code} existed, used ${finalCode}` : null
+  };
+}
+```
 
 ---
 
 ## Summary of Changes
 
-| File | Icon Changes | Symbol Changes | Default Changes |
-|------|--------------|----------------|-----------------|
-| GuestStatsBar.tsx | DollarSign → Wallet | $ → ৳ | - |
-| NewReservationDialog.tsx | DollarSign → ৳ text | - | - |
-| MetricsCards.tsx | DollarSign → Wallet | - | - |
-| SystemDefaultsSettings.tsx | DollarSign → Wallet | - | - |
-| CreatePropertyDialog.tsx | - | - | USD → BDT |
-| PropertyDetailDrawer.tsx | - | - | USD → BDT |
-| useProperties.tsx | - | - | USD → BDT |
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/migrations/[new].sql` | Create | Enable realtime for rooms and room_types tables |
+| `src/hooks/useRoomNotifications.tsx` | Create | Hook for real-time room update subscriptions |
+| `src/pages/Rooms.tsx` | Modify | Add useRoomNotifications hook |
+| `supabase/functions/admin-chat/index.ts` | Modify | Smart duplicate handling for create_room and create_room_type |
+
+---
+
+## Data Flow After Implementation
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│              User asks chatbot: "Create room 101"               │
+└─────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│           Edge function checks if room 101 exists               │
+└─────────────────────────────────────────────────────────────────┘
+                                 │
+              ┌──────────────────┴──────────────────┐
+              ▼                                     ▼
+┌─────────────────────────┐           ┌─────────────────────────┐
+│   Room 101 NOT exists   │           │    Room 101 EXISTS      │
+│   Create as "101"       │           │   Create as "101A"      │
+└─────────────────────────┘           └─────────────────────────┘
+              │                                     │
+              └──────────────────┬──────────────────┘
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│          Room inserted → Supabase Realtime triggers             │
+└─────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│    useRoomNotifications receives event → invalidates cache      │
+└─────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│           Rooms page auto-refreshes with new room               │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Technical Notes
 
-1. **Why Wallet instead of DollarSign?**: Lucide-react doesn't have a Taka-specific icon. `Wallet` is currency-agnostic and commonly used for financial displays.
+1. **Real-time Filter**: The subscription filters by `property_id` to ensure users only receive updates for their own property's rooms.
 
-2. **Settings Page Currency List**: The multi-currency list in SystemDefaultsSettings.tsx is intentionally kept as-is since it's a selection feature, not a display feature.
+2. **Duplicate Detection**: Uses `.maybeSingle()` to safely check for existing records without throwing errors.
 
-3. **Database Default**: The database migration has `DEFAULT 'USD'` for the currency column. This is a historical default and would require a new migration to change. However, since all new properties will use the application's default (BDT), this doesn't need immediate attention.
+3. **Room Number Suffix Logic**: 
+   - First tries letter suffixes (A-F): 101 → 101A → 101B
+   - Falls back to timestamp suffix if all letters are taken
 
-4. **Consistency**: After these changes, all user-facing currency displays will show `৳` and all new records will default to BDT.
+4. **Room Type Code Logic**:
+   - Appends numbers (2-9): DLX → DLX2 → DLX3
+
+5. **Backward Compatibility**: The chatbot response structure remains the same, with an optional `renamed` field added for transparency.
+
+6. **Toast Notifications**: The UI shows a subtle toast when rooms are added via chatbot, keeping users informed of background changes.
