@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, DollarSign, Globe, Calendar, Save, Loader2, AlertTriangle } from 'lucide-react';
+import { Clock, Globe, Save, Loader2, AlertTriangle } from 'lucide-react';
 
 const CURRENCIES = [
   { code: 'BDT', name: 'Bangladeshi Taka', symbol: '৳' },

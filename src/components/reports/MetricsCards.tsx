@@ -1,4 +1,4 @@
-import { TrendingUp, DollarSign, Bed, Calendar } from "lucide-react";
+import { TrendingUp, Wallet, Bed } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DashboardMetrics } from "@/hooks/useReports";
@@ -32,7 +32,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
       label: "ADR",
       value: `৳${metrics?.adr || 0}`,
       subLabel: "Average Daily Rate",
-      icon: DollarSign,
+      icon: Wallet,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10",
     },
@@ -48,7 +48,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
       label: "Total Revenue",
       value: `৳${(metrics?.totalRevenue || 0).toLocaleString()}`,
       subLabel: `Room: ৳${(metrics?.roomRevenue || 0).toLocaleString()} • Services: ৳${(metrics?.serviceRevenue || 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: Wallet,
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
     },

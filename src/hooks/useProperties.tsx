@@ -42,7 +42,7 @@ export function useCreateProperty() {
           phone: input.phone || null,
           email: input.email || null,
           timezone: input.timezone || "UTC",
-          currency: input.currency || "USD",
+          currency: input.currency || "BDT",
           tax_rate: input.tax_rate || 0,
           service_charge_rate: input.service_charge_rate || 0,
           status: input.status || "active",
