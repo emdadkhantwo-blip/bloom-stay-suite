@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,15 +15,23 @@ import {
   UtensilsCrossed,
   ChefHat,
   CheckCircle,
+  Move,
+  Save,
+  X,
+  RotateCcw,
 } from "lucide-react";
-import { POSOrder, useUpdatePOSOrderStatus } from "@/hooks/usePOS";
+import { POSOrder, POSOutlet, useUpdatePOSOrderStatus, useUpdatePOSOutlet } from "@/hooks/usePOS";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 interface TableManagementProps {
   orders: POSOrder[];
   outletId: string;
   onSelectEmptyTable?: (tableId: string) => void;
+  outlet?: POSOutlet;
 }
 
 interface TableInfo {
@@ -33,6 +41,14 @@ interface TableInfo {
   totalAmount: number;
   primaryStatus: string;
   lastOrderTime: string;
+}
+
+interface TablePosition {
+  id: string;
+  name: string;
+  seats: number;
+  x: number;
+  y: number;
 }
 
 const statusConfig: Record<string, { 
@@ -77,8 +93,8 @@ const statusConfig: Record<string, {
   },
 };
 
-// Generate table layout (predefined tables)
-const tableLayout = [
+// Default table layout
+const defaultTableLayout: TablePosition[] = [
   { id: "T1", name: "Table 1", seats: 2, x: 0, y: 0 },
   { id: "T2", name: "Table 2", seats: 4, x: 1, y: 0 },
   { id: "T3", name: "Table 3", seats: 4, x: 2, y: 0 },
@@ -93,9 +109,27 @@ const tableLayout = [
   { id: "B4", name: "Bar 4", seats: 4, x: 3, y: 2 },
 ];
 
-export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableManagementProps) {
+const GRID_SIZE = 4;
+const CELL_SIZE = 160; // pixels per grid cell
+
+export function TableManagement({ orders, outletId, onSelectEmptyTable, outlet }: TableManagementProps) {
   const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [tableLayout, setTableLayout] = useState<TablePosition[]>(defaultTableLayout);
+  const [draggedTable, setDraggedTable] = useState<string | null>(null);
+  
   const updateOrderStatus = useUpdatePOSOrderStatus();
+  const updateOutlet = useUpdatePOSOutlet();
+
+  // Load saved layout from outlet settings
+  useEffect(() => {
+    if (outlet?.settings && typeof outlet.settings === 'object') {
+      const settings = outlet.settings as { tableLayout?: TablePosition[] };
+      if (settings.tableLayout && Array.isArray(settings.tableLayout)) {
+        setTableLayout(settings.tableLayout);
+      }
+    }
+  }, [outlet?.settings]);
 
   // Group orders by table
   const tableOrders = orders.reduce<Record<string, POSOrder[]>>((acc, order) => {
@@ -144,6 +178,102 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableM
     await updateOrderStatus.mutateAsync({ orderId, status: "ready" });
   };
 
+  const handleDragEnd = (tableId: string, info: { point: { x: number; y: number }; offset: { x: number; y: number } }) => {
+    setDraggedTable(null);
+    
+    // Get the grid container bounds
+    const gridContainer = document.getElementById('table-grid-container');
+    if (!gridContainer) return;
+    
+    const rect = gridContainer.getBoundingClientRect();
+    const table = tableLayout.find(t => t.id === tableId);
+    if (!table) return;
+
+    // Calculate new position based on drag offset
+    const currentPixelX = table.x * CELL_SIZE;
+    const currentPixelY = table.y * CELL_SIZE;
+    
+    const newPixelX = currentPixelX + info.offset.x;
+    const newPixelY = currentPixelY + info.offset.y;
+    
+    // Snap to grid
+    const newX = Math.round(newPixelX / CELL_SIZE);
+    const newY = Math.round(newPixelY / CELL_SIZE);
+    
+    // Clamp to bounds
+    const clampedX = Math.max(0, Math.min(GRID_SIZE - 1, newX));
+    const clampedY = Math.max(0, Math.min(2, newY)); // 3 rows (0, 1, 2)
+    
+    // Check if position is already occupied
+    const isOccupied = tableLayout.some(t => 
+      t.id !== tableId && t.x === clampedX && t.y === clampedY
+    );
+    
+    if (isOccupied) {
+      // Swap positions with the table at the target location
+      setTableLayout(prev => prev.map(t => {
+        if (t.id === tableId) {
+          return { ...t, x: clampedX, y: clampedY };
+        }
+        if (t.x === clampedX && t.y === clampedY) {
+          return { ...t, x: table.x, y: table.y };
+        }
+        return t;
+      }));
+    } else {
+      // Move to empty spot
+      setTableLayout(prev => prev.map(t => 
+        t.id === tableId ? { ...t, x: clampedX, y: clampedY } : t
+      ));
+    }
+  };
+
+  const handleSaveLayout = async () => {
+    try {
+      const currentSettings = (outlet?.settings as Record<string, Json>) || {};
+      // Convert to JSON-compatible format
+      const layoutData = tableLayout.map(t => ({
+        id: t.id,
+        name: t.name,
+        seats: t.seats,
+        x: t.x,
+        y: t.y,
+      }));
+      await updateOutlet.mutateAsync({
+        id: outletId,
+        updates: {
+          settings: {
+            ...currentSettings,
+            tableLayout: layoutData as Json,
+          } as Json,
+        },
+      });
+      toast.success("Floor plan layout saved!");
+      setIsEditMode(false);
+    } catch (error) {
+      toast.error("Failed to save layout");
+    }
+  };
+
+  const handleResetLayout = () => {
+    setTableLayout(defaultTableLayout);
+  };
+
+  const handleCancelEdit = () => {
+    // Reload from outlet settings
+    if (outlet?.settings && typeof outlet.settings === 'object') {
+      const settings = outlet.settings as { tableLayout?: TablePosition[] };
+      if (settings.tableLayout && Array.isArray(settings.tableLayout)) {
+        setTableLayout(settings.tableLayout);
+      } else {
+        setTableLayout(defaultTableLayout);
+      }
+    } else {
+      setTableLayout(defaultTableLayout);
+    }
+    setIsEditMode(false);
+  };
+
   const stats = [
     {
       label: "Occupied Tables",
@@ -171,6 +301,14 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableM
       gradient: "from-purple-500 to-violet-600",
     },
   ];
+
+  // Sort tables by position for rendering
+  const sortedTables = useMemo(() => {
+    return [...tableLayout].sort((a, b) => {
+      if (a.y !== b.y) return a.y - b.y;
+      return a.x - b.x;
+    });
+  }, [tableLayout]);
 
   return (
     <div className="space-y-6">
@@ -207,37 +345,123 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableM
                 <UtensilsCrossed className="h-5 w-5 text-blue-600" />
               </div>
               Floor Plan
+              {isEditMode && (
+                <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700">
+                  Edit Mode
+                </Badge>
+              )}
             </span>
-            <div className="flex items-center gap-4 text-sm font-normal">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-muted border" />
-                <span className="text-muted-foreground">Available</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-amber-500" />
-                <span className="text-muted-foreground">Pending</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-blue-500" />
-                <span className="text-muted-foreground">Preparing</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                <span className="text-muted-foreground">Ready</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-purple-500" />
-                <span className="text-muted-foreground">Served</span>
-              </div>
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetLayout}
+                    className="gap-1"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    className="gap-1"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveLayout}
+                    disabled={updateOutlet.isPending}
+                    className="gap-1 bg-gradient-to-r from-emerald-500 to-teal-600"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save Layout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 text-sm font-normal mr-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-muted border" />
+                      <span className="text-muted-foreground">Available</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-amber-500" />
+                      <span className="text-muted-foreground">Pending</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-blue-500" />
+                      <span className="text-muted-foreground">Preparing</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <span className="text-muted-foreground">Ready</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-purple-500" />
+                      <span className="text-muted-foreground">Served</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditMode(true)}
+                    className="gap-1"
+                  >
+                    <Move className="h-4 w-4" />
+                    Edit Layout
+                  </Button>
+                </>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4">
-            {tableLayout.map((table) => {
+          <div 
+            id="table-grid-container"
+            className="grid grid-cols-4 gap-4 relative"
+            style={{ minHeight: `${3 * CELL_SIZE + 32}px` }}
+          >
+            {sortedTables.map((table) => {
               const tableInfo = getTableInfo(table.id);
               const status = statusConfig[tableInfo?.primaryStatus || ""] || null;
               const isOccupied = !!tableInfo;
+
+              if (isEditMode) {
+                return (
+                  <motion.button
+                    key={table.id}
+                    drag
+                    dragMomentum={false}
+                    dragElastic={0}
+                    onDragStart={() => setDraggedTable(table.id)}
+                    onDragEnd={(_, info) => handleDragEnd(table.id, info)}
+                    whileDrag={{ scale: 1.05, zIndex: 50 }}
+                    className={cn(
+                      "relative flex flex-col items-center justify-center rounded-2xl border-2 p-4 transition-all duration-200",
+                      "min-h-[140px] cursor-grab active:cursor-grabbing",
+                      "border-dashed border-primary/50 bg-primary/5",
+                      draggedTable === table.id && "shadow-2xl ring-2 ring-primary"
+                    )}
+                    style={{
+                      gridColumn: table.x + 1,
+                      gridRow: table.y + 1,
+                    }}
+                  >
+                    <Move className="absolute top-2 right-2 h-4 w-4 text-primary/50" />
+                    <span className="text-2xl font-bold text-primary">
+                      {table.id}
+                    </span>
+                    <span className="mt-2 text-sm text-muted-foreground">
+                      {table.seats} seats
+                    </span>
+                  </motion.button>
+                );
+              }
 
               return (
                 <button
@@ -261,6 +485,10 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableM
                         )
                       : "border-dashed border-muted-foreground/30 bg-muted/20 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
                   )}
+                  style={{
+                    gridColumn: table.x + 1,
+                    gridRow: table.y + 1,
+                  }}
                 >
                   <span className={cn(
                     "text-2xl font-bold",
@@ -300,6 +528,12 @@ export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableM
               );
             })}
           </div>
+          
+          {isEditMode && (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Drag tables to rearrange the floor plan. Tables will swap positions when dropped on each other.
+            </p>
+          )}
         </CardContent>
       </Card>
 

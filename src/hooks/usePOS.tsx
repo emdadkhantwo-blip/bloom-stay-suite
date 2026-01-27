@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "./useTenant";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 // Types
 export type POSOrderStatus = "pending" | "preparing" | "ready" | "served" | "cancelled" | "posted";
@@ -148,7 +149,7 @@ export function useUpdatePOSOutlet() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: { name?: string; is_active?: boolean; type?: string } }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: { name?: string; is_active?: boolean; type?: string; settings?: Json } }) => {
       const { data, error } = await supabase
         .from("pos_outlets")
         .update(updates)
@@ -159,9 +160,12 @@ export function useUpdatePOSOutlet() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["pos-outlets"] });
-      toast.success("Outlet updated successfully");
+      // Only show toast if it's not a silent settings update
+      if (!variables.updates.settings) {
+        toast.success("Outlet updated successfully");
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to update outlet: ${error.message}`);

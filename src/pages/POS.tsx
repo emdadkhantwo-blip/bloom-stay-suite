@@ -292,6 +292,7 @@ export default function POS() {
               orders={orders} 
               outletId={selectedOutletId!}
               onSelectEmptyTable={handleSelectTable}
+              outlet={selectedOutlet}
             />
           </TabsContent>
         </Tabs>
