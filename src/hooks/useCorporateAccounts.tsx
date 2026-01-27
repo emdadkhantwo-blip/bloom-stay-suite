@@ -254,8 +254,9 @@ export function useLinkGuestToCorporateAccount() {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["corporate-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["corporate-account-guests"] });
       queryClient.invalidateQueries({ queryKey: ["guests"] });
       toast({
         title: "Guest Updated",
