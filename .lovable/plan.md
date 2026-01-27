@@ -1,227 +1,237 @@
 
 
-# Enhanced Folio Management Features
+# Fix Multi-Tenant Data Isolation for Room and Room Type Creation
 
-## Current State Analysis
+## Problem Summary
 
-The folios section currently supports:
-- View open/closed folios with search
-- Add charges (multiple item types)
-- Record payments (multiple methods)
-- Void charges with reason
-- Close folio (when balance is zero)
-- Basic print button (placeholder, not functional)
-- Stats bar with overview metrics
+Different hotels (tenants) are unable to create rooms with the same room numbers or room types with the same codes. This is happening due to a **cross-tenant data integrity issue** where rooms and room types are being created with mismatched `tenant_id` and `property_id` values.
 
----
+**Evidence from database:**
+- Room 315 in "Grand Pacific Downtown" property has `tenant_id` from "Formzed" instead of "Grand Pacific Hotels"
+- Room types "Single Bed" (code: 001) and "Delux Premium" (code: 002) have the same mismatch
 
-## Proposed New Features
-
-### Feature 1: Folio Invoice Print/Export
-
-**Description**: Make the existing print button functional by generating a detailed invoice for any folio.
-
-**Implementation**:
-- Create a new `FolioInvoicePrintView` component
-- Include itemized charges with dates and types
-- Show payment history with methods and dates
-- Display tax, service charge, and totals breakdown
-- Add hotel branding (logo, name)
-- Auto-trigger print or allow PDF download
-
-**Files to modify**:
-- `src/components/folios/FolioDetailDrawer.tsx` - Wire up print button
-- Create `src/components/folios/FolioInvoicePrintView.tsx` - Invoice template
+This causes:
+1. Data appearing in the wrong tenant's view
+2. Unique constraint violations when other tenants try to create similar rooms/room types
 
 ---
 
-### Feature 2: Void Payment Functionality
+## Root Cause Analysis
 
-**Description**: Allow voiding incorrect payments (similar to voiding charges).
+### Issue 1: Client-Provided IDs Without Server Validation
 
-**Implementation**:
-- Add a void button next to each payment in the drawer
-- Create `VoidPaymentDialog` with reason input
-- Add `useVoidPayment` mutation hook
-- Update folio balance when payment is voided
-- Show voided payments with strikethrough styling
+The `admin-chat` edge function accepts `tenantId` and `propertyId` directly from the client request without validating them:
 
-**Files to modify**:
-- `src/hooks/useFolios.tsx` - Add `useVoidPayment` hook
-- Create `src/components/folios/VoidPaymentDialog.tsx`
-- `src/components/folios/FolioDetailDrawer.tsx` - Add void button to payments
+```typescript
+// supabase/functions/admin-chat/index.ts (line 3228)
+const { messages, tenantId, propertyId } = await req.json();
+```
 
----
+The edge function uses the **SERVICE_ROLE_KEY**, which bypasses RLS entirely. It trusts these client-provided values and uses them directly for creating records.
 
-### Feature 3: Transfer Charges Between Folios
+### Issue 2: No Property-Tenant Validation
 
-**Description**: Move charges from one guest's folio to another (common for group bookings).
+When creating rooms or room types, the edge function does not verify that the provided `propertyId` actually belongs to the `tenantId`:
 
-**Implementation**:
-- Add "Transfer" button next to each charge
-- Create dialog to select target folio
-- Show searchable list of open folios
-- Update both source and target folio totals
-- Log the transfer for audit purposes
+```typescript
+// Line 2075-2078 - Room creation
+.insert({
+  tenant_id: tenantId,          // From client request
+  property_id: propertyId,      // From client request - NOT validated
+  ...
+})
+```
 
-**Files to modify**:
-- `src/hooks/useFolios.tsx` - Add `useTransferCharge` hook
-- Create `src/components/folios/TransferChargeDialog.tsx`
-- `src/components/folios/FolioDetailDrawer.tsx` - Add transfer button
+### Issue 3: Client-Side Hook Takes First Property
 
----
+The `useAdminChat` hook always uses the first property from the user's properties array:
 
-### Feature 4: Split Folio Functionality
+```typescript
+// src/hooks/useAdminChat.tsx (line 144)
+const propertyId = properties?.[0]?.id || '';
+```
 
-**Description**: Create a new folio from selected charges of an existing folio.
-
-**Implementation**:
-- Add "Split Folio" button in drawer actions
-- Allow selecting which charges to move
-- Create new folio with selected charges
-- Update original folio totals
-- Link both folios to same guest/reservation
-
-**Files to modify**:
-- `src/hooks/useFolios.tsx` - Add `useSplitFolio` hook
-- Create `src/components/folios/SplitFolioDialog.tsx`
-- `src/components/folios/FolioDetailDrawer.tsx` - Add split button
+This is a minor issue but could cause unexpected behavior if a user switches properties.
 
 ---
 
-### Feature 5: Date Range Filtering
+## Solution Overview
 
-**Description**: Filter folios by date range (created date, closed date).
+### Part 1: Server-Side Validation in Edge Function
 
-**Implementation**:
-- Add date picker filters in the folios page header
-- Filter by created date or closed date
-- Show results count
-- Reset filter button
+Add validation to ensure `propertyId` belongs to `tenantId` before any operations:
 
-**Files to modify**:
-- `src/pages/Folios.tsx` - Add date filter UI
-- `src/hooks/useFolios.tsx` - Update query to accept date range
+```typescript
+// Validate that property belongs to tenant
+const { data: property, error: propError } = await supabase
+  .from('properties')
+  .select('id, tenant_id')
+  .eq('id', propertyId)
+  .single();
 
----
+if (propError || !property) {
+  throw new Error('Property not found');
+}
 
-### Feature 6: Reopen Closed Folio
+if (property.tenant_id !== tenantId) {
+  throw new Error('Property does not belong to this tenant');
+}
+```
 
-**Description**: Allow reopening a closed folio if additional charges need to be added.
+### Part 2: Derive tenant_id from Property
 
-**Implementation**:
-- Add "Reopen" button for closed folios
-- Confirmation dialog with reason
-- Update folio status back to "open"
-- Log the reopen action
+Instead of trusting the client's `tenantId`, derive it from the validated property:
 
-**Files to modify**:
-- `src/hooks/useFolios.tsx` - Add `useReopenFolio` hook
-- `src/components/folios/FolioDetailDrawer.tsx` - Add reopen button for closed folios
+```typescript
+// Use property's tenant_id, not the client-provided one
+const validatedTenantId = property.tenant_id;
+```
 
----
+### Part 3: Add Database Constraint
 
-### Feature 7: Bulk Payment (Pay Multiple Folios)
+Add a CHECK constraint or trigger to prevent mismatched `tenant_id` and `property_id`:
 
-**Description**: Record a single payment across multiple folios (useful for corporate accounts).
+```sql
+-- Validation trigger for rooms table
+CREATE OR REPLACE FUNCTION validate_room_tenant_property()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.tenant_id != (SELECT tenant_id FROM properties WHERE id = NEW.property_id) THEN
+    RAISE EXCEPTION 'Room tenant_id must match property tenant_id';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-**Implementation**:
-- Add checkbox selection on folio cards
-- "Pay Selected" button when folios selected
-- Dialog showing selected folios with total
-- Allocate payment across folios
+CREATE TRIGGER trg_validate_room_tenant_property
+BEFORE INSERT OR UPDATE ON rooms
+FOR EACH ROW EXECUTE FUNCTION validate_room_tenant_property();
+```
 
-**Files to modify**:
-- `src/pages/Folios.tsx` - Add selection state and bulk action button
-- Create `src/components/folios/BulkPaymentDialog.tsx`
-- `src/hooks/useFolios.tsx` - Add `useBulkPayment` hook
+### Part 4: Clean Up Existing Corrupted Data
 
----
+Fix the existing mismatched records by updating their `tenant_id` to match their property's tenant:
 
-### Feature 8: Folio Notes/Comments
+```sql
+-- Fix rooms with mismatched tenant_id
+UPDATE rooms r
+SET tenant_id = p.tenant_id
+FROM properties p
+WHERE r.property_id = p.id
+  AND r.tenant_id != p.tenant_id;
 
-**Description**: Add internal notes to folios for staff communication.
+-- Fix room_types with mismatched tenant_id
+UPDATE room_types rt
+SET tenant_id = p.tenant_id
+FROM properties p
+WHERE rt.property_id = p.id
+  AND rt.tenant_id != p.tenant_id;
+```
 
-**Implementation**:
-- Add collapsible notes section in drawer
-- Create/view/delete notes
-- Show note author and timestamp
-- Mark notes as important/pinned
+### Part 5: Client-Side Property Selection
 
-**Database changes**:
-- Create `folio_notes` table (folio_id, content, author_id, created_at, is_pinned)
+Update the `useAdminChat` hook to use the current selected property instead of always the first one:
 
-**Files to modify**:
-- Create `src/components/folios/FolioNotesSection.tsx`
-- `src/components/folios/FolioDetailDrawer.tsx` - Add notes section
-- `src/hooks/useFolios.tsx` - Add notes hooks
-
----
-
-### Feature 9: Export Folios to CSV/Excel
-
-**Description**: Export folio list with financial details for accounting purposes.
-
-**Implementation**:
-- Add "Export" button in folios page header
-- Export visible/filtered folios
-- Include all financial columns
-- Download as CSV file
-
-**Files to modify**:
-- `src/pages/Folios.tsx` - Add export button and logic
-
----
-
-### Feature 10: Adjustment/Discount Entry
-
-**Description**: Add discount or adjustment entries (positive or negative) to folios.
-
-**Implementation**:
-- Add "Add Adjustment" option in charges section
-- Allow positive (debit) or negative (credit) amounts
-- Require reason for adjustments
-- Show adjustments differently in charge list
-
-**Files to modify**:
-- Create `src/components/folios/AddAdjustmentDialog.tsx`
-- `src/components/folios/FolioDetailDrawer.tsx` - Add adjustment button
-- `src/hooks/useFolios.tsx` - Add adjustment mutation (or update AddCharge to handle negative amounts)
+```typescript
+// Use currentProperty from useTenant() instead of properties[0]
+const { tenant, currentProperty } = useTenant();
+const propertyId = currentProperty?.id || '';
+```
 
 ---
 
-## Implementation Priority
+## Files to Modify
 
-| Priority | Feature | Effort | Value |
-|----------|---------|--------|-------|
-| 1 | Folio Invoice Print | Medium | High |
-| 2 | Void Payment | Low | High |
-| 3 | Reopen Closed Folio | Low | Medium |
-| 4 | Date Range Filtering | Low | Medium |
-| 5 | Export to CSV | Low | Medium |
-| 6 | Adjustment/Discount Entry | Medium | High |
-| 7 | Transfer Charges | Medium | High |
-| 8 | Folio Notes | Medium | Medium |
-| 9 | Split Folio | High | Medium |
-| 10 | Bulk Payment | High | Medium |
+| File | Changes |
+|------|---------|
+| `supabase/functions/admin-chat/index.ts` | Add validation to ensure propertyId belongs to tenantId; derive tenant_id from property |
+| `src/hooks/useAdminChat.tsx` | Use `currentProperty` instead of `properties[0]` |
 
----
+## Database Migration
 
-## Technical Notes
-
-1. **Database Changes**: Only Feature 8 (Folio Notes) requires a new table. All other features work with existing schema.
-
-2. **Audit Trail**: All financial operations (void payment, transfer, split, adjustment) should be logged in the audit_logs table.
-
-3. **Balance Recalculation**: Any operation affecting folio totals must recalculate subtotal, tax, service charge, and balance atomically.
-
-4. **RLS Considerations**: New hooks must respect existing tenant isolation patterns. All queries filter by current tenant.
-
-5. **Real-time Updates**: Existing `useFolioNotifications` hook will automatically sync UI when folios or payments are modified.
+A migration will be created to:
+1. Fix existing corrupted data (rooms and room_types with mismatched tenant_id)
+2. Add validation triggers for rooms and room_types tables
+3. Optionally add similar triggers for other property-scoped tables
 
 ---
 
-## Summary
+## Technical Implementation
 
-These 10 features transform the folio management from basic charge/payment tracking into a comprehensive billing system suitable for professional hotel operations. The priority order focuses on high-value, low-effort features first, ensuring quick wins while building toward more complex functionality.
+### Edge Function Changes
+
+**File: `supabase/functions/admin-chat/index.ts`**
+
+1. After extracting request data (around line 3228), add property validation:
+
+```typescript
+const { messages, tenantId, propertyId } = await req.json();
+
+// Validate property exists and belongs to tenant
+if (propertyId) {
+  const { data: property, error: propError } = await supabase
+    .from('properties')
+    .select('id, tenant_id')
+    .eq('id', propertyId)
+    .single();
+  
+  if (propError || !property) {
+    throw new Error('Invalid property ID');
+  }
+  
+  if (property.tenant_id !== tenantId) {
+    console.error(`Security: Attempted cross-tenant access. Claimed tenant: ${tenantId}, Property's tenant: ${property.tenant_id}`);
+    throw new Error('Property does not belong to specified tenant');
+  }
+}
+```
+
+2. Alternatively, derive `tenantId` from the authenticated user's profile instead of trusting the client:
+
+```typescript
+// Get authenticated user's tenant
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('tenant_id')
+  .eq('id', userId)
+  .single();
+
+const validatedTenantId = profile?.tenant_id;
+if (!validatedTenantId) {
+  throw new Error('User does not belong to a tenant');
+}
+```
+
+### Client Hook Changes
+
+**File: `src/hooks/useAdminChat.tsx`**
+
+Update to use `currentProperty`:
+
+```typescript
+const { tenant, currentProperty } = useTenant();
+
+// ... in sendMessage function:
+const propertyId = currentProperty?.id || '';
+```
+
+---
+
+## Security Improvements Summary
+
+1. **Server-side validation**: Never trust client-provided tenant/property IDs without verification
+2. **Database constraints**: Triggers prevent data corruption at the database level
+3. **Data cleanup**: Fix existing corrupted records to restore proper isolation
+4. **Consistent property selection**: Use the current selected property, not arbitrary first property
+
+---
+
+## Expected Outcome
+
+After implementation:
+- Hotel A can create room "101" with room type code "STD"
+- Hotel B can also create room "101" with room type code "STD"
+- Each hotel only sees their own rooms and room types
+- The unique constraints work correctly (scoped to property_id)
+- No cross-tenant data leakage or corruption
 
