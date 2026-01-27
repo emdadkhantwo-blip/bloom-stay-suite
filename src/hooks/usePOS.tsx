@@ -267,6 +267,28 @@ export function useUpdatePOSCategoryOrder() {
   });
 }
 
+export function useDeletePOSItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (itemId: string) => {
+      const { error } = await supabase
+        .from("pos_items")
+        .update({ is_active: false })
+        .eq("id", itemId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos-items"] });
+      toast.success("Item deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete item: ${error.message}`);
+    },
+  });
+}
+
 // ============= ITEMS =============
 
 export function usePOSItems(outletId?: string) {
