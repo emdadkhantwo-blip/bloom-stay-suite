@@ -1,224 +1,227 @@
 
-# Fix Room Availability for Future Reservations
 
-## Problem Analysis
+# Enhanced Folio Management Features
 
-You've identified a critical workflow issue:
+## Current State Analysis
 
-**Current Situation:**
-- Guest A checks in on Jan 27 for a stay until Jan 29
-- Room 101 status changes to "occupied"
-- Guest B calls to book Room 101 from Jan 30 onwards
-- Room 101 doesn't appear in the Room Assignment dropdown
-- You cannot complete the booking
-
-**Root Cause:**
-The room availability logic currently filters rooms by their **current physical status** (`vacant` or `dirty`) rather than checking **date-based availability**. This means:
-- Rooms marked as `occupied` are excluded entirely from availability queries
-- The system doesn't consider that an occupied room *will become* available after the current guest checks out
-
-**Affected Code Locations:**
-
-| File | Line | Current Filter | Problem |
-|------|------|----------------|---------|
-| `src/hooks/useRoomTypes.tsx` | 148 | `.in("status", ["vacant", "dirty"])` | Excludes occupied rooms from future bookings |
-| `src/components/front-desk/RoomAssignmentDialog.tsx` | 60 | `.eq("status", "vacant")` | Only shows vacant rooms for check-in assignment |
+The folios section currently supports:
+- View open/closed folios with search
+- Add charges (multiple item types)
+- Record payments (multiple methods)
+- Void charges with reason
+- Close folio (when balance is zero)
+- Basic print button (placeholder, not functional)
+- Stats bar with overview metrics
 
 ---
 
-## Solution Options
+## Proposed New Features
 
-### Option A: Date-Based Availability (Recommended)
+### Feature 1: Folio Invoice Print/Export
 
-**Concept:** Change the availability logic to check **reservation date overlaps** instead of room physical status. A room is available for a date range if there are no conflicting reservations, regardless of its current status.
+**Description**: Make the existing print button functional by generating a detailed invoice for any folio.
 
-**Benefits:**
-- Rooms can be pre-assigned to future reservations even while currently occupied
-- Maximizes booking potential
-- Industry-standard approach used by major PMS systems
+**Implementation**:
+- Create a new `FolioInvoicePrintView` component
+- Include itemized charges with dates and types
+- Show payment history with methods and dates
+- Display tax, service charge, and totals breakdown
+- Add hotel branding (logo, name)
+- Auto-trigger print or allow PDF download
 
-**Trade-off:**
-- Room may show as available but still needs housekeeping before new guest arrives
-
-### Option B: Include "Occupied" Rooms for Future Dates
-
-**Concept:** When the reservation check-in date is in the future (not today), include occupied rooms in availability checks.
-
-**Benefits:**
-- Simpler change
-- Still prevents same-day conflicts
-
-**Trade-off:**
-- Doesn't fully solve edge cases
-
-### Option C: Virtual Availability with Housekeeping Status Indicator
-
-**Concept:** Show all date-available rooms but indicate their current status (occupied, dirty, vacant) as visual badges. Let staff make informed decisions.
-
-**Benefits:**
-- Complete visibility
-- Staff can plan housekeeping accordingly
+**Files to modify**:
+- `src/components/folios/FolioDetailDrawer.tsx` - Wire up print button
+- Create `src/components/folios/FolioInvoicePrintView.tsx` - Invoice template
 
 ---
 
-## Recommended Implementation (Option A + C Combined)
+### Feature 2: Void Payment Functionality
 
-### Change 1: Update `useAvailableRooms` Hook
+**Description**: Allow voiding incorrect payments (similar to voiding charges).
 
-**File:** `src/hooks/useRoomTypes.tsx`
+**Implementation**:
+- Add a void button next to each payment in the drawer
+- Create `VoidPaymentDialog` with reason input
+- Add `useVoidPayment` mutation hook
+- Update folio balance when payment is voided
+- Show voided payments with strikethrough styling
 
-| Current | New |
-|---------|-----|
-| Filters by status first, then by date overlap | Fetches ALL active rooms, then filters by date overlap only |
-| Only returns rooms with vacant/dirty status | Returns all rooms without date conflicts, includes current status |
-
-**Updated Query Logic:**
-```typescript
-// Step 1: Get ALL active rooms of this type (regardless of status)
-const { data: rooms } = await supabase
-  .from("rooms")
-  .select("id, room_number, floor, status")
-  .eq("property_id", propertyId)
-  .eq("room_type_id", roomTypeId)
-  .eq("is_active", true);  // Remove status filter
-
-// Step 2: Get rooms with conflicting reservations for the requested dates
-const { data: bookedRooms } = await supabase
-  .from("reservation_rooms")
-  .select(`
-    room_id,
-    reservation:reservations!inner(check_in_date, check_out_date, status)
-  `)
-  .not("room_id", "is", null)
-  .in("reservation.status", ["confirmed", "checked_in"]);
-
-// Step 3: Filter out rooms that have date conflicts
-const bookedRoomIds = new Set(
-  bookedRooms?.filter(br => {
-    const res = br.reservation;
-    return res.check_in_date < checkOutStr && res.check_out_date > checkInStr;
-  }).map(br => br.room_id)
-);
-
-// Return available rooms with their current status (for display)
-return rooms?.filter(room => !bookedRoomIds.has(room.id)) || [];
-```
-
-### Change 2: Update `RoomAssignmentDialog` for Check-In
-
-**File:** `src/components/front-desk/RoomAssignmentDialog.tsx`
-
-For **same-day check-in**, the room must be physically ready (vacant). Keep the current logic but add an exception:
-
-| Scenario | Room Status Filter |
-|----------|-------------------|
-| Check-in is TODAY | Only `vacant` rooms |
-| Check-in is FUTURE | All rooms without date conflicts |
-
-**Updated Query:**
-```typescript
-function useAvailableRoomsByType(
-  roomTypeId: string | null, 
-  propertyId: string | null,
-  checkInDate: Date,
-  checkOutDate: Date
-) {
-  const isToday = isSameDay(checkInDate, new Date());
-  
-  return useQuery({
-    queryFn: async () => {
-      // Query rooms based on whether check-in is today or future
-      let query = supabase
-        .from("rooms")
-        .select("id, room_number, floor, status")
-        .eq("property_id", propertyId)
-        .eq("room_type_id", roomTypeId)
-        .eq("is_active", true);
-      
-      // For same-day check-in, only show vacant rooms
-      if (isToday) {
-        query = query.eq("status", "vacant");
-      }
-      
-      const { data: rooms } = await query;
-      
-      // Also check for reservation conflicts (for future dates)
-      if (!isToday) {
-        // ... date overlap filtering logic
-      }
-      
-      return rooms;
-    }
-  });
-}
-```
-
-### Change 3: Add Status Badge in Room Selector
-
-**File:** `src/components/front-desk/RoomAssignmentDialog.tsx`
-
-Show the room's current status as a visual indicator:
-
-```tsx
-<SelectItem key={room.id} value={room.id}>
-  <div className="flex items-center gap-2">
-    <span className="font-medium">{room.room_number}</span>
-    {room.floor && <span className="text-xs text-muted-foreground">Floor {room.floor}</span>}
-    {room.status !== "vacant" && (
-      <Badge variant={room.status === "occupied" ? "secondary" : "outline"} className="text-xs">
-        {room.status === "occupied" ? "Currently Occupied" : "Needs Cleaning"}
-      </Badge>
-    )}
-  </div>
-</SelectItem>
-```
+**Files to modify**:
+- `src/hooks/useFolios.tsx` - Add `useVoidPayment` hook
+- Create `src/components/folios/VoidPaymentDialog.tsx`
+- `src/components/folios/FolioDetailDrawer.tsx` - Add void button to payments
 
 ---
 
-## Files to Modify
+### Feature 3: Transfer Charges Between Folios
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useRoomTypes.tsx` | Update `useAvailableRooms` to remove status filter, use date-based availability only |
-| `src/components/front-desk/RoomAssignmentDialog.tsx` | Update `useVacantRoomsByType` to accept reservation dates, apply smart filtering, add status badges |
-| `src/components/reservations/NewReservationDialog.tsx` | Ensure room availability uses date-based logic when creating new reservations |
+**Description**: Move charges from one guest's folio to another (common for group bookings).
 
----
+**Implementation**:
+- Add "Transfer" button next to each charge
+- Create dialog to select target folio
+- Show searchable list of open folios
+- Update both source and target folio totals
+- Log the transfer for audit purposes
 
-## User Flow After Fix
-
-**Your Scenario:**
-1. Check in Guest A on Jan 27 for stay until Jan 29
-2. Room 101 marked as "occupied"
-3. Guest B calls to reserve Room 101 from Jan 30
-4. When creating reservation:
-   - Room 101 **appears in dropdown** with badge "Currently Occupied"
-   - System shows it's available because no date conflict exists
-   - You assign Room 101 to Guest B's reservation
-5. On Jan 29, Guest A checks out
-   - Room 101 changes to "dirty"
-   - Housekeeping cleans room
-   - Room 101 becomes "vacant"
-6. On Jan 30, Guest B arrives
-   - Room 101 ready for check-in
+**Files to modify**:
+- `src/hooks/useFolios.tsx` - Add `useTransferCharge` hook
+- Create `src/components/folios/TransferChargeDialog.tsx`
+- `src/components/folios/FolioDetailDrawer.tsx` - Add transfer button
 
 ---
 
-## Edge Cases Handled
+### Feature 4: Split Folio Functionality
 
-1. **Same room, same day**: If Guest A checks out and Guest B checks in same day, room must be cleaned first (housekeeping workflow ensures this)
-2. **Overlapping dates**: System still prevents double-booking with date overlap check
-3. **Pre-assigned rooms**: If Room 101 is pre-assigned to future reservation, it won't show for conflicting date ranges
-4. **Walk-in guests**: For same-day check-in, only vacant rooms shown (must be physically ready)
+**Description**: Create a new folio from selected charges of an existing folio.
+
+**Implementation**:
+- Add "Split Folio" button in drawer actions
+- Allow selecting which charges to move
+- Create new folio with selected charges
+- Update original folio totals
+- Link both folios to same guest/reservation
+
+**Files to modify**:
+- `src/hooks/useFolios.tsx` - Add `useSplitFolio` hook
+- Create `src/components/folios/SplitFolioDialog.tsx`
+- `src/components/folios/FolioDetailDrawer.tsx` - Add split button
+
+---
+
+### Feature 5: Date Range Filtering
+
+**Description**: Filter folios by date range (created date, closed date).
+
+**Implementation**:
+- Add date picker filters in the folios page header
+- Filter by created date or closed date
+- Show results count
+- Reset filter button
+
+**Files to modify**:
+- `src/pages/Folios.tsx` - Add date filter UI
+- `src/hooks/useFolios.tsx` - Update query to accept date range
+
+---
+
+### Feature 6: Reopen Closed Folio
+
+**Description**: Allow reopening a closed folio if additional charges need to be added.
+
+**Implementation**:
+- Add "Reopen" button for closed folios
+- Confirmation dialog with reason
+- Update folio status back to "open"
+- Log the reopen action
+
+**Files to modify**:
+- `src/hooks/useFolios.tsx` - Add `useReopenFolio` hook
+- `src/components/folios/FolioDetailDrawer.tsx` - Add reopen button for closed folios
+
+---
+
+### Feature 7: Bulk Payment (Pay Multiple Folios)
+
+**Description**: Record a single payment across multiple folios (useful for corporate accounts).
+
+**Implementation**:
+- Add checkbox selection on folio cards
+- "Pay Selected" button when folios selected
+- Dialog showing selected folios with total
+- Allocate payment across folios
+
+**Files to modify**:
+- `src/pages/Folios.tsx` - Add selection state and bulk action button
+- Create `src/components/folios/BulkPaymentDialog.tsx`
+- `src/hooks/useFolios.tsx` - Add `useBulkPayment` hook
+
+---
+
+### Feature 8: Folio Notes/Comments
+
+**Description**: Add internal notes to folios for staff communication.
+
+**Implementation**:
+- Add collapsible notes section in drawer
+- Create/view/delete notes
+- Show note author and timestamp
+- Mark notes as important/pinned
+
+**Database changes**:
+- Create `folio_notes` table (folio_id, content, author_id, created_at, is_pinned)
+
+**Files to modify**:
+- Create `src/components/folios/FolioNotesSection.tsx`
+- `src/components/folios/FolioDetailDrawer.tsx` - Add notes section
+- `src/hooks/useFolios.tsx` - Add notes hooks
+
+---
+
+### Feature 9: Export Folios to CSV/Excel
+
+**Description**: Export folio list with financial details for accounting purposes.
+
+**Implementation**:
+- Add "Export" button in folios page header
+- Export visible/filtered folios
+- Include all financial columns
+- Download as CSV file
+
+**Files to modify**:
+- `src/pages/Folios.tsx` - Add export button and logic
+
+---
+
+### Feature 10: Adjustment/Discount Entry
+
+**Description**: Add discount or adjustment entries (positive or negative) to folios.
+
+**Implementation**:
+- Add "Add Adjustment" option in charges section
+- Allow positive (debit) or negative (credit) amounts
+- Require reason for adjustments
+- Show adjustments differently in charge list
+
+**Files to modify**:
+- Create `src/components/folios/AddAdjustmentDialog.tsx`
+- `src/components/folios/FolioDetailDrawer.tsx` - Add adjustment button
+- `src/hooks/useFolios.tsx` - Add adjustment mutation (or update AddCharge to handle negative amounts)
+
+---
+
+## Implementation Priority
+
+| Priority | Feature | Effort | Value |
+|----------|---------|--------|-------|
+| 1 | Folio Invoice Print | Medium | High |
+| 2 | Void Payment | Low | High |
+| 3 | Reopen Closed Folio | Low | Medium |
+| 4 | Date Range Filtering | Low | Medium |
+| 5 | Export to CSV | Low | Medium |
+| 6 | Adjustment/Discount Entry | Medium | High |
+| 7 | Transfer Charges | Medium | High |
+| 8 | Folio Notes | Medium | Medium |
+| 9 | Split Folio | High | Medium |
+| 10 | Bulk Payment | High | Medium |
+
+---
+
+## Technical Notes
+
+1. **Database Changes**: Only Feature 8 (Folio Notes) requires a new table. All other features work with existing schema.
+
+2. **Audit Trail**: All financial operations (void payment, transfer, split, adjustment) should be logged in the audit_logs table.
+
+3. **Balance Recalculation**: Any operation affecting folio totals must recalculate subtotal, tax, service charge, and balance atomically.
+
+4. **RLS Considerations**: New hooks must respect existing tenant isolation patterns. All queries filter by current tenant.
+
+5. **Real-time Updates**: Existing `useFolioNotifications` hook will automatically sync UI when folios or payments are modified.
 
 ---
 
 ## Summary
 
-The fix changes the room availability paradigm from:
-- "What rooms are **physically ready** right now?"
+These 10 features transform the folio management from basic charge/payment tracking into a comprehensive billing system suitable for professional hotel operations. The priority order focuses on high-value, low-effort features first, ensuring quick wins while building toward more complex functionality.
 
-To:
-- "What rooms are **booking-available** for these dates?"
-
-This aligns with how hotel property management systems typically work and solves your scenario where you can't book an occupied room for future dates.
