@@ -20,7 +20,7 @@ import Guests from "./pages/Guests";
 import Maintenance from "./pages/Maintenance";
 import Folios from "./pages/Folios";
 import Reports from "./pages/Reports";
-import Staff from "./pages/Staff";
+
 import Properties from "./pages/Properties";
 import Settings from "./pages/Settings";
 import POS from "./pages/POS";
@@ -277,16 +277,6 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={['accountant', 'night_auditor']} route="/reports">
           <DashboardLayout title="Reports">
             <Reports />
-          </DashboardLayout>
-        </RoleProtectedRoute>
-      }
-    />
-    <Route
-      path="/staff"
-      element={
-        <RoleProtectedRoute allowedRoles={[]} route="/staff">
-          <DashboardLayout title="Staff">
-            <Staff />
           </DashboardLayout>
         </RoleProtectedRoute>
       }
