@@ -148,7 +148,7 @@ export function HeroSection() {
                     <div className="text-xs text-muted-foreground">Rooms Occupied</div>
                   </div>
                   <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-card-foreground">$12.4K</div>
+                    <div className="text-2xl font-bold text-card-foreground">৳12.4K</div>
                     <div className="text-xs text-muted-foreground">Revenue</div>
                   </div>
                   <div className="text-center p-3 bg-muted/50 rounded-lg">

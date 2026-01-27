@@ -94,7 +94,7 @@ export function BookingSourceChart({ data, isLoading }: BookingSourceChartProps)
                   </div>
                 </TableCell>
                 <TableCell className="text-right">{source.count}</TableCell>
-                <TableCell className="text-right">${source.revenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right">৳{source.revenue.toLocaleString()}</TableCell>
                 <TableCell className="text-right">
                   {((source.count / totalBookings) * 100).toFixed(1)}%
                 </TableCell>
@@ -103,7 +103,7 @@ export function BookingSourceChart({ data, isLoading }: BookingSourceChartProps)
           <TableRow className="font-semibold">
             <TableCell>Total</TableCell>
             <TableCell className="text-right">{totalBookings}</TableCell>
-            <TableCell className="text-right">${totalRevenue.toLocaleString()}</TableCell>
+            <TableCell className="text-right">৳{totalRevenue.toLocaleString()}</TableCell>
             <TableCell className="text-right">100%</TableCell>
           </TableRow>
         </TableBody>

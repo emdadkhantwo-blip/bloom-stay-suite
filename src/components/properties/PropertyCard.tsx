@@ -181,7 +181,7 @@ export function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
               <span>{property.timezone || "UTC"}</span>
             </div>
             <span className="bg-muted/50 px-2 py-1 rounded-full">
-              {property.currency || "USD"}
+              {property.currency || "BDT"}
             </span>
             {property.tax_rate !== null && property.tax_rate > 0 && (
               <span className="bg-amber-500/10 text-amber-600 px-2 py-1 rounded-full">

@@ -1,5 +1,5 @@
 import { format, parseISO, differenceInDays } from "date-fns";
-import { Hotel, CalendarDays, DollarSign, Users, MapPin } from "lucide-react";
+import { Hotel, CalendarDays, Users, MapPin } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
