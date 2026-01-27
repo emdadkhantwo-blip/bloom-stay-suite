@@ -160,7 +160,7 @@ export default function FrontDesk() {
         <GuestListCard
           title="Today's Arrivals"
           description="Guests expected to check in"
-          icon={<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10"><LogIn className="h-4 w-4 text-success" /></div>}
+          icon={<LogIn className="h-4 w-4 text-white" />}
           guests={arrivals}
           isLoading={arrivalsLoading}
           emptyMessage="No arrivals scheduled for today"
@@ -173,7 +173,7 @@ export default function FrontDesk() {
         <GuestListCard
           title="Today's Departures"
           description="Guests expected to check out"
-          icon={<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10"><LogOut className="h-4 w-4 text-warning" /></div>}
+          icon={<LogOut className="h-4 w-4 text-white" />}
           guests={departures}
           isLoading={departuresLoading}
           emptyMessage="No departures scheduled for today"
@@ -186,7 +186,7 @@ export default function FrontDesk() {
         <GuestListCard
           title="In House Guests"
           description="Currently staying guests"
-          icon={<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10"><Hotel className="h-4 w-4 text-primary" /></div>}
+          icon={<Hotel className="h-4 w-4 text-white" />}
           guests={inHouse}
           isLoading={inHouseLoading}
           emptyMessage="No guests currently in house"
