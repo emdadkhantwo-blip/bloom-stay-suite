@@ -153,6 +153,11 @@ export function useCheckIn() {
       reservationId: string; 
       roomAssignments?: Array<{ reservationRoomId: string; roomId: string }>;
     }) => {
+      // CRITICAL: Validate that room assignments are provided
+      if (!roomAssignments || roomAssignments.length === 0) {
+        throw new Error("Cannot check in without assigning a room. Please assign rooms first.");
+      }
+
       // Update reservation status
       const { error: resError } = await supabase
         .from("reservations")
@@ -165,25 +170,23 @@ export function useCheckIn() {
 
       if (resError) throw resError;
 
-      // Update room assignments if provided
-      if (roomAssignments && roomAssignments.length > 0) {
-        for (const assignment of roomAssignments) {
-          // Update reservation_room with the assigned room
-          const { error: rrError } = await supabase
-            .from("reservation_rooms")
-            .update({ room_id: assignment.roomId, updated_at: new Date().toISOString() })
-            .eq("id", assignment.reservationRoomId);
+      // Update room assignments
+      for (const assignment of roomAssignments) {
+        // Update reservation_room with the assigned room
+        const { error: rrError } = await supabase
+          .from("reservation_rooms")
+          .update({ room_id: assignment.roomId, updated_at: new Date().toISOString() })
+          .eq("id", assignment.reservationRoomId);
 
-          if (rrError) throw rrError;
+        if (rrError) throw rrError;
 
-          // Update room status to occupied
-          const { error: roomError } = await supabase
-            .from("rooms")
-            .update({ status: "occupied", updated_at: new Date().toISOString() })
-            .eq("id", assignment.roomId);
+        // Update room status to occupied
+        const { error: roomError } = await supabase
+          .from("rooms")
+          .update({ status: "occupied", updated_at: new Date().toISOString() })
+          .eq("id", assignment.roomId);
 
-          if (roomError) throw roomError;
-        }
+        if (roomError) throw roomError;
       }
     },
     onSuccess: () => {
@@ -198,7 +201,7 @@ export function useCheckIn() {
     },
     onError: (error) => {
       console.error("Check-in error:", error);
-      toast.error("Failed to check in guest");
+      toast.error(error instanceof Error ? error.message : "Failed to check in guest");
     },
   });
 }

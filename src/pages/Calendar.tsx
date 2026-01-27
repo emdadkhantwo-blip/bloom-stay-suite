@@ -8,6 +8,7 @@ import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { ReservationDetailDrawer } from "@/components/reservations/ReservationDetailDrawer";
+import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDialog";
 import { CheckoutSuccessModal, type CheckoutData } from "@/components/front-desk/CheckoutSuccessModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,10 @@ export default function Calendar() {
   const [isLoadingReservation, setIsLoadingReservation] = useState(false);
   const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+
+  // Room assignment dialog state for check-in flow
+  const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
+  const [pendingCheckIn, setPendingCheckIn] = useState<Reservation | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useCalendarReservations(startDate, numDays);
 
@@ -92,16 +97,39 @@ export default function Calendar() {
 
   const handleCheckIn = () => {
     if (selectedReservation) {
-      checkIn.mutate({ 
-        reservationId: selectedReservation.id,
-        roomAssignments: selectedReservation.reservation_rooms
-          .filter(rr => rr.room_id)
-          .map(rr => ({
+      // Check if all rooms are already assigned
+      const allRoomsAssigned = selectedReservation.reservation_rooms.every(rr => rr.room_id);
+      
+      if (allRoomsAssigned) {
+        // Proceed directly if all rooms already have assignments
+        checkIn.mutate({ 
+          reservationId: selectedReservation.id,
+          roomAssignments: selectedReservation.reservation_rooms.map(rr => ({
             reservationRoomId: rr.id,
             roomId: rr.room_id!
           }))
-      });
-      setDrawerOpen(false);
+        });
+        setDrawerOpen(false);
+      } else {
+        // Open room assignment dialog for unassigned rooms
+        setPendingCheckIn(selectedReservation);
+        setRoomAssignmentOpen(true);
+        setDrawerOpen(false);
+      }
+    }
+  };
+
+  const confirmCheckIn = (assignments: Array<{ reservationRoomId: string; roomId: string }>) => {
+    if (pendingCheckIn) {
+      checkIn.mutate(
+        { reservationId: pendingCheckIn.id, roomAssignments: assignments },
+        {
+          onSuccess: () => {
+            setRoomAssignmentOpen(false);
+            setPendingCheckIn(null);
+          },
+        }
+      );
     }
   };
 
@@ -242,6 +270,18 @@ export default function Calendar() {
         onCancel={handleCancel}
         onExtendStay={handleExtendStay}
         onDelete={handleDelete}
+      />
+
+      {/* Room Assignment Dialog for Check-In */}
+      <RoomAssignmentDialog
+        reservation={pendingCheckIn}
+        open={roomAssignmentOpen}
+        onOpenChange={(open) => {
+          setRoomAssignmentOpen(open);
+          if (!open) setPendingCheckIn(null);
+        }}
+        onConfirm={confirmCheckIn}
+        isLoading={checkIn.isPending}
       />
 
       {/* Checkout Success Modal with Invoice */}
