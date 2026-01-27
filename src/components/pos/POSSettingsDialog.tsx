@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +58,9 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemCategoryId, setNewItemCategoryId] = useState<string | null>(null);
 
+  // Delete confirmation state
+  const [categoryToDelete, setCategoryToDelete] = useState<POSCategory | null>(null);
+
   const { data: categories = [] } = usePOSCategories(outlet?.id);
   const { data: items = [] } = usePOSItems(outlet?.id);
 
@@ -81,8 +94,11 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
     );
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
-    deleteCategory.mutate(categoryId);
+  const handleDeleteCategory = () => {
+    if (!categoryToDelete) return;
+    deleteCategory.mutate(categoryToDelete.id, {
+      onSuccess: () => setCategoryToDelete(null),
+    });
   };
 
   const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
@@ -140,6 +156,7 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
   if (!outlet) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -223,7 +240,7 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteCategory(category.id)}
+                          onClick={() => setCategoryToDelete(category)}
                           disabled={deleteCategory.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -348,5 +365,32 @@ export function POSSettingsDialog({ open, onOpenChange, outlet }: POSSettingsDia
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+      {/* Delete Category Confirmation Dialog */}
+      <AlertDialog open={!!categoryToDelete} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the category "{categoryToDelete?.name}"? 
+              {items.filter(i => i.category_id === categoryToDelete?.id).length > 0 && (
+                <span className="block mt-2 text-amber-600 font-medium">
+                  This category has {items.filter(i => i.category_id === categoryToDelete?.id).length} menu item(s) that will become uncategorized.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCategory}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteCategory.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
