@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Plus, Wrench, Bell } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useMaintenanceNotifications } from "@/hooks/useMaintenanceNotifications";
 import {
   useMaintenanceTickets,
   useMaintenanceStats,
@@ -26,6 +27,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export default function Maintenance() {
   const { currentProperty } = useTenant();
   const { hasAnyRole, hasRole } = useAuth();
+
+  // Enable real-time notifications for maintenance tickets
+  useMaintenanceNotifications();
 
   // Role-based permissions
   const canCreateTicket = hasAnyRole(['owner', 'manager', 'front_desk']);
