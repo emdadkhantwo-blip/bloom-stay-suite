@@ -3284,6 +3284,27 @@ serve(async (req) => {
         
         if (property.tenant_id !== validatedTenantId) {
           console.error(`Security: Cross-tenant access attempt. User tenant: ${validatedTenantId}, Property tenant: ${property.tenant_id}`);
+          
+          // Log the cross-tenant access attempt to audit logs
+          try {
+            await supabase.rpc('log_cross_tenant_attempt', {
+              p_user_id: userId,
+              p_user_tenant_id: validatedTenantId,
+              p_attempted_tenant_id: property.tenant_id,
+              p_attempted_property_id: clientPropertyId,
+              p_action_type: 'cross_tenant_property_access',
+              p_details: {
+                source: 'admin-chat',
+                client_provided_tenant_id: clientTenantId,
+                client_provided_property_id: clientPropertyId
+              },
+              p_ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null,
+              p_user_agent: req.headers.get('user-agent') || null
+            });
+          } catch (logError) {
+            console.error('Failed to log security event:', logError);
+          }
+          
           throw new Error('Property does not belong to your organization');
         }
         

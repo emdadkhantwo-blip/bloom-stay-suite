@@ -2008,6 +2008,33 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      log_cross_tenant_attempt: {
+        Args: {
+          p_action_type?: string
+          p_attempted_property_id?: string
+          p_attempted_tenant_id: string
+          p_details?: Json
+          p_ip_address?: string
+          p_user_agent?: string
+          p_user_id: string
+          p_user_tenant_id: string
+        }
+        Returns: string
+      }
+      log_security_event: {
+        Args: {
+          p_action: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_ip_address?: string
+          p_new_values?: Json
+          p_old_values?: Json
+          p_tenant_id?: string
+          p_user_agent?: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       admin_application_status: "pending" | "approved" | "rejected"
