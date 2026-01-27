@@ -32,7 +32,7 @@ export function useAdminChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
-  const { tenant, properties } = useTenant();
+  const { tenant, properties, currentProperty } = useTenant();
   const { session, user } = useAuth();
 
   // Initialize or load session
@@ -141,7 +141,7 @@ export function useAdminChat() {
         content: m.content
       }));
 
-      const propertyId = properties?.[0]?.id || '';
+      const propertyId = currentProperty?.id || properties?.[0]?.id || '';
 
       // Retry logic with exponential backoff
       const maxRetries = 3;
