@@ -103,7 +103,6 @@ const hrItems = [
 ];
 
 const adminItems = [
-  { title: 'Staff', url: '/staff', icon: UserCircle, color: 'text-vibrant-purple' },
   { title: 'Properties', url: '/properties', icon: Building2, color: 'text-vibrant-blue' },
   { title: 'References', url: '/references', icon: Tags, color: 'text-vibrant-amber' },
   { title: 'Settings', url: '/settings', icon: Settings, color: 'text-vibrant-cyan' },
