@@ -5,6 +5,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { useTodayArrivals, useTodayDepartures, useInHouseGuests } from "@/hooks/useFrontDesk";
 import { useCheckIn, useCheckOut, type CheckoutResult } from "@/hooks/useReservations";
 import { useRoomStats } from "@/hooks/useRooms";
+import { useReservationNotifications } from "@/hooks/useReservationNotifications";
+import { useHousekeepingNotifications } from "@/hooks/useHousekeepingNotifications";
 import { FrontDeskStatsBar } from "@/components/front-desk/FrontDeskStatsBar";
 import { GuestListCard } from "@/components/front-desk/GuestListCard";
 import { QuickActions } from "@/components/front-desk/QuickActions";
@@ -28,6 +30,10 @@ import type { Reservation } from "@/hooks/useReservations";
 import { useNavigate } from "react-router-dom";
 
 export default function FrontDesk() {
+  // Enable real-time notifications for reservations and housekeeping
+  useReservationNotifications();
+  useHousekeepingNotifications();
+
   const navigate = useNavigate();
   const { currentProperty } = useTenant();
   const [currentTime, setCurrentTime] = useState(new Date());
