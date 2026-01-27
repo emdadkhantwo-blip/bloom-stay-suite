@@ -30,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCorporateAccountGuests,
-  useLinkGuestToCorporateAccount,
+  useUnlinkGuestFromCorporateAccount,
   type CorporateAccount,
 } from "@/hooks/useCorporateAccounts";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -65,7 +65,7 @@ export function CorporateAccountDetailDrawer({
 
   const { data: guests = [], isLoading: guestsLoading } =
     useCorporateAccountGuests(account?.id);
-  const unlinkMutation = useLinkGuestToCorporateAccount();
+  const unlinkMutation = useUnlinkGuestFromCorporateAccount();
 
   if (!account) return null;
 
@@ -92,8 +92,8 @@ export function CorporateAccountDetailDrawer({
   };
 
   const handleUnlinkConfirm = async () => {
-    if (unlinkGuestId) {
-      await unlinkMutation.mutateAsync({ guestId: unlinkGuestId, accountId: null });
+    if (unlinkGuestId && account) {
+      await unlinkMutation.mutateAsync({ guestId: unlinkGuestId, accountId: account.id });
       setUnlinkGuestId(null);
       setUnlinkGuestName("");
     }
