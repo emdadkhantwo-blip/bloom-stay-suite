@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, AlertTriangle } from "lucide-react";
 import {
   useReservations,
   useReservationStats,
@@ -12,6 +13,7 @@ import {
   type CheckoutResult,
 } from "@/hooks/useReservations";
 import { useReservationNotifications } from "@/hooks/useReservationNotifications";
+import { useRoomSetupStatus } from "@/hooks/useRoomSetupStatus";
 import { ReservationStatsBar } from "@/components/reservations/ReservationStatsBar";
 import { ReservationFilters } from "@/components/reservations/ReservationFilters";
 import { ReservationListItem } from "@/components/reservations/ReservationListItem";
@@ -20,6 +22,7 @@ import { NewReservationDialog } from "@/components/reservations/NewReservationDi
 import { RoomAssignmentDialog } from "@/components/front-desk/RoomAssignmentDialog";
 import { CheckoutSuccessModal, type CheckoutData } from "@/components/front-desk/CheckoutSuccessModal";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -40,11 +43,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Reservations() {
+  const navigate = useNavigate();
+  
   // Enable real-time notifications for reservations
   useReservationNotifications();
 
   const { data: reservations, isLoading } = useReservations();
   const { data: stats, isLoading: isLoadingStats } = useReservationStats();
+  const { hasRoomTypes, hasRooms, isReady } = useRoomSetupStatus();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   const cancelReservation = useCancelReservation();
@@ -211,6 +217,28 @@ export default function Reservations() {
 
   return (
     <div className="space-y-4">
+      {/* Room Setup Required Banner */}
+      {!isReady && (
+        <Card className="border-warning/50 bg-warning/10">
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-foreground">Complete Your Hotel Setup</h4>
+                <p className="text-sm text-muted-foreground">
+                  {!hasRoomTypes && !hasRooms && "Create room types and add rooms to start accepting reservations."}
+                  {hasRoomTypes && !hasRooms && "Add physical rooms to enable check-ins for reservations."}
+                  {!hasRoomTypes && hasRooms && "Create room types to categorize your rooms."}
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => navigate('/rooms')} className="shrink-0">
+              Set Up Rooms
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Bar */}
       <ReservationStatsBar stats={stats || null} isLoading={isLoadingStats} />
 

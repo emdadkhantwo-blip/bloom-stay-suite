@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { isSameDay } from "date-fns";
-import { BedDouble, CheckCircle2, AlertCircle } from "lucide-react";
+import { BedDouble, CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { useRooms } from "@/hooks/useRooms";
 import type { Reservation } from "@/hooks/useReservations";
 import { cn } from "@/lib/utils";
 import { RoomStatusBadge } from "@/components/rooms/RoomStatusBadge";
@@ -236,8 +239,13 @@ export function RoomAssignmentDialog({
   onConfirm,
   isLoading,
 }: RoomAssignmentDialogProps) {
+  const navigate = useNavigate();
   const { currentProperty } = useTenant();
+  const { data: allRooms } = useRooms();
   const [assignments, setAssignments] = useState<Map<string, string>>(new Map());
+
+  // Check if any rooms exist at all
+  const hasAnyRooms = (allRooms?.length || 0) > 0;
 
   // Initialize assignments from existing room assignments
   useEffect(() => {
@@ -302,7 +310,32 @@ export function RoomAssignmentDialog({
         </DialogHeader>
 
         <div className="space-y-3 py-2">
-          {reservation.reservation_rooms.map((rr) => (
+          {/* No Rooms Available Warning */}
+          {!hasAnyRooms && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>No Rooms Available</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2">
+                <span>
+                  No physical rooms have been created yet. You need to add rooms before you can check in guests.
+                </span>
+                <Button 
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate('/rooms');
+                  }}
+                >
+                  Go to Rooms Page →
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {hasAnyRooms && reservation.reservation_rooms.map((rr) => (
             <RoomSelector
               key={rr.id}
               reservationRoom={rr}

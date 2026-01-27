@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, differenceInDays } from "date-fns";
-import { CalendarIcon, Plus, Trash2, Tags, Percent, Upload, X, FileText } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Tags, Percent, Upload, X, FileText, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -40,10 +41,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { GuestSearchSelect } from "./GuestSearchSelect";
 import { CreateGuestDialog } from "./CreateGuestDialog";
 import { useRoomTypes } from "@/hooks/useRoomTypes";
+import { useRooms } from "@/hooks/useRooms";
 import { useCreateReservation } from "@/hooks/useCreateReservation";
 import { useActiveReferences, calculateDiscount, type Reference } from "@/hooks/useReferences";
 import { formatCurrency } from "@/lib/currency";
@@ -92,13 +95,18 @@ const bookingSources = [
 ];
 
 export function NewReservationDialog({ open, onOpenChange }: NewReservationDialogProps) {
-  const { data: roomTypes } = useRoomTypes();
+  const navigate = useNavigate();
+  const { data: roomTypes, isLoading: isLoadingRoomTypes } = useRoomTypes();
+  const { data: allRooms } = useRooms();
   const { data: references } = useActiveReferences();
   const createReservation = useCreateReservation();
 
+  const hasRoomTypes = (roomTypes?.length || 0) > 0;
+  const hasRooms = (allRooms?.length || 0) > 0;
+
   const [createGuestOpen, setCreateGuestOpen] = useState(false);
   const [selectedReference, setSelectedReference] = useState<Reference | null>(null);
-  const [rooms, setRooms] = useState<RoomSelection[]>([
+  const [selectedRooms, setSelectedRooms] = useState<RoomSelection[]>([
     { id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 },
   ]);
   const [guestIdFiles, setGuestIdFiles] = useState<Map<number, { file: File; preview: string; type: string; fileName: string }>>(new Map());
@@ -158,8 +166,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   }, [checkInDate, checkOutDate]);
 
   const subtotal = useMemo(() => {
-    return rooms.reduce((sum, room) => sum + room.rate_per_night * nights, 0);
-  }, [rooms, nights]);
+    return selectedRooms.reduce((sum, room) => sum + room.rate_per_night * nights, 0);
+  }, [selectedRooms, nights]);
 
   const discountAmount = useMemo(() => {
     return calculateDiscount(selectedReference, subtotal);
@@ -178,21 +186,21 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   };
 
   const addRoom = () => {
-    setRooms([
-      ...rooms,
+    setSelectedRooms([
+      ...selectedRooms,
       { id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 },
     ]);
   };
 
   const removeRoom = (id: string) => {
-    if (rooms.length > 1) {
-      setRooms(rooms.filter((r) => r.id !== id));
+    if (selectedRooms.length > 1) {
+      setSelectedRooms(selectedRooms.filter((r) => r.id !== id));
     }
   };
 
   const updateRoom = (id: string, updates: Partial<RoomSelection>) => {
-    setRooms(
-      rooms.map((r) => {
+    setSelectedRooms(
+      selectedRooms.map((r) => {
         if (r.id !== id) return r;
         const updated = { ...r, ...updates };
         
@@ -271,7 +279,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
 
   const onSubmit = async (data: ReservationFormData) => {
     // Validate rooms
-    const validRooms = rooms.filter((r) => r.room_type_id);
+    const validRooms = selectedRooms.filter((r) => r.room_type_id);
     if (validRooms.length === 0) {
       return;
     }
@@ -329,7 +337,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
       // Reset form and close
       form.reset();
       setSelectedReference(null);
-      setRooms([{ id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 }]);
+      setSelectedRooms([{ id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 }]);
       
       // Cleanup file previews
       guestIdFiles.forEach((fileData) => {
@@ -358,6 +366,41 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Room Setup Required Alert */}
+              {!isLoadingRoomTypes && !hasRoomTypes && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Room Types Required</AlertTitle>
+                  <AlertDescription className="flex flex-col gap-2">
+                    <span>You need to create room types before making reservations.</span>
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate('/rooms');
+                      }}
+                    >
+                      Go to Rooms Setup →
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* No Physical Rooms Warning */}
+              {hasRoomTypes && !hasRooms && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No Rooms Created</AlertTitle>
+                  <AlertDescription>
+                    Room types exist, but no physical rooms have been added yet. 
+                    Reservations can be made, but check-in will require rooms to be created first.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Guest Selection */}
               <FormField
                 control={form.control}
@@ -471,7 +514,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                   </Button>
                 </div>
 
-                {rooms.map((room, index) => (
+                {selectedRooms.map((room, index) => (
                   <Card key={room.id}>
                     <CardContent className="grid grid-cols-12 gap-3 p-3">
                       <div className="col-span-4">
@@ -528,7 +571,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                         />
                       </div>
                       <div className="col-span-2 flex items-end justify-end">
-                        {rooms.length > 1 && (
+                        {selectedRooms.length > 1 && (
                           <Button
                             type="button"
                             variant="ghost"
@@ -774,8 +817,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
-                      Subtotal ({rooms.filter((r) => r.room_type_id).length} room
-                      {rooms.length !== 1 ? "s" : ""} × {nights} night
+                      Subtotal ({selectedRooms.filter((r) => r.room_type_id).length} room
+                      {selectedRooms.length !== 1 ? "s" : ""} × {nights} night
                       {nights !== 1 ? "s" : ""})
                     </span>
                     <span>{formatCurrency(subtotal)}</span>
