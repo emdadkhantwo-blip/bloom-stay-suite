@@ -56,8 +56,9 @@ export function CheckoutDialog({
   );
   
   const corporateAccountId = reservation?.guest?.corporate_account_id;
+  // Always fetch corporate account if the guest has one (to show in dropdown)
   const { data: corporateAccount } = useCorporateAccountById(
-    paymentMethod === "corporate" ? corporateAccountId ?? null : null
+    open && corporateAccountId ? corporateAccountId : null
   );
 
   const recordPayment = useRecordPayment();
