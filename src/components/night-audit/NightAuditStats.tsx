@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, BarChart3, BedDouble, DollarSign, Users } from 'lucide-react';
+import { RefreshCw, BarChart3, BedDouble, Wallet, Users } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 interface AuditStatistics {
@@ -107,7 +107,7 @@ export function NightAuditStats({ stats, onRefresh }: NightAuditStatsProps) {
         {/* Revenue Section */}
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
-            <DollarSign className="h-4 w-4" />
+            <Wallet className="h-4 w-4" />
             Revenue
           </div>
           <div className="space-y-2">

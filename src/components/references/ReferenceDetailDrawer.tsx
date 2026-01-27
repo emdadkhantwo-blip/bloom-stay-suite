@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { Tags, Percent, DollarSign, Calendar, Trash2 } from "lucide-react";
+import { Tags, Percent, Calendar, Trash2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -158,7 +158,7 @@ export function ReferenceDetailDrawer({
               {reference.discount_type === "percentage" ? (
                 <Percent className="h-5 w-5 text-vibrant-amber" />
               ) : (
-                <DollarSign className="h-5 w-5 text-vibrant-green" />
+                <span className="text-lg font-bold text-vibrant-green">৳</span>
               )}
               <span className="text-2xl font-bold">{discountDisplay}</span>
               <span className="text-muted-foreground">discount</span>

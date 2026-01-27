@@ -17,11 +17,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { 
-  DollarSign, 
   Users, 
   ListChecks,
   Plus,
   Minus,
+  Wallet,
 } from "lucide-react";
 import { POSOrder } from "@/hooks/usePOS";
 
@@ -131,7 +131,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
+            <Wallet className="h-5 w-5" />
             Split Bill - {order.order_number}
           </DialogTitle>
           <DialogDescription>
@@ -146,7 +146,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
               Equal Split
             </TabsTrigger>
             <TabsTrigger value="custom" className="gap-2">
-              <DollarSign className="h-4 w-4" />
+              <Wallet className="h-4 w-4" />
               Custom Amounts
             </TabsTrigger>
             <TabsTrigger value="items" className="gap-2">
@@ -243,7 +243,7 @@ export function SplitBillDialog({ open, onOpenChange, order, onSplit }: SplitBil
                       <div key={index} className="flex items-center gap-3">
                         <Label className="w-20">Person {index + 1}</Label>
                         <div className="relative flex-1">
-                          <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">৳</span>
                           <Input
                             type="number"
                             step="0.01"

@@ -1,4 +1,4 @@
-import { Star, Ban, Mail, Phone, MapPin, Calendar, DollarSign } from "lucide-react";
+import { Star, Ban, Mail, Phone, MapPin, Calendar, Wallet } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -111,10 +111,10 @@ export function GuestCard({ guest, onClick }: GuestCardProps) {
               </div>
               <div className="flex items-center gap-1.5 text-sm">
                 <div className="rounded-full bg-emerald-500/10 p-1">
-                  <DollarSign className="h-3 w-3 text-emerald-500" />
+                  <Wallet className="h-3 w-3 text-emerald-500" />
                 </div>
                 <span className="font-semibold text-emerald-600">
-                  ${guest.total_revenue.toLocaleString()}
+                  ৳{guest.total_revenue.toLocaleString()}
                 </span>
                 <span className="text-muted-foreground">revenue</span>
               </div>

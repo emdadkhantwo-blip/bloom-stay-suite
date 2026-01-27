@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRoomTypes, type RoomType } from "@/hooks/useRoomTypes";
 import { CreateRoomTypeDialog } from "./CreateRoomTypeDialog";
 import { EditRoomTypeDialog } from "./EditRoomTypeDialog";
-import { Plus, Users, DollarSign, Pencil } from "lucide-react";
+import { Plus, Users, Pencil } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface RoomTypesSheetProps {
@@ -77,8 +77,8 @@ export function RoomTypesSheet({ open, onOpenChange }: RoomTypesSheetProps) {
                       )}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" />
-                          ${roomType.base_rate}/night
+                          <span className="font-medium">৳</span>
+                          {roomType.base_rate}/night
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />

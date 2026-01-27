@@ -1,4 +1,4 @@
-import { Receipt, CreditCard, DollarSign, TrendingUp } from "lucide-react";
+import { Receipt, CreditCard, Wallet, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,7 @@ export function FolioStatsBar({ stats, isLoading }: FolioStatsBarProps) {
     {
       label: "Outstanding Balance",
       value: `৳${(stats?.total_balance || 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: Wallet,
       gradient: "from-amber-500 to-orange-600",
       iconBg: "bg-white/20",
     },

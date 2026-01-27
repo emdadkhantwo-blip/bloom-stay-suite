@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Play, DollarSign, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { Play, Wallet, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { NightAudit } from '@/hooks/useNightAudit';
 
 interface PreAuditChecklist {
@@ -122,7 +122,7 @@ export function NightAuditActions({
             {isPostingCharges ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <DollarSign className="mr-2 h-4 w-4" />
+              <Wallet className="mr-2 h-4 w-4" />
             )}
             Post Charges
           </Button>

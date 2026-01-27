@@ -1,4 +1,4 @@
-import { Tags, Percent, DollarSign, MoreVertical, Pencil, Trash2, Power } from "lucide-react";
+import { Tags, Percent, MoreVertical, Pencil, Trash2, Power } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ export function ReferenceCard({ reference, onClick }: ReferenceCardProps) {
             {reference.discount_type === "percentage" ? (
               <Percent className="h-4 w-4 text-vibrant-amber" />
             ) : (
-              <DollarSign className="h-4 w-4 text-vibrant-green" />
+              <span className="text-sm font-bold text-vibrant-green">৳</span>
             )}
             <span className="text-lg font-bold">{discountDisplay}</span>
             <span className="text-sm text-muted-foreground">discount</span>
