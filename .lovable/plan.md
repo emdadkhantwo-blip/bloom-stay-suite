@@ -1,237 +1,363 @@
 
+# Enhanced Night Audit Section with CSV/PDF Export
 
-# Fix Multi-Tenant Data Isolation for Room and Room Type Creation
+## Overview
 
-## Problem Summary
-
-Different hotels (tenants) are unable to create rooms with the same room numbers or room types with the same codes. This is happening due to a **cross-tenant data integrity issue** where rooms and room types are being created with mismatched `tenant_id` and `property_id` values.
-
-**Evidence from database:**
-- Room 315 in "Grand Pacific Downtown" property has `tenant_id` from "Formzed" instead of "Grand Pacific Hotels"
-- Room types "Single Bed" (code: 001) and "Delux Premium" (code: 002) have the same mismatch
-
-This causes:
-1. Data appearing in the wrong tenant's view
-2. Unique constraint violations when other tenants try to create similar rooms/room types
+This plan enhances the Night Audit section with comprehensive reporting features, more granular data breakdowns, and export capabilities in both CSV and PDF formats.
 
 ---
 
-## Root Cause Analysis
+## Current State Analysis
 
-### Issue 1: Client-Provided IDs Without Server Validation
+The existing Night Audit module includes:
+- Pre-audit checklist (pending arrivals, POS orders, housekeeping)
+- Basic statistics (occupancy, revenue, ADR, RevPAR)
+- Room charge posting automation
+- Audit history table with 30-day records
 
-The `admin-chat` edge function accepts `tenantId` and `propertyId` directly from the client request without validating them:
-
-```typescript
-// supabase/functions/admin-chat/index.ts (line 3228)
-const { messages, tenantId, propertyId } = await req.json();
-```
-
-The edge function uses the **SERVICE_ROLE_KEY**, which bypasses RLS entirely. It trusts these client-provided values and uses them directly for creating records.
-
-### Issue 2: No Property-Tenant Validation
-
-When creating rooms or room types, the edge function does not verify that the provided `propertyId` actually belongs to the `tenantId`:
-
-```typescript
-// Line 2075-2078 - Room creation
-.insert({
-  tenant_id: tenantId,          // From client request
-  property_id: propertyId,      // From client request - NOT validated
-  ...
-})
-```
-
-### Issue 3: Client-Side Hook Takes First Property
-
-The `useAdminChat` hook always uses the first property from the user's properties array:
-
-```typescript
-// src/hooks/useAdminChat.tsx (line 144)
-const propertyId = properties?.[0]?.id || '';
-```
-
-This is a minor issue but could cause unexpected behavior if a user switches properties.
+**What's Missing:**
+- Detailed revenue breakdown by payment method
+- Room-level detail reports
+- Guest list for the business date
+- Cash/credit reconciliation
+- Cancellation and early departure tracking
+- Export functionality (CSV and PDF)
+- Visual charts and trends
 
 ---
 
-## Solution Overview
+## New Features to Implement
 
-### Part 1: Server-Side Validation in Edge Function
+### 1. Enhanced Statistics with More Specific Data
 
-Add validation to ensure `propertyId` belongs to `tenantId` before any operations:
-
+**Extended AuditStatistics Interface:**
 ```typescript
-// Validate that property belongs to tenant
-const { data: property, error: propError } = await supabase
-  .from('properties')
-  .select('id, tenant_id')
-  .eq('id', propertyId)
-  .single();
-
-if (propError || !property) {
-  throw new Error('Property not found');
-}
-
-if (property.tenant_id !== tenantId) {
-  throw new Error('Property does not belong to this tenant');
+interface ExtendedAuditStatistics {
+  // Existing fields...
+  
+  // Revenue breakdown by payment method
+  paymentsByMethod: {
+    cash: number;
+    card: number;
+    bank_transfer: number;
+    mobile_payment: number;
+    other: number;
+  };
+  
+  // Guest statistics
+  totalGuests: number;
+  newGuests: number;
+  returningGuests: number;
+  vipGuests: number;
+  
+  // Reservation statistics
+  cancellations: number;
+  earlyDepartures: number;
+  lateCheckouts: number;
+  walkins: number;
+  
+  // Room breakdown
+  roomsByType: { name: string; occupied: number; total: number; revenue: number }[];
+  
+  // Outstanding balances
+  totalOutstanding: number;
+  overdueCount: number;
 }
 ```
 
-### Part 2: Derive tenant_id from Property
+### 2. New Night Audit Detail Component
 
-Instead of trusting the client's `tenantId`, derive it from the validated property:
+Create `NightAuditDetailTabs.tsx` with tabs for:
+- **Room Status**: List of all rooms with status, guest name, rate, and balance
+- **Guest List**: All checked-in guests for the business date with contact info
+- **Revenue Detail**: Itemized revenue by category with payment method breakdown
+- **Outstanding Folios**: List of folios with unpaid balances
+- **Activity Log**: Arrivals, departures, cancellations, and no-shows with timestamps
 
-```typescript
-// Use property's tenant_id, not the client-provided one
-const validatedTenantId = property.tenant_id;
-```
+### 3. Export Functionality
 
-### Part 3: Add Database Constraint
+**CSV Export (`NightAuditExport.tsx`):**
+- Export audit history as CSV
+- Export current day's detailed report as CSV
+- Include all statistics, room list, and guest list
 
-Add a CHECK constraint or trigger to prevent mismatched `tenant_id` and `property_id`:
-
-```sql
--- Validation trigger for rooms table
-CREATE OR REPLACE FUNCTION validate_room_tenant_property()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.tenant_id != (SELECT tenant_id FROM properties WHERE id = NEW.property_id) THEN
-    RAISE EXCEPTION 'Room tenant_id must match property tenant_id';
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_validate_room_tenant_property
-BEFORE INSERT OR UPDATE ON rooms
-FOR EACH ROW EXECUTE FUNCTION validate_room_tenant_property();
-```
-
-### Part 4: Clean Up Existing Corrupted Data
-
-Fix the existing mismatched records by updating their `tenant_id` to match their property's tenant:
-
-```sql
--- Fix rooms with mismatched tenant_id
-UPDATE rooms r
-SET tenant_id = p.tenant_id
-FROM properties p
-WHERE r.property_id = p.id
-  AND r.tenant_id != p.tenant_id;
-
--- Fix room_types with mismatched tenant_id
-UPDATE room_types rt
-SET tenant_id = p.tenant_id
-FROM properties p
-WHERE rt.property_id = p.id
-  AND rt.tenant_id != p.tenant_id;
-```
-
-### Part 5: Client-Side Property Selection
-
-Update the `useAdminChat` hook to use the current selected property instead of always the first one:
-
-```typescript
-// Use currentProperty from useTenant() instead of properties[0]
-const { tenant, currentProperty } = useTenant();
-const propertyId = currentProperty?.id || '';
-```
+**PDF Export (`NightAuditReportView.tsx`):**
+- Professional manager's report format
+- Hotel branding with logo
+- Executive summary with KPIs
+- Detailed breakdowns by section
+- Browser-based print using `window.print()` pattern
 
 ---
 
-## Files to Modify
+## Implementation Details
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/night-audit/NightAuditDetailTabs.tsx` | Tabbed interface for detailed data views |
+| `src/components/night-audit/NightAuditRevenueBreakdown.tsx` | Payment method and revenue category breakdown |
+| `src/components/night-audit/NightAuditRoomList.tsx` | Detailed room status with guest info |
+| `src/components/night-audit/NightAuditGuestList.tsx` | Guest list for business date |
+| `src/components/night-audit/NightAuditOutstandingFolios.tsx` | List of folios with balances |
+| `src/components/night-audit/NightAuditReportView.tsx` | PDF/Print report generator |
+| `src/components/night-audit/NightAuditExportButtons.tsx` | CSV and PDF export buttons |
+| `src/components/night-audit/NightAuditTrendCharts.tsx` | Visual charts comparing to previous periods |
+
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/admin-chat/index.ts` | Add validation to ensure propertyId belongs to tenantId; derive tenant_id from property |
-| `src/hooks/useAdminChat.tsx` | Use `currentProperty` instead of `properties[0]` |
+| `src/hooks/useNightAudit.tsx` | Add extended statistics queries, detail data fetching, export logic |
+| `src/pages/NightAudit.tsx` | Integrate new components and tabs |
+| `src/components/night-audit/NightAuditHistory.tsx` | Add export button for history data |
+| `src/components/night-audit/NightAuditStats.tsx` | Enhance with payment method breakdown |
 
-## Database Migration
+---
 
-A migration will be created to:
-1. Fix existing corrupted data (rooms and room_types with mismatched tenant_id)
-2. Add validation triggers for rooms and room_types tables
-3. Optionally add similar triggers for other property-scoped tables
+## UI Layout Changes
+
+### Enhanced Page Structure
+
+```text
++------------------------------------------+
+|  Night Audit Header                      |
+|  Business Date: Jan 27, 2026    [Status] |
+|  +----------------+ +------------------+ |
+|  | Export CSV     | | Export PDF       | |
+|  +----------------+ +------------------+ |
++------------------------------------------+
+
++------------------------------------------+
+| Tabs: [Run Audit] [Details] [History]    |
++------------------------------------------+
+
+[Run Audit Tab - Existing]
+  - Pre-Audit Checklist | Daily Statistics
+  - Audit Actions
+
+[Details Tab - NEW]
+  +--------------------------------------+
+  | Sub-tabs:                            |
+  | [Rooms] [Guests] [Revenue] [Folios]  |
+  +--------------------------------------+
+  | Content based on selected sub-tab    |
+  +--------------------------------------+
+
+[History Tab - Enhanced]
+  - Existing table with export button
+  - Trend charts for occupancy/revenue
+```
+
+### Revenue Breakdown Card (Enhanced Stats)
+
+```text
++----------------------------------+
+| Revenue Breakdown                |
++----------------------------------+
+| Room Revenue     ৳150,000  (65%) |
+| F&B Revenue      ৳ 50,000  (22%) |
+| Other Revenue    ৳ 30,000  (13%) |
+|                           -------|
+| Total Revenue    ৳230,000        |
++----------------------------------+
+| Payments by Method               |
++----------------------------------+
+| Cash             ৳120,000  (52%) |
+| Card             ৳ 80,000  (35%) |
+| Bank Transfer    ৳ 20,000  ( 9%) |
+| Mobile           ৳ 10,000  ( 4%) |
++----------------------------------+
+```
 
 ---
 
 ## Technical Implementation
 
-### Edge Function Changes
+### Extended Hook Queries
 
-**File: `supabase/functions/admin-chat/index.ts`**
+Add new queries in `useNightAudit.tsx`:
 
-1. After extracting request data (around line 3228), add property validation:
-
+1. **Payments by Method Query:**
 ```typescript
-const { messages, tenantId, propertyId } = await req.json();
-
-// Validate property exists and belongs to tenant
-if (propertyId) {
-  const { data: property, error: propError } = await supabase
-    .from('properties')
-    .select('id, tenant_id')
-    .eq('id', propertyId)
-    .single();
-  
-  if (propError || !property) {
-    throw new Error('Invalid property ID');
-  }
-  
-  if (property.tenant_id !== tenantId) {
-    console.error(`Security: Attempted cross-tenant access. Claimed tenant: ${tenantId}, Property's tenant: ${property.tenant_id}`);
-    throw new Error('Property does not belong to specified tenant');
-  }
-}
+const { data: payments } = await supabase
+  .from('payments')
+  .select('amount, payment_method, folio:folios!inner(property_id)')
+  .eq('folios.property_id', currentProperty.id)
+  .gte('created_at', `${businessDate}T00:00:00`)
+  .lt('created_at', `${businessDate}T23:59:59`)
+  .eq('voided', false);
 ```
 
-2. Alternatively, derive `tenantId` from the authenticated user's profile instead of trusting the client:
-
+2. **Room Status Detail Query:**
 ```typescript
-// Get authenticated user's tenant
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('tenant_id')
-  .eq('id', userId)
-  .single();
-
-const validatedTenantId = profile?.tenant_id;
-if (!validatedTenantId) {
-  throw new Error('User does not belong to a tenant');
-}
+const { data: roomDetails } = await supabase
+  .from('rooms')
+  .select(`
+    id, room_number, floor, status,
+    room_type:room_types(name, base_rate),
+    reservation_rooms!inner(
+      rate_per_night,
+      reservation:reservations!inner(
+        guest:guests(first_name, last_name, phone),
+        status, check_in_date, check_out_date
+      )
+    )
+  `)
+  .eq('property_id', currentProperty.id);
 ```
 
-### Client Hook Changes
+3. **Outstanding Folios Query:**
+```typescript
+const { data: outstandingFolios } = await supabase
+  .from('folios')
+  .select(`
+    id, folio_number, total_amount, paid_amount, balance,
+    guest:guests(first_name, last_name),
+    reservation:reservations(confirmation_number)
+  `)
+  .eq('property_id', currentProperty.id)
+  .eq('status', 'open')
+  .gt('balance', 0);
+```
 
-**File: `src/hooks/useAdminChat.tsx`**
-
-Update to use `currentProperty`:
+### CSV Export Implementation
 
 ```typescript
-const { tenant, currentProperty } = useTenant();
+const handleExportCSV = (type: 'history' | 'daily') => {
+  if (type === 'history') {
+    const headers = ["Date", "Status", "Occupancy %", "Room Revenue", "F&B Revenue", 
+                     "Other Revenue", "Total Revenue", "ADR", "RevPAR", "Arrivals", 
+                     "Departures", "No-Shows"];
+    const rows = auditHistory.map(a => [
+      format(new Date(a.business_date), 'yyyy-MM-dd'),
+      a.status,
+      a.occupancy_rate.toFixed(1),
+      a.total_room_revenue.toFixed(2),
+      // ... more fields
+    ]);
+    downloadCSV(`night-audit-history-${format(new Date(), 'yyyy-MM-dd')}.csv`, headers, rows);
+  } else {
+    // Daily detailed export with room list, guest list, revenue breakdown
+  }
+};
+```
 
-// ... in sendMessage function:
-const propertyId = currentProperty?.id || '';
+### PDF Report Implementation
+
+Using the existing `window.print()` pattern from `FolioInvoicePrintView.tsx`:
+
+```typescript
+export function openNightAuditReportView(data: NightAuditReportData) {
+  const printWindow = window.open("", "_blank", "width=900,height=1100");
+  
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Night Audit Report - ${data.businessDate}</title>
+      <style>/* Professional report styling */</style>
+    </head>
+    <body>
+      <div class="header">
+        ${data.hotelLogo ? `<img src="${data.hotelLogo}" />` : ''}
+        <h1>${data.hotelName}</h1>
+        <h2>Night Audit Report</h2>
+        <p>Business Date: ${format(new Date(data.businessDate), 'MMMM d, yyyy')}</p>
+      </div>
+      
+      <div class="section">
+        <h3>Executive Summary</h3>
+        <!-- KPI cards: Occupancy, ADR, RevPAR, Total Revenue -->
+      </div>
+      
+      <div class="section">
+        <h3>Occupancy Statistics</h3>
+        <!-- Room breakdown table -->
+      </div>
+      
+      <div class="section">
+        <h3>Revenue Breakdown</h3>
+        <!-- Revenue by category and payment method -->
+      </div>
+      
+      <div class="section">
+        <h3>Guest Movement</h3>
+        <!-- Arrivals, departures, no-shows tables -->
+      </div>
+      
+      <script>window.onload = () => window.print();</script>
+    </body>
+    </html>
+  `;
+  
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+}
 ```
 
 ---
 
-## Security Improvements Summary
+## Visual Enhancements
 
-1. **Server-side validation**: Never trust client-provided tenant/property IDs without verification
-2. **Database constraints**: Triggers prevent data corruption at the database level
-3. **Data cleanup**: Fix existing corrupted records to restore proper isolation
-4. **Consistent property selection**: Use the current selected property, not arbitrary first property
+### Trend Charts in History Tab
+
+Add mini charts showing:
+- 7-day occupancy trend line
+- 7-day revenue comparison bar chart
+- Week-over-week percentage change indicators
+
+Using existing `recharts` library already in the project.
+
+---
+
+## Database Considerations
+
+No database schema changes are required. All new features use existing tables:
+- `night_audits` - Audit records with report_data JSON
+- `payments` - Payment method breakdown
+- `folios` / `folio_items` - Revenue details
+- `rooms` / `reservations` - Occupancy details
+- `guests` - Guest information
+
+---
+
+## Implementation Steps
+
+1. **Extend the hook** (`useNightAudit.tsx`):
+   - Add new queries for detailed data
+   - Create export utility functions
+   - Add payment method aggregation
+
+2. **Create export components**:
+   - `NightAuditExportButtons.tsx` - UI buttons for CSV/PDF
+   - `NightAuditReportView.tsx` - PDF print template
+
+3. **Create detail view components**:
+   - `NightAuditDetailTabs.tsx` - Container with sub-tabs
+   - `NightAuditRoomList.tsx` - Room status table
+   - `NightAuditGuestList.tsx` - Guest list table
+   - `NightAuditRevenueBreakdown.tsx` - Enhanced revenue card
+   - `NightAuditOutstandingFolios.tsx` - Unpaid balances table
+
+4. **Enhance existing components**:
+   - Update `NightAuditStats.tsx` with payment breakdown
+   - Add trend charts to `NightAuditHistory.tsx`
+
+5. **Update the main page**:
+   - Add "Details" tab to `NightAudit.tsx`
+   - Add export buttons to header
 
 ---
 
 ## Expected Outcome
 
 After implementation:
-- Hotel A can create room "101" with room type code "STD"
-- Hotel B can also create room "101" with room type code "STD"
-- Each hotel only sees their own rooms and room types
-- The unique constraints work correctly (scoped to property_id)
-- No cross-tenant data leakage or corruption
-
+- Users can view comprehensive daily statistics with payment method breakdown
+- Detailed room-by-room status with guest information
+- List of all guests checked in on the business date
+- Outstanding folio tracking for cash management
+- One-click CSV export for spreadsheet analysis
+- Professional PDF reports for management review
+- Visual trend charts for performance tracking
