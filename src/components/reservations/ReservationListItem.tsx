@@ -1,5 +1,5 @@
 import { format, differenceInCalendarDays, parseISO } from "date-fns";
-import { MoreHorizontal, LogIn, LogOut, XCircle, Eye, Star, Trash2 } from "lucide-react";
+import { MoreHorizontal, LogIn, LogOut, XCircle, Eye, Star, Trash2, BedDouble } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ interface ReservationListItemProps {
   onCancel: (reservationId: string) => void;
   onView: (reservationId: string) => void;
   onDelete?: (reservationId: string) => void;
+  onAssignRooms?: (reservationId: string) => void;
 }
 
 export function ReservationListItem({
@@ -29,6 +30,7 @@ export function ReservationListItem({
   onCancel,
   onView,
   onDelete,
+  onAssignRooms,
 }: ReservationListItemProps) {
   const guestName = reservation.guest
     ? `${reservation.guest.first_name} ${reservation.guest.last_name}`
@@ -47,6 +49,10 @@ export function ReservationListItem({
   const canCheckOut = reservation.status === "checked_in";
   const canCancel = reservation.status === "confirmed";
   const canDelete = reservation.status === "confirmed" || reservation.status === "cancelled";
+  
+  // Show "Assign Rooms" option for confirmed reservations with unassigned rooms
+  const hasUnassignedRooms = reservation.reservation_rooms.some(rr => !rr.room_id);
+  const canAssignRooms = reservation.status === "confirmed" && hasUnassignedRooms;
 
   const getRowBorderColor = () => {
     if (reservation.guest?.is_vip) return "border-l-amber-500";
@@ -114,6 +120,12 @@ export function ReservationListItem({
               View Details
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {canAssignRooms && onAssignRooms && (
+              <DropdownMenuItem onClick={() => onAssignRooms(reservation.id)}>
+                <BedDouble className="mr-2 h-4 w-4" />
+                Assign Rooms
+              </DropdownMenuItem>
+            )}
             {canCheckIn && (
               <DropdownMenuItem onClick={() => onCheckIn(reservation.id)}>
                 <LogIn className="mr-2 h-4 w-4" />

@@ -49,6 +49,8 @@ interface RoomAssignmentDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (assignments: RoomAssignment[]) => void;
   isLoading?: boolean;
+  /** If true, this is assignment-only mode (not check-in) */
+  assignmentOnly?: boolean;
 }
 
 /**
@@ -238,6 +240,7 @@ export function RoomAssignmentDialog({
   onOpenChange,
   onConfirm,
   isLoading,
+  assignmentOnly = false,
 }: RoomAssignmentDialogProps) {
   const navigate = useNavigate();
   const { currentProperty } = useTenant();
@@ -298,10 +301,14 @@ export function RoomAssignmentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BedDouble className="h-5 w-5" />
-            Room Assignment
+            {assignmentOnly ? "Pre-Assign Rooms" : "Room Assignment"}
           </DialogTitle>
           <DialogDescription>
-            Assign rooms for <strong>{guestName}</strong>'s check-in.
+            {assignmentOnly ? (
+              <>Assign rooms for <strong>{guestName}</strong>'s upcoming stay.</>
+            ) : (
+              <>Assign rooms for <strong>{guestName}</strong>'s check-in.</>
+            )}
             <br />
             <span className="text-xs">
               Confirmation: {reservation.confirmation_number}
@@ -375,7 +382,10 @@ export function RoomAssignmentDialog({
             onClick={handleConfirm}
             disabled={!allRoomsAssigned || isLoading}
           >
-            {isLoading ? "Checking In..." : "Confirm Check-In"}
+            {isLoading 
+              ? (assignmentOnly ? "Saving..." : "Checking In...") 
+              : (assignmentOnly ? "Save Assignments" : "Confirm Check-In")
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
