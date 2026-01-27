@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +30,25 @@ interface POSOrderPanelProps {
   outlet: POSOutlet;
   onUpdateItem: (itemId: string, quantity: number, notes?: string) => void;
   onClearCart: () => void;
+  initialTableNumber?: string;
+  onTableNumberChange?: (table: string) => void;
 }
 
-export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOrderPanelProps) {
-  const [tableNumber, setTableNumber] = useState("");
+export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart, initialTableNumber, onTableNumberChange }: POSOrderPanelProps) {
+  const [tableNumber, setTableNumber] = useState(initialTableNumber || "");
+
+  // Sync table number when selected from floor plan
+  useEffect(() => {
+    if (initialTableNumber) {
+      setTableNumber(initialTableNumber);
+    }
+  }, [initialTableNumber]);
+
+  // Notify parent when table number changes
+  const handleTableNumberChange = (value: string) => {
+    setTableNumber(value);
+    onTableNumberChange?.(value);
+  };
   const [covers, setCovers] = useState("1");
   const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
@@ -116,7 +131,7 @@ export function POSOrderPanel({ cart, outlet, onUpdateItem, onClearCart }: POSOr
             <Input
               placeholder="e.g., T1"
               value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
+              onChange={(e) => handleTableNumberChange(e.target.value)}
               className="h-9 bg-muted/50 border-none"
             />
           </div>

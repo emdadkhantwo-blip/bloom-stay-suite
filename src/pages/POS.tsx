@@ -46,6 +46,13 @@ export default function POS() {
   const [cart, setCart] = useState<Array<{ item: POSItem; quantity: number; notes?: string }>>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showCreateOutlet, setShowCreateOutlet] = useState(false);
+  const [preSelectedTable, setPreSelectedTable] = useState<string>("");
+
+  // Handler for table selection from floor plan
+  const handleSelectTable = (tableId: string) => {
+    setPreSelectedTable(tableId);
+    setActiveTab("order");
+  };
 
   const { data: outlets = [], isLoading: outletsLoading } = usePOSOutlets();
   const { data: categories = [] } = usePOSCategories(selectedOutletId || undefined);
@@ -265,6 +272,8 @@ export default function POS() {
                   outlet={selectedOutlet!}
                   onUpdateItem={handleUpdateCartItem}
                   onClearCart={handleClearCart}
+                  initialTableNumber={preSelectedTable}
+                  onTableNumberChange={setPreSelectedTable}
                 />
               </div>
             </div>
@@ -279,7 +288,11 @@ export default function POS() {
           </TabsContent>
 
           <TabsContent value="tables" className="mt-4 flex-1">
-            <TableManagement orders={orders} outletId={selectedOutletId!} />
+            <TableManagement 
+              orders={orders} 
+              outletId={selectedOutletId!}
+              onSelectEmptyTable={handleSelectTable}
+            />
           </TabsContent>
         </Tabs>
       </div>
