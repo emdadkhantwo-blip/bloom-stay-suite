@@ -1,21 +1,20 @@
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { History, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 import { NightAudit } from '@/hooks/useNightAudit';
+import { formatCurrency } from '@/lib/currency';
 
 interface NightAuditHistoryProps {
   audits: NightAudit[];
   isLoading: boolean;
+  onExportCSV?: () => void;
 }
 
-export function NightAuditHistory({ audits, isLoading }: NightAuditHistoryProps) {
-  const formatCurrency = (value: number) => {
-    return `৳${value.toLocaleString()}`;
-  };
-
+export function NightAuditHistory({ audits, isLoading, onExportCSV }: NightAuditHistoryProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -65,11 +64,19 @@ export function NightAuditHistory({ audits, isLoading }: NightAuditHistoryProps)
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <History className="h-5 w-5 text-primary" />
-          <CardTitle>Audit History</CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" />
+            <CardTitle>Audit History</CardTitle>
+          </div>
+          {onExportCSV && audits.length > 0 && (
+            <Button variant="outline" size="sm" onClick={onExportCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              Export History
+            </Button>
+          )}
         </div>
-        <CardDescription>Past night audit records and statistics</CardDescription>
+        <CardDescription>Past night audit records and statistics (last 30 days)</CardDescription>
       </CardHeader>
       <CardContent>
         {audits.length === 0 ? (
@@ -78,49 +85,56 @@ export function NightAuditHistory({ audits, isLoading }: NightAuditHistoryProps)
             <p>No audit history available</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Occupancy</TableHead>
-                <TableHead className="text-right">Room Revenue</TableHead>
-                <TableHead className="text-right">F&B Revenue</TableHead>
-                <TableHead className="text-right">Total Revenue</TableHead>
-                <TableHead className="text-right">ADR</TableHead>
-                <TableHead className="text-right">RevPAR</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {audits.map((audit, index) => (
-                <TableRow key={audit.id}>
-                  <TableCell className="font-medium">
-                    {format(new Date(audit.business_date), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(audit.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span>{audit.occupancy_rate.toFixed(1)}%</span>
-                      {getOccupancyTrend(index)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(audit.total_room_revenue)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(audit.total_fb_revenue)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(
-                      audit.total_room_revenue + audit.total_fb_revenue + audit.total_other_revenue
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(audit.adr)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(audit.revpar)}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Occupancy</TableHead>
+                  <TableHead className="text-right">Room Revenue</TableHead>
+                  <TableHead className="text-right">F&B Revenue</TableHead>
+                  <TableHead className="text-right">Other</TableHead>
+                  <TableHead className="text-right">Total Revenue</TableHead>
+                  <TableHead className="text-right">ADR</TableHead>
+                  <TableHead className="text-right">RevPAR</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {audits.map((audit, index) => {
+                  const totalRevenue = audit.total_room_revenue + audit.total_fb_revenue + audit.total_other_revenue;
+                  return (
+                    <TableRow key={audit.id}>
+                      <TableCell className="font-medium">
+                        {format(new Date(audit.business_date), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(audit.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <span>{audit.occupancy_rate.toFixed(1)}%</span>
+                          {getOccupancyTrend(index)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(audit.total_room_revenue)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(audit.total_fb_revenue)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(audit.total_other_revenue)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-primary">
+                        {formatCurrency(totalRevenue)}
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(audit.adr)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(audit.revpar)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>
