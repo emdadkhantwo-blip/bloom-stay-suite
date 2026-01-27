@@ -23,6 +23,7 @@ import { format } from "date-fns";
 interface TableManagementProps {
   orders: POSOrder[];
   outletId: string;
+  onSelectEmptyTable?: (tableId: string) => void;
 }
 
 interface TableInfo {
@@ -92,7 +93,7 @@ const tableLayout = [
   { id: "B4", name: "Bar 4", seats: 4, x: 3, y: 2 },
 ];
 
-export function TableManagement({ orders, outletId }: TableManagementProps) {
+export function TableManagement({ orders, outletId, onSelectEmptyTable }: TableManagementProps) {
   const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
   const updateOrderStatus = useUpdatePOSOrderStatus();
 
@@ -241,8 +242,13 @@ export function TableManagement({ orders, outletId }: TableManagementProps) {
               return (
                 <button
                   key={table.id}
-                  onClick={() => tableInfo && setSelectedTable(tableInfo)}
-                  disabled={!isOccupied}
+                  onClick={() => {
+                    if (tableInfo) {
+                      setSelectedTable(tableInfo);
+                    } else {
+                      onSelectEmptyTable?.(table.id);
+                    }
+                  }}
                   className={cn(
                     "relative flex flex-col items-center justify-center rounded-2xl border-2 p-4 transition-all duration-200",
                     "min-h-[140px]",
@@ -253,7 +259,7 @@ export function TableManagement({ orders, outletId }: TableManagementProps) {
                           "cursor-pointer hover:shadow-lg hover:-translate-y-0.5",
                           tableInfo.primaryStatus === "ready" && "ring-2 ring-emerald-300 animate-pulse"
                         )
-                      : "border-dashed border-muted-foreground/30 bg-muted/20"
+                      : "border-dashed border-muted-foreground/30 bg-muted/20 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
                   )}
                 >
                   <span className={cn(
