@@ -299,6 +299,20 @@ function generateToolSummary(toolName: string, args: any, result: any): string {
       if (!data || data.length === 0) return "No audit logs found.";
       return `📋 **${data.length} recent activities:**\n${data.slice(0, 5).map((l: any) => `- ${l.action} (${l.entity_type || 'system'})`).join('\n')}`;
     
+    // ==================== BULK OPERATION SUMMARIES ====================
+    case "bulk_create_rooms":
+      if (!data || data.length === 0) return "⚠️ No rooms were created.";
+      return `✅ **Bulk Created ${data.length} rooms:**\n${data.map((r: any) => `- Room ${r.room_number} (${r.room_types?.name || 'N/A'})`).join('\n')}`;
+    
+    case "bulk_create_guests":
+      if (!data || data.length === 0) return "⚠️ No guests were created.";
+      return `✅ **Bulk Created ${data.length} guests:**\n${data.map((g: any) => `- ${g.first_name} ${g.last_name}${g.is_vip ? ' ⭐' : ''} (ID: ${g.id})`).join('\n')}`;
+    
+    case "bulk_create_reservations_with_checkin":
+      if (!result.reservations || result.reservations.length === 0) return "⚠️ No reservations were created.";
+      const checkedInCount = result.checked_in?.length || 0;
+      return `✅ **Bulk Created ${result.reservations.length} reservations, ${checkedInCount} checked in:**\n${result.reservations.map((r: any) => `- ${r.confirmation_number}: ${r.guests?.first_name} ${r.guests?.last_name} (${r.check_in_date} to ${r.check_out_date})`).join('\n')}`;
+    
     default:
       return `✅ Action completed successfully.`;
   }
@@ -591,6 +605,47 @@ CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE EXACTLY:
    - Making up room numbers, guest names, or any details not from context
 
 ═══════════════════════════════════════════════════════════════════════════════
+BULK OPERATIONS BEHAVIOR - IMPORTANT:
+═══════════════════════════════════════════════════════════════════════════════
+
+When the user requests multiple items be created, updated, or deleted:
+
+1. **USE BULK TOOLS when available:**
+   - bulk_create_rooms for creating multiple rooms at once
+   - bulk_create_guests for creating multiple guests at once
+   - bulk_create_reservations_with_checkin for mock data with check-ins
+
+2. **FOR SEQUENTIAL TASKS:**
+   If you need to create guests, then reservations, then check-ins:
+   - Call ALL guest creation tools first
+   - Then call ALL reservation tools  
+   - Then call ALL check-in tools
+   - Do this in ONE response with multiple tool calls
+
+3. **NO PARTIAL EXECUTION - COMPLETE THE ENTIRE REQUEST:**
+   - When user says "create 10 rooms", create ALL 10 rooms
+   - When user says "create 5 guests and 5 reservations", do ALL of it
+   - Do NOT ask for confirmation between steps
+   - Only summarize at the END after all operations complete
+
+4. **MOCK DATA GENERATION:**
+   When asked to create mock/test/sample data, generate realistic:
+   - Bengali names for local hotels (e.g., Rahim Ahmed, Fatima Begum, Karim Hossain)
+   - +880 phone numbers (e.g., +8801712345678)
+   - @gmail.com emails based on names
+   - Realistic check-in/out dates starting from today
+   - Room numbers in sequence (101, 102, 103...)
+   - Floor assignment based on room number first digit
+
+5. **NEVER STOP HALFWAY:**
+   - If user asks for 15 rooms, 10 guests, 10 reservations with check-in:
+     - First: Create room types if needed
+     - Then: Create all 15 rooms using bulk_create_rooms
+     - Then: Create all 10 guests using bulk_create_guests  
+     - Then: Create all 10 reservations with check-in using bulk_create_reservations_with_checkin
+   - Complete EVERYTHING before responding with summary
+
+═══════════════════════════════════════════════════════════════════════════════
 
 FULL CONTROL CAPABILITIES:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -599,16 +654,19 @@ FULL CONTROL CAPABILITIES:
 - create_guest, update_guest, delete_guest, search_guests
 - toggle_guest_vip (make VIP or regular)
 - toggle_guest_blacklist (block/unblock guests)
+- bulk_create_guests (create multiple guests at once)
 
 🛏️ ROOM MANAGEMENT:
 - create_room, update_room, delete_room, get_rooms
 - update_room_status (vacant/occupied/dirty/maintenance/out_of_order)
 - create_room_type, update_room_type, delete_room_type
+- bulk_create_rooms (create multiple rooms at once)
 
 📅 RESERVATIONS:
 - create_reservation, update_reservation, cancel_reservation
 - check_in_guest, check_out_guest
 - search_reservations, get_todays_arrivals, get_todays_departures
+- bulk_create_reservations_with_checkin (create multiple with auto check-in)
 
 💳 FOLIOS & PAYMENTS:
 - get_folios, get_folio_details
@@ -1770,11 +1828,98 @@ const tools = [
         required: []
       }
     }
+  },
+
+  // ==================== BULK OPERATIONS ====================
+  {
+    type: "function",
+    function: {
+      name: "bulk_create_rooms",
+      description: "Create multiple rooms at once. Use this for bulk room creation instead of calling create_room multiple times.",
+      parameters: {
+        type: "object",
+        properties: {
+          rooms: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                room_number: { type: "string", description: "Room number (e.g., 101, 102)" },
+                room_type_id: { type: "string", description: "Room type UUID" },
+                floor: { type: "string", description: "Floor number" }
+              },
+              required: ["room_number", "room_type_id"]
+            },
+            description: "Array of rooms to create"
+          }
+        },
+        required: ["rooms"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "bulk_create_guests",
+      description: "Create multiple guest profiles at once. Use this for bulk guest creation instead of calling create_guest multiple times.",
+      parameters: {
+        type: "object",
+        properties: {
+          guests: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                first_name: { type: "string", description: "Guest's first name" },
+                last_name: { type: "string", description: "Guest's last name" },
+                email: { type: "string", description: "Guest's email" },
+                phone: { type: "string", description: "Guest's phone number" },
+                nationality: { type: "string", description: "Guest's nationality" },
+                is_vip: { type: "boolean", description: "Whether guest is VIP" }
+              },
+              required: ["first_name", "last_name"]
+            },
+            description: "Array of guests to create"
+          }
+        },
+        required: ["guests"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "bulk_create_reservations_with_checkin",
+      description: "Create multiple reservations and optionally check them in immediately. Perfect for setting up mock data with in-house guests.",
+      parameters: {
+        type: "object",
+        properties: {
+          reservations: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                guest_id: { type: "string", description: "Guest UUID" },
+                room_id: { type: "string", description: "Room UUID to assign" },
+                room_type_id: { type: "string", description: "Room type UUID" },
+                check_in_date: { type: "string", description: "Check-in date (YYYY-MM-DD)" },
+                check_out_date: { type: "string", description: "Check-out date (YYYY-MM-DD)" },
+                adults: { type: "number", description: "Number of adults" },
+                should_check_in: { type: "boolean", description: "Whether to check in immediately" }
+              },
+              required: ["guest_id", "room_type_id", "check_in_date", "check_out_date", "adults"]
+            },
+            description: "Array of reservations to create"
+          }
+        },
+        required: ["reservations"]
+      }
+    }
   }
 ];
 
 // Tool execution handlers
-async function executeTool(toolName: string, args: any, supabase: any, tenantId: string, propertyId: string, userId: string): Promise<{ success: boolean; data?: any; error?: string; renamed?: string | null }> {
+async function executeTool(toolName: string, args: any, supabase: any, tenantId: string, propertyId: string, userId: string): Promise<{ success: boolean; data?: any; error?: string; renamed?: string | null; errors?: string[]; reservations?: any[]; checked_in?: string[] }> {
   try {
     switch (toolName) {
       // ==================== DASHBOARD ====================
@@ -3210,6 +3355,222 @@ async function executeTool(toolName: string, args: any, supabase: any, tenantId:
         return { success: true, data };
       }
 
+      // ==================== BULK OPERATIONS ====================
+      case "bulk_create_rooms": {
+        const results = [];
+        const errors = [];
+        
+        for (const room of args.rooms) {
+          try {
+            // Check if room number already exists
+            const { data: existingRoom } = await supabase.from('rooms')
+              .select('room_number')
+              .eq('tenant_id', tenantId)
+              .eq('property_id', propertyId)
+              .eq('room_number', room.room_number)
+              .maybeSingle();
+            
+            if (existingRoom) {
+              errors.push(`Room ${room.room_number} already exists, skipped`);
+              continue;
+            }
+            
+            const { data, error } = await supabase.from('rooms')
+              .insert({
+                tenant_id: tenantId,
+                property_id: propertyId,
+                room_number: room.room_number,
+                room_type_id: room.room_type_id,
+                floor: room.floor || null,
+                status: 'vacant'
+              })
+              .select('*, room_types(name)')
+              .single();
+            
+            if (error) {
+              errors.push(`Failed to create room ${room.room_number}: ${error.message}`);
+            } else {
+              results.push(data);
+            }
+          } catch (e: any) {
+            errors.push(`Failed to create room ${room.room_number}: ${e.message}`);
+          }
+        }
+        
+        if (results.length === 0 && errors.length > 0) {
+          return { success: false, error: errors.join('; ') };
+        }
+        
+        return { 
+          success: true, 
+          data: results,
+          errors: errors.length > 0 ? errors : undefined
+        };
+      }
+
+      case "bulk_create_guests": {
+        const results = [];
+        const errors = [];
+        
+        for (const guest of args.guests) {
+          try {
+            const { data, error } = await supabase.from('guests')
+              .insert({
+                tenant_id: tenantId,
+                first_name: guest.first_name,
+                last_name: guest.last_name,
+                email: guest.email || null,
+                phone: guest.phone || null,
+                nationality: guest.nationality || null,
+                is_vip: guest.is_vip || false
+              })
+              .select()
+              .single();
+            
+            if (error) {
+              errors.push(`Failed to create guest ${guest.first_name} ${guest.last_name}: ${error.message}`);
+            } else {
+              results.push(data);
+            }
+          } catch (e: any) {
+            errors.push(`Failed to create guest ${guest.first_name} ${guest.last_name}: ${e.message}`);
+          }
+        }
+        
+        if (results.length === 0 && errors.length > 0) {
+          return { success: false, error: errors.join('; ') };
+        }
+        
+        return { 
+          success: true, 
+          data: results,
+          errors: errors.length > 0 ? errors : undefined
+        };
+      }
+
+      case "bulk_create_reservations_with_checkin": {
+        const reservations = [];
+        const checkedIn = [];
+        const errors = [];
+        
+        for (const res of args.reservations) {
+          try {
+            // Get room type for rate
+            const { data: roomType } = await supabase.from('room_types')
+              .select('base_rate, name')
+              .eq('id', res.room_type_id)
+              .single();
+            
+            const checkIn = new Date(res.check_in_date);
+            const checkOut = new Date(res.check_out_date);
+            const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+            const ratePerNight = roomType?.base_rate || 3000;
+            const totalAmount = nights * ratePerNight;
+            
+            // Get property code for confirmation number
+            const { data: property } = await supabase.from('properties')
+              .select('code')
+              .eq('id', propertyId)
+              .single();
+            
+            const confirmationNumber = await supabase.rpc('generate_confirmation_number', {
+              property_code: property?.code || 'HTL'
+            });
+            
+            // Create reservation
+            const { data: reservation, error: resError } = await supabase.from('reservations')
+              .insert({
+                tenant_id: tenantId,
+                property_id: propertyId,
+                guest_id: res.guest_id,
+                check_in_date: res.check_in_date,
+                check_out_date: res.check_out_date,
+                adults: res.adults || 1,
+                children: 0,
+                status: 'confirmed',
+                source: 'direct',
+                confirmation_number: confirmationNumber.data,
+                total_amount: totalAmount,
+                created_by: userId || null
+              })
+              .select('*, guests(first_name, last_name)')
+              .single();
+            
+            if (resError) {
+              errors.push(`Failed to create reservation: ${resError.message}`);
+              continue;
+            }
+            
+            // Create reservation_room entry
+            await supabase.from('reservation_rooms').insert({
+              tenant_id: tenantId,
+              reservation_id: reservation.id,
+              room_type_id: res.room_type_id,
+              room_id: res.room_id || null,
+              rate_per_night: ratePerNight,
+              adults: res.adults || 1
+            });
+            
+            reservations.push({
+              ...reservation,
+              nights,
+              rate_per_night: ratePerNight
+            });
+            
+            // Check in if requested
+            if (res.should_check_in) {
+              // Update reservation status
+              await supabase.from('reservations')
+                .update({
+                  status: 'checked_in',
+                  actual_check_in: new Date().toISOString()
+                })
+                .eq('id', reservation.id);
+              
+              // Assign room if provided
+              if (res.room_id) {
+                await supabase.from('reservation_rooms')
+                  .update({ room_id: res.room_id })
+                  .eq('reservation_id', reservation.id);
+                
+                await supabase.from('rooms')
+                  .update({ status: 'occupied' })
+                  .eq('id', res.room_id);
+              }
+              
+              // Create folio
+              const folioNumber = await supabase.rpc('generate_folio_number', {
+                property_code: property?.code || 'HTL'
+              });
+              
+              await supabase.from('folios').insert({
+                tenant_id: tenantId,
+                property_id: propertyId,
+                guest_id: res.guest_id,
+                reservation_id: reservation.id,
+                folio_number: folioNumber.data,
+                status: 'open'
+              });
+              
+              checkedIn.push(reservation.confirmation_number);
+            }
+          } catch (e: any) {
+            errors.push(`Failed to create reservation: ${e.message}`);
+          }
+        }
+        
+        if (reservations.length === 0 && errors.length > 0) {
+          return { success: false, error: errors.join('; ') };
+        }
+        
+        return { 
+          success: true, 
+          reservations,
+          checked_in: checkedIn,
+          errors: errors.length > 0 ? errors : undefined
+        };
+      }
+
       default:
         return { success: false, error: `Unknown tool: ${toolName}` };
     }
@@ -3318,52 +3679,69 @@ serve(async (req) => {
     const hotelContext = await getHotelContext(supabase, tenantId);
     const fullSystemPrompt = baseSystemPrompt + hotelContext;
 
-    const response = await callAIWithRetry(LOVABLE_API_KEY, {
-      model: "google/gemini-3-flash-preview",
-      messages: [
-        { role: "system", content: fullSystemPrompt },
-        ...messages
-      ],
-      tools,
-      tool_choice: "auto",
-      temperature: 0.7,
-      max_tokens: 4096
-    });
+    // Maximum iterations for tool execution loop (handles multi-step operations)
+    const MAX_TOOL_ITERATIONS = 5;
+    let currentMessages: any[] = [...messages];
+    let allToolCalls: any[] = [];
+    let allToolResults: any[] = [];
+    let allToolSummaries: string[] = [];
+    let finalAssistantMessage: any = null;
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+      console.log(`Tool iteration ${iteration + 1}/${MAX_TOOL_ITERATIONS}`);
+      
+      const response = await callAIWithRetry(LOVABLE_API_KEY, {
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: fullSystemPrompt },
+          ...currentMessages
+        ],
+        tools,
+        tool_choice: "auto",
+        temperature: 0.7,
+        max_tokens: 8192  // Increased for bulk operations
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errorText = await response.text();
+        console.error("AI Gateway error:", response.status, errorText);
+        throw new Error(`AI Gateway error: ${response.status}`);
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+
+      const aiResponse = await response.json();
+      const assistantMessage = aiResponse.choices?.[0]?.message;
+
+      if (!assistantMessage) {
+        throw new Error("No response from AI");
       }
-      const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      throw new Error(`AI Gateway error: ${response.status}`);
-    }
 
-    const aiResponse = await response.json();
-    const assistantMessage = aiResponse.choices?.[0]?.message;
+      // If no tool calls, we're done
+      if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+        finalAssistantMessage = assistantMessage;
+        break;
+      }
 
-    if (!assistantMessage) {
-      throw new Error("No response from AI");
-    }
-
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      const toolResults = [];
-      const toolSummaries = [];
+      // Execute all tool calls in this iteration
+      const iterationToolResults = [];
+      const iterationToolSummaries = [];
       
       for (const toolCall of assistantMessage.tool_calls) {
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments);
         
-        console.log(`Executing tool: ${toolName}`, toolArgs);
+        console.log(`Executing tool (iteration ${iteration + 1}): ${toolName}`, toolArgs);
         
         const result = await executeTool(
           toolName, 
@@ -3375,63 +3753,80 @@ serve(async (req) => {
         );
         
         const summary = generateToolSummary(toolName, toolArgs, result);
-        toolSummaries.push(summary);
+        iterationToolSummaries.push(summary);
+        allToolSummaries.push(summary);
         
-        toolResults.push({
+        const toolResult = {
           tool_call_id: toolCall.id,
           role: "tool",
           content: JSON.stringify({
             ...result,
             _summary: summary
           })
+        };
+        
+        iterationToolResults.push(toolResult);
+        allToolResults.push({
+          name: toolName,
+          args: toolArgs,
+          result,
+          summary
+        });
+        
+        allToolCalls.push({
+          name: toolName,
+          args: toolArgs
         });
       }
 
-      const followUpResponse = await callAIWithRetry(LOVABLE_API_KEY, {
+      // Add assistant message and tool results to current messages for next iteration
+      currentMessages.push(assistantMessage);
+      currentMessages.push(...iterationToolResults);
+      
+      console.log(`Iteration ${iteration + 1} completed: ${assistantMessage.tool_calls.length} tools executed`);
+    }
+
+    // Generate final response
+    if (allToolCalls.length > 0) {
+      // Get a final summary from the AI
+      const finalResponse = await callAIWithRetry(LOVABLE_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: fullSystemPrompt + `\n\nIMPORTANT: The following tool(s) were executed. Use the _summary field from each result to create a detailed, friendly response that explains what was done:\n\n${toolSummaries.join('\n\n')}` },
-          ...messages,
-          assistantMessage,
-          ...toolResults
+          { role: "system", content: fullSystemPrompt + `\n\nIMPORTANT: The following tool(s) were executed across multiple steps. Summarize ALL actions taken in a friendly, comprehensive response:\n\n${allToolSummaries.join('\n\n')}` },
+          ...currentMessages
         ],
         temperature: 0.7,
-        max_tokens: 4096
+        max_tokens: 8192
       });
 
-      if (!followUpResponse.ok) {
-        const errorText = await followUpResponse.text();
-        console.error("Follow-up AI error:", errorText);
+      if (!finalResponse.ok) {
+        const errorText = await finalResponse.text();
+        console.error("Final AI response error:", errorText);
         
+        // Return summaries directly if AI fails
         return new Response(JSON.stringify({
-          message: toolSummaries.join('\n\n'),
-          toolCalls: assistantMessage.tool_calls.map((tc: any) => ({
-            name: tc.function.name,
-            args: JSON.parse(tc.function.arguments)
-          })),
-          toolResults: toolResults.map(tr => JSON.parse(tr.content))
+          message: allToolSummaries.join('\n\n'),
+          toolCalls: allToolCalls,
+          toolResults: allToolResults.map(tr => ({ ...tr.result, _summary: tr.summary }))
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const followUpData = await followUpResponse.json();
-      const finalMessage = followUpData.choices?.[0]?.message;
+      const finalData = await finalResponse.json();
+      const finalMessage = finalData.choices?.[0]?.message;
 
       return new Response(JSON.stringify({
-        message: finalMessage?.content || toolSummaries.join('\n\n'),
-        toolCalls: assistantMessage.tool_calls.map((tc: any) => ({
-          name: tc.function.name,
-          args: JSON.parse(tc.function.arguments)
-        })),
-        toolResults: toolResults.map(tr => JSON.parse(tr.content))
+        message: finalMessage?.content || allToolSummaries.join('\n\n'),
+        toolCalls: allToolCalls,
+        toolResults: allToolResults.map(tr => ({ ...tr.result, _summary: tr.summary }))
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // No tool calls - check for hallucination
-    const responseContent = (assistantMessage.content || '').toLowerCase();
+    // No tool calls at all - check for hallucination
+    const responseContent = (finalAssistantMessage?.content || '').toLowerCase();
     const creationPatterns = [
       'i have created', 'i\'ve created', 'created successfully',
       'i have added', 'i\'ve added', 'added successfully',
@@ -3446,7 +3841,7 @@ serve(async (req) => {
     const claimsAction = creationPatterns.some(pattern => responseContent.includes(pattern));
     
     if (claimsAction) {
-      console.warn('HALLUCINATION DETECTED: AI claimed action without tool calls. Original response:', assistantMessage.content);
+      console.warn('HALLUCINATION DETECTED: AI claimed action without tool calls. Original response:', finalAssistantMessage?.content);
       
       return new Response(JSON.stringify({
         message: "আমি বুঝতে পারছি আপনি কিছু করতে চাইছেন। তবে, আমাকে প্রথমে বিস্তারিত জানাতে হবে:\n\n1. **কী করতে চাইছেন?** (তৈরি/আপডেট/মুছে ফেলা)\n2. **প্রয়োজনীয় তথ্য** (রুম নম্বর, গেস্টের নাম, তারিখ ইত্যাদি)\n\nনিশ্চিত করার পর আমি কাজটি সম্পন্ন করব।",
@@ -3459,7 +3854,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      message: assistantMessage.content,
+      message: finalAssistantMessage?.content || "I'm ready to help. What would you like to do?",
       toolCalls: [],
       toolResults: []
     }), {
