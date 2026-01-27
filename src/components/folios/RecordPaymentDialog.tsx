@@ -1,20 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Building2, AlertTriangle } from "lucide-react";
 import { useRecordPayment, PaymentMethod } from "@/hooks/useFolios";
+import { useCorporateAccountById, type CorporateAccount } from "@/hooks/useCorporateAccounts";
+import { formatCurrency } from "@/lib/currency";
 
 interface RecordPaymentDialogProps {
   folioId: string;
   balance: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  guestCorporateAccountId?: string | null;
 }
 
-const paymentMethods: { value: PaymentMethod; label: string }[] = [
+const paymentMethods: { value: PaymentMethod | "corporate"; label: string }[] = [
   { value: "cash", label: "Cash" },
   { value: "credit_card", label: "Credit Card" },
   { value: "debit_card", label: "Debit Card" },
@@ -22,25 +27,52 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: RecordPaymentDialogProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+export function RecordPaymentDialog({ 
+  folioId, 
+  balance, 
+  open, 
+  onOpenChange,
+  guestCorporateAccountId 
+}: RecordPaymentDialogProps) {
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "corporate">("cash");
   const [amount, setAmount] = useState(balance.toString());
   const [referenceNumber, setReferenceNumber] = useState("");
   const [notes, setNotes] = useState("");
 
   const recordPayment = useRecordPayment();
+  const { data: corporateAccount } = useCorporateAccountById(guestCorporateAccountId || null);
+
+  // Reset amount when dialog opens
+  useEffect(() => {
+    if (open) {
+      setAmount(balance.toString());
+    }
+  }, [open, balance]);
+
+  const paymentAmount = parseFloat(amount) || 0;
+  const isCorporatePayment = paymentMethod === "corporate" && corporateAccount;
+  const newCorporateBalance = isCorporatePayment 
+    ? Number(corporateAccount.current_balance) + paymentAmount 
+    : 0;
+  const exceedsCreditLimit = isCorporatePayment 
+    && corporateAccount.credit_limit > 0 
+    && newCorporateBalance > corporateAccount.credit_limit;
 
   const handleSubmit = () => {
-    const paymentAmount = parseFloat(amount);
     if (!paymentAmount || paymentAmount <= 0) return;
+
+    const actualPaymentMethod: PaymentMethod = paymentMethod === "corporate" ? "other" : paymentMethod;
 
     recordPayment.mutate(
       {
         folioId,
         amount: paymentAmount,
-        paymentMethod,
+        paymentMethod: actualPaymentMethod,
         referenceNumber: referenceNumber || undefined,
-        notes: notes || undefined,
+        notes: isCorporatePayment 
+          ? `Corporate billing: ${corporateAccount?.company_name}${notes ? ` - ${notes}` : ""}`
+          : notes || undefined,
+        corporateAccountId: isCorporatePayment ? corporateAccount?.id : undefined,
       },
       {
         onSuccess: () => {
@@ -48,6 +80,7 @@ export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: Re
           setAmount("");
           setReferenceNumber("");
           setNotes("");
+          setPaymentMethod("cash");
         },
       }
     );
@@ -56,6 +89,11 @@ export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: Re
   const handlePayFull = () => {
     setAmount(balance.toString());
   };
+
+  // Build payment methods list with corporate option
+  const availablePaymentMethods = corporateAccount
+    ? [...paymentMethods, { value: "corporate" as const, label: `Corporate Account - ${corporateAccount.company_name}` }]
+    : paymentMethods;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,19 +110,60 @@ export function RecordPaymentDialog({ folioId, balance, open, onOpenChange }: Re
 
           <div className="space-y-2">
             <Label>Payment Method</Label>
-            <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+            <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod | "corporate")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {paymentMethods.map((method) => (
+                {availablePaymentMethods.map((method) => (
                   <SelectItem key={method.value} value={method.value}>
+                    {method.value === "corporate" && <Building2 className="h-4 w-4 mr-2 inline" />}
                     {method.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Corporate Account Info */}
+          {isCorporatePayment && corporateAccount && (
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-blue-500" />
+                <span className="font-medium">Billing to: {corporateAccount.company_name}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Current Balance:</span>
+                  <span className="ml-2 font-medium">{formatCurrency(Number(corporateAccount.current_balance))}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Credit Limit:</span>
+                  <span className="ml-2 font-medium">
+                    {corporateAccount.credit_limit > 0 
+                      ? formatCurrency(corporateAccount.credit_limit) 
+                      : "Unlimited"}
+                  </span>
+                </div>
+              </div>
+              {paymentAmount > 0 && (
+                <div className="pt-2 border-t">
+                  <span className="text-muted-foreground text-sm">After Payment:</span>
+                  <span className={`ml-2 font-medium ${exceedsCreditLimit ? "text-amber-600" : ""}`}>
+                    {formatCurrency(newCorporateBalance)}
+                  </span>
+                </div>
+              )}
+              {exceedsCreditLimit && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    This payment will exceed the credit limit by {formatCurrency(newCorporateBalance - corporateAccount.credit_limit)}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

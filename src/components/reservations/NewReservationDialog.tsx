@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, differenceInDays } from "date-fns";
-import { CalendarIcon, Plus, Trash2, Tags, Percent, Upload, X, FileText, AlertCircle } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Tags, Percent, Upload, X, FileText, AlertCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -49,6 +49,7 @@ import { useRoomTypes } from "@/hooks/useRoomTypes";
 import { useRooms } from "@/hooks/useRooms";
 import { useCreateReservation } from "@/hooks/useCreateReservation";
 import { useActiveReferences, calculateDiscount, type Reference } from "@/hooks/useReferences";
+import { useCorporateAccountById } from "@/hooks/useCorporateAccounts";
 import { formatCurrency } from "@/lib/currency";
 import type { Guest } from "@/hooks/useGuests";
 
@@ -110,6 +111,10 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     { id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 },
   ]);
   const [guestIdFiles, setGuestIdFiles] = useState<Map<number, { file: File; preview: string; type: string; fileName: string }>>(new Map());
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+
+  // Fetch corporate account if guest is linked to one
+  const { data: corporateAccount } = useCorporateAccountById(selectedGuest?.corporate_account_id || null);
 
   const form = useForm<ReservationFormData>({
     resolver: zodResolver(reservationSchema),
@@ -126,6 +131,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   const checkInDate = form.watch("check_in_date");
   const checkOutDate = form.watch("check_out_date");
   const watchedAdults = form.watch("adults");
+  const watchedSource = form.watch("source");
 
   // Cleanup object URLs when component unmounts or files change
   useEffect(() => {
@@ -182,16 +188,34 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
     return calculateDiscount(selectedReference, subtotal);
   }, [selectedReference, subtotal]);
 
+  // Calculate corporate discount when source is corporate and guest has corporate account
+  const corporateDiscountAmount = useMemo(() => {
+    if (watchedSource === "corporate" && corporateAccount && corporateAccount.discount_percentage > 0) {
+      return subtotal * (corporateAccount.discount_percentage / 100);
+    }
+    return 0;
+  }, [watchedSource, corporateAccount, subtotal]);
+
+  // Use corporate discount if applicable, otherwise use reference discount
+  const effectiveDiscountAmount = useMemo(() => {
+    if (watchedSource === "corporate" && corporateDiscountAmount > 0) {
+      return corporateDiscountAmount;
+    }
+    return discountAmount;
+  }, [watchedSource, corporateDiscountAmount, discountAmount]);
+
   const totalAmount = useMemo(() => {
-    return Math.max(0, subtotal - discountAmount);
-  }, [subtotal, discountAmount]);
+    return Math.max(0, subtotal - effectiveDiscountAmount);
+  }, [subtotal, effectiveDiscountAmount]);
 
   const handleGuestSelect = (guest: Guest | null) => {
     form.setValue("guest_id", guest?.id || "");
+    setSelectedGuest(guest);
   };
 
   const handleGuestCreated = (guest: Guest) => {
     form.setValue("guest_id", guest.id);
+    setSelectedGuest(guest);
   };
 
   const addRoom = () => {
@@ -332,8 +356,8 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
         source: data.source,
         special_requests: data.special_requests,
         internal_notes: data.internal_notes,
-        reference_id: selectedReference?.id,
-        discount_amount: discountAmount,
+        reference_id: watchedSource === "corporate" && corporateDiscountAmount > 0 ? undefined : selectedReference?.id,
+        discount_amount: effectiveDiscountAmount,
         rooms: validRooms.map((r) => ({
           room_type_id: r.room_type_id,
           rate_per_night: r.rate_per_night,
@@ -662,8 +686,64 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                 />
               </div>
 
-              {/* Reference Selection */}
-              {references && references.length > 0 && (
+              {/* Corporate Account Info Card */}
+              {watchedSource === "corporate" && selectedGuest && (
+                <div className="space-y-2">
+                  {corporateAccount ? (
+                    <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Building2 className="h-5 w-5 text-blue-500" />
+                          <span className="font-semibold">Corporate Account</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Company:</span>
+                            <span className="ml-2 font-medium">{corporateAccount.company_name}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Account Code:</span>
+                            <span className="ml-2 font-medium">{corporateAccount.account_code}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Discount:</span>
+                            <span className="ml-2 font-medium">
+                              {corporateAccount.discount_percentage > 0 
+                                ? `${corporateAccount.discount_percentage}%` 
+                                : "None"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Credit Limit:</span>
+                            <span className="ml-2 font-medium">
+                              {corporateAccount.credit_limit > 0 
+                                ? formatCurrency(corporateAccount.credit_limit) 
+                                : "Unlimited"}
+                            </span>
+                          </div>
+                        </div>
+                        {corporateAccount.discount_percentage > 0 && (
+                          <Badge variant="secondary" className="mt-3 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                            <Percent className="h-3 w-3 mr-1" />
+                            {corporateAccount.discount_percentage}% discount will be auto-applied
+                          </Badge>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>No Corporate Account</AlertTitle>
+                      <AlertDescription>
+                        This guest is not linked to any corporate account. You can link them from the Guests page.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
+              {/* Reference Selection - hide if corporate discount is applied */}
+              {references && references.length > 0 && !(watchedSource === "corporate" && corporateDiscountAmount > 0) && (
                 <div className="space-y-2">
                   <FormLabel>Reference (Optional)</FormLabel>
                   <Select
@@ -834,7 +914,18 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                     </span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
-                  {selectedReference && discountAmount > 0 && (
+                  {/* Corporate Discount */}
+                  {watchedSource === "corporate" && corporateAccount && corporateDiscountAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm text-vibrant-green">
+                      <span className="flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {corporateAccount.company_name} ({corporateAccount.discount_percentage}%)
+                      </span>
+                      <span>-{formatCurrency(corporateDiscountAmount)}</span>
+                    </div>
+                  )}
+                  {/* Reference Discount (when not using corporate) */}
+                  {!(watchedSource === "corporate" && corporateDiscountAmount > 0) && selectedReference && discountAmount > 0 && (
                     <div className="flex items-center justify-between text-sm text-vibrant-green">
                       <span className="flex items-center gap-1">
                         <Tags className="h-3 w-3" />
