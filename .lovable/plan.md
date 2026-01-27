@@ -1,282 +1,192 @@
 
-# Real-time Room Updates & Smart Duplicate Handling for Chatbot
+
+# Rebrand Chatbot from "সখী (Sakhi)" to "BeeChat"
 
 ## Overview
-This plan implements two key features:
-1. **Real-time data synchronization** - The Rooms page will automatically update when the chatbot creates/modifies rooms
-2. **Smart duplicate handling** - When the chatbot tries to create a room that already exists, it will automatically generate a new unique room number
+This plan rebrands the AI chatbot assistant with the new "BeeChat" identity, including the new logo, updated name display, and revised Bengali welcome message (without using "নমস্কার").
 
 ---
 
-## Part 1: Enable Real-time Updates for Rooms
+## Changes Required
 
-### Database Migration
-Enable real-time subscriptions for the `rooms` and `room_types` tables so changes made via the chatbot are reflected immediately in the UI.
+### 1. Add BeeChat Logo to Assets
+**Action**: Copy the uploaded "B" speech bubble logo to the project assets folder.
 
-**New Migration SQL:**
-```sql
--- Enable realtime for rooms management
-ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.room_types;
-```
+**File**: `src/assets/beechat-logo.png`
 
-### New Hook: `useRoomNotifications.tsx`
-**Location**: `src/hooks/useRoomNotifications.tsx`
+The logo will be imported and used in both the FAB button and the chat header.
 
-A hook that subscribes to real-time changes on the `rooms` table and automatically invalidates React Query cache when changes occur.
+---
 
-**Key Features**:
-- Subscribes to INSERT, UPDATE, DELETE events on `rooms` table
-- Filters by `property_id` to only receive relevant updates
-- Invalidates `rooms` and `room-stats` query keys when changes occur
-- Shows toast notifications for chatbot-triggered changes
+### 2. Update Chat Header (AdminChatbot.tsx)
+**File**: `src/components/admin/AdminChatbot.tsx`
 
-**Implementation Pattern** (following existing kitchen notifications):
-```typescript
-const channel = supabase
-  .channel(`rooms-${propertyId}`)
-  .on('postgres_changes', {
-    event: '*',
-    schema: 'public',
-    table: 'rooms',
-    filter: `property_id=eq.${propertyId}`
-  }, (payload) => {
-    queryClient.invalidateQueries({ queryKey: ["rooms", propertyId] });
-    queryClient.invalidateQueries({ queryKey: ["room-stats", propertyId] });
-    
-    // Show notification for new rooms
-    if (payload.eventType === 'INSERT') {
-      toast.info(`Room ${payload.new.room_number} added`);
-    }
-  })
-  .subscribe();
-```
+**Changes**:
 
-### Modify: `src/pages/Rooms.tsx`
-Add the `useRoomNotifications` hook to enable real-time subscriptions when viewing the Rooms page.
+| Location | Current | New |
+|----------|---------|-----|
+| Line 116 | `সখী (Sakhi)` | `BeeChat` |
+| Line 117 | `Hotel Management Assistant` | `Hotel Management Assistant` (keep same) |
+| Lines 112-113 | `<MessageCircle />` icon in header | Replace with `<img src={beechatLogo} />` |
+| Line 76-78 | FAB button uses `<MessageCircle />` | Replace with `<img src={beechatLogo} />` |
+| Header gradient | Purple to indigo gradient | Change to blue gradient (`from-blue-500 to-blue-600`) to match BeeChat branding |
 
-```typescript
+**Updated Code Structure**:
+```tsx
 // Add import
-import { useRoomNotifications } from "@/hooks/useRoomNotifications";
+import beechatLogo from '@/assets/beechat-logo.png';
 
-// Add hook call inside component
-useRoomNotifications();
+// Header section
+<div className="flex items-center gap-3">
+  <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center">
+    <img src={beechatLogo} alt="BeeChat" className="w-8 h-8 object-contain" />
+  </div>
+  <div>
+    <h3 className="font-semibold">BeeChat</h3>
+    <p className="text-xs text-white/80">Hotel Management Assistant</p>
+  </div>
+</div>
+```
+
+**FAB Button Update**:
+```tsx
+<Button
+  onClick={() => setIsOpen(true)}
+  size="lg"
+  className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 p-0 overflow-hidden"
+>
+  <img src={beechatLogo} alt="BeeChat" className="w-10 h-10 object-contain" />
+</Button>
 ```
 
 ---
 
-## Part 2: Smart Duplicate Handling in Chatbot
+### 3. Update Chat Message Avatar (ChatMessage.tsx)
+**File**: `src/components/admin/ChatMessage.tsx`
 
-### Modify: `supabase/functions/admin-chat/index.ts`
+**Changes**:
+- Import the BeeChat logo
+- Replace the `<Bot />` icon in assistant messages with the BeeChat logo
+- Update avatar gradient to blue theme
 
-Update the `create_room` case to check for existing rooms and auto-generate unique room numbers when duplicates are detected.
+**Updated Code**:
+```tsx
+// Add import
+import beechatLogo from '@/assets/beechat-logo.png';
 
-**Current Behavior** (lines 1989-2005):
-```typescript
-case "create_room": {
-  const { data, error } = await supabase.from('rooms').insert({...});
-  if (error) throw error;  // Fails with duplicate key error
-  return { success: true, data };
-}
-```
-
-**New Behavior**:
-```typescript
-case "create_room": {
-  // Check if room number already exists
-  const { data: existingRoom } = await supabase.from('rooms')
-    .select('room_number')
-    .eq('property_id', propertyId)
-    .eq('room_number', args.room_number)
-    .eq('is_active', true)
-    .maybeSingle();
-  
-  let finalRoomNumber = args.room_number;
-  
-  if (existingRoom) {
-    // Generate a unique room number by appending a suffix
-    // Try: 101A, 101B, 101C, etc.
-    const suffixes = ['A', 'B', 'C', 'D', 'E', 'F'];
-    let found = false;
-    
-    for (const suffix of suffixes) {
-      const candidate = `${args.room_number}${suffix}`;
-      const { data: check } = await supabase.from('rooms')
-        .select('room_number')
-        .eq('property_id', propertyId)
-        .eq('room_number', candidate)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (!check) {
-        finalRoomNumber = candidate;
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      // Fallback: add timestamp suffix
-      finalRoomNumber = `${args.room_number}-${Date.now().toString().slice(-4)}`;
-    }
-  }
-  
-  const { data, error } = await supabase.from('rooms').insert({
-    tenant_id: tenantId,
-    property_id: propertyId,
-    room_number: finalRoomNumber,
-    room_type_id: args.room_type_id,
-    floor: args.floor || null,
-    notes: args.notes || null,
-    status: 'vacant'
-  })
-  .select('*, room_types(name)')
-  .single();
-  
-  if (error) throw error;
-  
-  // Include info about whether room number was modified
-  return { 
-    success: true, 
-    data,
-    renamed: existingRoom ? `Room ${args.room_number} already existed, created as ${finalRoomNumber}` : null
-  };
-}
-```
-
-### Update Tool Summary for create_room
-
-Update the `generateToolSummary` function to show when a room was renamed due to duplicate:
-
-```typescript
-case "create_room":
-  let msg = `Created room **${data.room_number}** (${data.room_types?.name || 'N/A'})`;
-  if (result.renamed) {
-    msg += `\n⚠️ ${result.renamed}`;
-  }
-  return msg;
-```
-
-### Apply Same Logic to create_room_type
-
-Update the `create_room_type` case to handle duplicate codes:
-
-```typescript
-case "create_room_type": {
-  // Check if code already exists
-  const { data: existingType } = await supabase.from('room_types')
-    .select('code')
-    .eq('property_id', propertyId)
-    .eq('code', args.code.toUpperCase())
-    .eq('is_active', true)
-    .maybeSingle();
-  
-  let finalCode = args.code.toUpperCase();
-  
-  if (existingType) {
-    // Generate unique code by adding number suffix
-    for (let i = 2; i <= 9; i++) {
-      const candidate = `${args.code.toUpperCase()}${i}`;
-      const { data: check } = await supabase.from('room_types')
-        .select('code')
-        .eq('property_id', propertyId)
-        .eq('code', candidate)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (!check) {
-        finalCode = candidate;
-        break;
-      }
-    }
-  }
-  
-  const { data, error } = await supabase.from('room_types').insert({
-    tenant_id: tenantId,
-    property_id: propertyId,
-    name: args.name,
-    code: finalCode,
-    base_rate: args.base_rate,
-    max_occupancy: args.max_occupancy,
-    description: args.description || null,
-    amenities: args.amenities || []
-  })
-  .select()
-  .single();
-  
-  if (error) throw error;
-  return { 
-    success: true, 
-    data,
-    renamed: existingType ? `Code ${args.code} existed, used ${finalCode}` : null
-  };
-}
+// Avatar section for assistant messages
+<div className={cn(
+  "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden",
+  isUser 
+    ? "bg-primary text-primary-foreground" 
+    : "bg-gradient-to-br from-blue-400 to-blue-600"
+)}>
+  {isUser ? <User className="h-4 w-4" /> : (
+    <img src={beechatLogo} alt="BeeChat" className="w-6 h-6 object-contain" />
+  )}
+</div>
 ```
 
 ---
 
-## Summary of Changes
+### 4. Update Welcome Message (useAdminChat.tsx)
+**File**: `src/hooks/useAdminChat.tsx`
+
+**Changes**:
+- Update session key from `sakhi_chat_session` to `beechat_session`
+- Update welcome message to use new Bengali greeting (no "নমস্কার")
+
+**Line 28**: Change session key
+```tsx
+const SESSION_KEY = 'beechat_session';
+```
+
+**Lines 281-294**: Updated welcome message
+```tsx
+content: `Hello Sir! 👋 আমি **BeeChat**, আপনার হোটেল ম্যানেজমেন্ট সহকারী।
+
+আমি আপনার হোটেলের সব তথ্য জানি - রুম, গেস্ট, স্টাফ, রিজার্ভেশন সব!
+
+আমি আপনাকে সাহায্য করতে পারি:
+- 📅 **রিজার্ভেশন** তৈরি ও পরিচালনা
+- 🛎️ **চেক-ইন/আউট** প্রক্রিয়াকরণ
+- 🛏️ **রুম ম্যানেজমেন্ট** ও হাউসকিপিং
+- 👥 **গেস্ট প্রোফাইল** তৈরি
+- 💳 **ফোলিও ও পেমেন্ট** পরিচালনা
+- 📊 **রিপোর্ট ও পরিসংখ্যান** দেখা
+
+**আজ আপনাকে কীভাবে সাহায্য করতে পারি?**`
+```
+
+---
+
+### 5. Update Color Theme
+The BeeChat logo uses a blue color scheme, so update the gradients accordingly:
+
+| Component | Current | New |
+|-----------|---------|-----|
+| Header background | `from-purple-600 to-indigo-600` | `from-blue-500 to-blue-600` |
+| Header hover | `from-purple-700 to-indigo-700` | `from-blue-600 to-blue-700` |
+| FAB button | `from-purple-600 to-indigo-600` | `from-blue-500 to-blue-600` |
+| Send button | `from-purple-600 to-indigo-600` | `from-blue-500 to-blue-600` |
+| Message avatar | `from-purple-500 to-indigo-600` | `from-blue-400 to-blue-600` |
+
+---
+
+### 6. Update ChatInput Send Button (ChatInput.tsx)
+**File**: `src/components/admin/ChatInput.tsx`
+
+**Line 71-72**: Update send button gradient
+```tsx
+className="h-[44px] w-[44px] bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+```
+
+---
+
+## Summary of File Changes
 
 | File | Action | Description |
 |------|--------|-------------|
-| `supabase/migrations/[new].sql` | Create | Enable realtime for rooms and room_types tables |
-| `src/hooks/useRoomNotifications.tsx` | Create | Hook for real-time room update subscriptions |
-| `src/pages/Rooms.tsx` | Modify | Add useRoomNotifications hook |
-| `supabase/functions/admin-chat/index.ts` | Modify | Smart duplicate handling for create_room and create_room_type |
+| `src/assets/beechat-logo.png` | Copy | Add BeeChat "B" logo from uploads |
+| `src/components/admin/AdminChatbot.tsx` | Modify | Update name to "BeeChat", logo, blue theme |
+| `src/components/admin/ChatMessage.tsx` | Modify | Replace Bot icon with BeeChat logo, blue theme |
+| `src/components/admin/ChatInput.tsx` | Modify | Update send button to blue gradient |
+| `src/hooks/useAdminChat.tsx` | Modify | Update session key & welcome message |
 
 ---
 
-## Data Flow After Implementation
+## Visual Preview
 
+**Before**:
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│              User asks chatbot: "Create room 101"               │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│           Edge function checks if room 101 exists               │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-              ┌──────────────────┴──────────────────┐
-              ▼                                     ▼
-┌─────────────────────────┐           ┌─────────────────────────┐
-│   Room 101 NOT exists   │           │    Room 101 EXISTS      │
-│   Create as "101"       │           │   Create as "101A"      │
-└─────────────────────────┘           └─────────────────────────┘
-              │                                     │
-              └──────────────────┬──────────────────┘
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│          Room inserted → Supabase Realtime triggers             │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│    useRoomNotifications receives event → invalidates cache      │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│           Rooms page auto-refreshes with new room               │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────┐
+│  [🗨️] সখী (Sakhi)             [icons] │
+│       Hotel Management Assistant       │
+│  ─────────────────────────────────────│
+│  🤖 নমস্কার! 👋 আমি সখী...            │
+└────────────────────────────────────────┘
+```
+
+**After**:
+```text
+┌────────────────────────────────────────┐
+│  [B] BeeChat                   [icons] │
+│       Hotel Management Assistant       │
+│  ─────────────────────────────────────│
+│  [B] Hello Sir! 👋 আমি BeeChat...     │
+└────────────────────────────────────────┘
 ```
 
 ---
 
 ## Technical Notes
 
-1. **Real-time Filter**: The subscription filters by `property_id` to ensure users only receive updates for their own property's rooms.
+1. **Session Key Change**: Existing users will start with a fresh session after the update since the key changes from `sakhi_chat_session` to `beechat_session`. This is intentional for a clean rebrand.
 
-2. **Duplicate Detection**: Uses `.maybeSingle()` to safely check for existing records without throwing errors.
+2. **Logo Sizing**: The logo will be sized appropriately:
+   - FAB button: `w-10 h-10`
+   - Header: `w-8 h-8`
+   - Message avatar: `w-6 h-6`
 
-3. **Room Number Suffix Logic**: 
-   - First tries letter suffixes (A-F): 101 → 101A → 101B
-   - Falls back to timestamp suffix if all letters are taken
+3. **Blue Theme Consistency**: All purple/indigo gradients will be updated to blue (`from-blue-500 to-blue-600`) to match the BeeChat logo color scheme.
 
-4. **Room Type Code Logic**:
-   - Appends numbers (2-9): DLX → DLX2 → DLX3
-
-5. **Backward Compatibility**: The chatbot response structure remains the same, with an optional `renamed` field added for transparency.
-
-6. **Toast Notifications**: The UI shows a subtle toast when rooms are added via chatbot, keeping users informed of background changes.
