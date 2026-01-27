@@ -22,6 +22,7 @@ import {
   ChefHat,
   Utensils,
   Tags,
+  FileText,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -57,6 +58,7 @@ const mainNavItems = [
   { title: 'Rooms', url: '/rooms', icon: BedDouble, color: 'text-vibrant-cyan' },
   { title: 'Guests', url: '/guests', icon: Users, color: 'text-vibrant-green' },
   { title: 'Corporate', url: '/corporate', icon: Building2, color: 'text-vibrant-purple' },
+  { title: 'Statements', url: '/corporate/statements', icon: FileText, color: 'text-vibrant-indigo' },
 ];
 
 const operationsItems = [
@@ -95,8 +97,8 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
   superadmin: ['*'],
   owner: ['*'],
   manager: ['*'],
-  front_desk: ['/dashboard', '/reservations', '/calendar', '/rooms', '/guests', '/front-desk', '/housekeeping', '/maintenance', '/folios'],
-  accountant: ['/dashboard', '/folios', '/reports', '/night-audit'],
+  front_desk: ['/dashboard', '/reservations', '/calendar', '/rooms', '/guests', '/front-desk', '/housekeeping', '/maintenance', '/folios', '/corporate', '/corporate/statements'],
+  accountant: ['/dashboard', '/folios', '/reports', '/night-audit', '/corporate/statements'],
   housekeeping: ['/housekeeping'],
   maintenance: ['/maintenance'],
   kitchen: ['/kitchen'],
