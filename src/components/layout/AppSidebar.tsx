@@ -23,6 +23,16 @@ import {
   Utensils,
   Tags,
   FileText,
+  UserCog,
+  Clock,
+  CalendarClock,
+  CalendarDays,
+  Wallet,
+  Timer,
+  ListTodo,
+  Star,
+  FolderOpen,
+  Activity,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -77,6 +87,20 @@ const posItems = [
   { title: 'POS Terminal', url: '/pos', icon: UtensilsCrossed, color: 'text-vibrant-orange' },
   { title: 'Kitchen Display', url: '/kitchen', icon: ChefHat, color: 'text-vibrant-amber' },
   { title: 'Waiter Dashboard', url: '/waiter', icon: Utensils, color: 'text-vibrant-green' },
+];
+
+const hrItems = [
+  { title: 'Staff Directory', url: '/hr/staff', icon: Users, color: 'text-vibrant-blue' },
+  { title: 'Roles & Permissions', url: '/hr/roles', icon: UserCog, color: 'text-vibrant-purple' },
+  { title: 'Attendance', url: '/hr/attendance', icon: Clock, color: 'text-vibrant-green' },
+  { title: 'Shift Scheduling', url: '/hr/shifts', icon: CalendarClock, color: 'text-vibrant-cyan' },
+  { title: 'Leave Management', url: '/hr/leave', icon: CalendarDays, color: 'text-vibrant-amber' },
+  { title: 'Payroll', url: '/hr/payroll', icon: Wallet, color: 'text-vibrant-green' },
+  { title: 'Overtime', url: '/hr/overtime', icon: Timer, color: 'text-vibrant-orange' },
+  { title: 'Task Assignment', url: '/hr/tasks', icon: ListTodo, color: 'text-vibrant-indigo' },
+  { title: 'Performance', url: '/hr/performance', icon: Star, color: 'text-vibrant-amber' },
+  { title: 'Documents', url: '/hr/documents', icon: FolderOpen, color: 'text-vibrant-cyan' },
+  { title: 'Activity Logs', url: '/hr/activity', icon: Activity, color: 'text-vibrant-rose' },
 ];
 
 const adminItems = [
@@ -275,6 +299,11 @@ export function AppSidebar() {
         {/* POS (conditional) */}
         {!isSuperAdmin && canAccessPOS && (
           <NavSection items={posItems} label="Restaurant" />
+        )}
+
+        {/* HR Management (conditional) */}
+        {!isSuperAdmin && canAccessAdmin && (
+          <NavSection items={hrItems} label="HR Management" />
         )}
 
         {/* Admin (conditional) */}
