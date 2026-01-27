@@ -36,6 +36,18 @@ import AdminSecurity from "./pages/admin/Security";
 import Profile from "./pages/Profile";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
+// HR Module Pages
+import HRStaff from "./pages/hr/Staff";
+import HRRoles from "./pages/hr/Roles";
+import HRAttendance from "./pages/hr/Attendance";
+import HRShifts from "./pages/hr/Shifts";
+import HRLeave from "./pages/hr/Leave";
+import HRPayroll from "./pages/hr/Payroll";
+import HROvertime from "./pages/hr/Overtime";
+import HRPerformance from "./pages/hr/Performance";
+import HRDocuments from "./pages/hr/Documents";
+import HRActivity from "./pages/hr/Activity";
+
 const queryClient = new QueryClient();
 
 // Define which routes each role can access
@@ -399,6 +411,108 @@ const AppRoutes = () => (
             <Profile />
           </DashboardLayout>
         </ProtectedRoute>
+      }
+    />
+
+    {/* HR Management Routes */}
+    <Route
+      path="/hr/staff"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/staff">
+          <DashboardLayout title="HR Staff Directory">
+            <HRStaff />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/roles"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/roles">
+          <DashboardLayout title="Roles & Permissions">
+            <HRRoles />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/attendance"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/attendance">
+          <DashboardLayout title="Attendance">
+            <HRAttendance />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/shifts"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/shifts">
+          <DashboardLayout title="Shift Scheduling">
+            <HRShifts />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/leave"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/leave">
+          <DashboardLayout title="Leave Management">
+            <HRLeave />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/payroll"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/payroll">
+          <DashboardLayout title="Payroll">
+            <HRPayroll />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/overtime"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/overtime">
+          <DashboardLayout title="Overtime">
+            <HROvertime />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/performance"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/performance">
+          <DashboardLayout title="Performance">
+            <HRPerformance />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/documents"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/documents">
+          <DashboardLayout title="HR Documents">
+            <HRDocuments />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/hr/activity"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/hr/activity">
+          <DashboardLayout title="HR Activity Logs">
+            <HRActivity />
+          </DashboardLayout>
+        </RoleProtectedRoute>
       }
     />
 

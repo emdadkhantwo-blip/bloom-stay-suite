@@ -682,6 +682,874 @@ export type Database = {
           },
         ]
       }
+      hr_attendance: {
+        Row: {
+          break_end: string | null
+          break_start: string | null
+          clock_in: string | null
+          clock_out: string | null
+          created_at: string
+          date: string
+          id: string
+          ip_address: string | null
+          is_early_departure: boolean | null
+          is_late: boolean | null
+          notes: string | null
+          profile_id: string
+          tenant_id: string
+          worked_hours: number | null
+        }
+        Insert: {
+          break_end?: string | null
+          break_start?: string | null
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          ip_address?: string | null
+          is_early_departure?: boolean | null
+          is_late?: boolean | null
+          notes?: string | null
+          profile_id: string
+          tenant_id: string
+          worked_hours?: number | null
+        }
+        Update: {
+          break_end?: string | null
+          break_start?: string | null
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          ip_address?: string | null
+          is_early_departure?: boolean | null
+          is_late?: boolean | null
+          notes?: string | null
+          profile_id?: string
+          tenant_id?: string
+          worked_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_departments: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          manager_id: string | null
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          manager_id?: string | null
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          manager_id?: string | null
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_departments_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_departments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          expiry_date: string | null
+          file_url: string
+          id: string
+          name: string
+          notes: string | null
+          profile_id: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          expiry_date?: string | null
+          file_url: string
+          id?: string
+          name: string
+          notes?: string | null
+          profile_id: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          expiry_date?: string | null
+          file_url?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          profile_id?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_balances: {
+        Row: {
+          created_at: string
+          id: string
+          leave_type_id: string
+          profile_id: string
+          remaining_days: number | null
+          tenant_id: string
+          total_days: number | null
+          used_days: number | null
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leave_type_id: string
+          profile_id: string
+          remaining_days?: number | null
+          tenant_id: string
+          total_days?: number | null
+          used_days?: number | null
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leave_type_id?: string
+          profile_id?: string
+          remaining_days?: number | null
+          tenant_id?: string
+          total_days?: number | null
+          used_days?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_balances_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_balances_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_requests: {
+        Row: {
+          created_at: string
+          days: number
+          end_date: string
+          id: string
+          leave_type_id: string
+          notes: string | null
+          profile_id: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["hr_leave_status"] | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          days: number
+          end_date: string
+          id?: string
+          leave_type_id: string
+          notes?: string | null
+          profile_id: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["hr_leave_status"] | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          end_date?: string
+          id?: string
+          leave_type_id?: string
+          notes?: string | null
+          profile_id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["hr_leave_status"] | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_types: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          days_per_year: number | null
+          id: string
+          is_active: boolean | null
+          is_paid: boolean | null
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          days_per_year?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_paid?: boolean | null
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          days_per_year?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_paid?: boolean | null
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_types_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_overtime_entries: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          date: string
+          hours: number
+          id: string
+          payroll_entry_id: string | null
+          profile_id: string
+          rate_multiplier: number | null
+          status: Database["public"]["Enums"]["hr_overtime_status"] | null
+          tenant_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          date: string
+          hours: number
+          id?: string
+          payroll_entry_id?: string | null
+          profile_id: string
+          rate_multiplier?: number | null
+          status?: Database["public"]["Enums"]["hr_overtime_status"] | null
+          tenant_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          date?: string
+          hours?: number
+          id?: string
+          payroll_entry_id?: string | null
+          profile_id?: string
+          rate_multiplier?: number | null
+          status?: Database["public"]["Enums"]["hr_overtime_status"] | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_overtime_entries_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_overtime_entries_payroll_entry_id_fkey"
+            columns: ["payroll_entry_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_overtime_entries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_overtime_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_payroll_entries: {
+        Row: {
+          allowances: Json | null
+          attendance_days: number | null
+          basic_salary: number | null
+          created_at: string
+          deductions: Json | null
+          gross_pay: number | null
+          id: string
+          net_pay: number | null
+          overtime_pay: number | null
+          period_id: string
+          profile_id: string
+          tenant_id: string
+        }
+        Insert: {
+          allowances?: Json | null
+          attendance_days?: number | null
+          basic_salary?: number | null
+          created_at?: string
+          deductions?: Json | null
+          gross_pay?: number | null
+          id?: string
+          net_pay?: number | null
+          overtime_pay?: number | null
+          period_id: string
+          profile_id: string
+          tenant_id: string
+        }
+        Update: {
+          allowances?: Json | null
+          attendance_days?: number | null
+          basic_salary?: number | null
+          created_at?: string
+          deductions?: Json | null
+          gross_pay?: number | null
+          id?: string
+          net_pay?: number | null
+          overtime_pay?: number | null
+          period_id?: string
+          profile_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payroll_entries_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_entries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_payroll_periods: {
+        Row: {
+          created_at: string
+          end_date: string
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          month: number
+          property_id: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["hr_payroll_status"] | null
+          tenant_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          month: number
+          property_id?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["hr_payroll_status"] | null
+          tenant_id: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          month?: number
+          property_id?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["hr_payroll_status"] | null
+          tenant_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payroll_periods_finalized_by_fkey"
+            columns: ["finalized_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_periods_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_performance_notes: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          note_type: Database["public"]["Enums"]["hr_performance_note_type"]
+          profile_id: string
+          rating: number | null
+          tenant_id: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          note_type?: Database["public"]["Enums"]["hr_performance_note_type"]
+          profile_id: string
+          rating?: number | null
+          tenant_id: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          note_type?: Database["public"]["Enums"]["hr_performance_note_type"]
+          profile_id?: string
+          rating?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_performance_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_performance_notes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_performance_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_permissions: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      hr_role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "hr_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_role_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_shift_assignments: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          profile_id: string
+          shift_id: string
+          status:
+            | Database["public"]["Enums"]["hr_shift_assignment_status"]
+            | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          profile_id: string
+          shift_id: string
+          status?:
+            | Database["public"]["Enums"]["hr_shift_assignment_status"]
+            | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          profile_id?: string
+          shift_id?: string
+          status?:
+            | Database["public"]["Enums"]["hr_shift_assignment_status"]
+            | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_shift_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_shift_assignments_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_shift_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_shifts: {
+        Row: {
+          break_minutes: number | null
+          color: string | null
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean | null
+          name: string
+          property_id: string | null
+          start_time: string
+          tenant_id: string
+        }
+        Insert: {
+          break_minutes?: number | null
+          color?: string | null
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          property_id?: string | null
+          start_time: string
+          tenant_id: string
+        }
+        Update: {
+          break_minutes?: number | null
+          color?: string | null
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          property_id?: string | null
+          start_time?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_shifts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_staff_profiles: {
+        Row: {
+          bank_account: string | null
+          bank_name: string | null
+          created_at: string
+          department_id: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          employment_type: Database["public"]["Enums"]["hr_employment_type"]
+          id: string
+          join_date: string | null
+          notes: string | null
+          profile_id: string
+          salary_amount: number | null
+          salary_currency: string | null
+          staff_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account?: string | null
+          bank_name?: string | null
+          created_at?: string
+          department_id?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employment_type?: Database["public"]["Enums"]["hr_employment_type"]
+          id?: string
+          join_date?: string | null
+          notes?: string | null
+          profile_id: string
+          salary_amount?: number | null
+          salary_currency?: string | null
+          staff_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account?: string | null
+          bank_name?: string | null
+          created_at?: string
+          department_id?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employment_type?: Database["public"]["Enums"]["hr_employment_type"]
+          id?: string
+          join_date?: string | null
+          notes?: string | null
+          profile_id?: string
+          salary_amount?: number | null
+          salary_currency?: string | null
+          staff_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_staff_profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_staff_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_staff_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_tickets: {
         Row: {
           assigned_to: string | null
@@ -2136,6 +3004,12 @@ export type Database = {
         | "service_charge"
         | "discount"
         | "deposit"
+      hr_employment_type: "full_time" | "part_time" | "contract"
+      hr_leave_status: "pending" | "approved" | "rejected"
+      hr_overtime_status: "pending" | "approved" | "rejected"
+      hr_payroll_status: "draft" | "finalized"
+      hr_performance_note_type: "feedback" | "warning" | "reward" | "kpi"
+      hr_shift_assignment_status: "scheduled" | "completed" | "absent"
       night_audit_status: "pending" | "in_progress" | "completed" | "failed"
       payment_method:
         | "cash"
@@ -2332,6 +3206,12 @@ export const Constants = {
         "discount",
         "deposit",
       ],
+      hr_employment_type: ["full_time", "part_time", "contract"],
+      hr_leave_status: ["pending", "approved", "rejected"],
+      hr_overtime_status: ["pending", "approved", "rejected"],
+      hr_payroll_status: ["draft", "finalized"],
+      hr_performance_note_type: ["feedback", "warning", "reward", "kpi"],
+      hr_shift_assignment_status: ["scheduled", "completed", "absent"],
       night_audit_status: ["pending", "in_progress", "completed", "failed"],
       payment_method: [
         "cash",
