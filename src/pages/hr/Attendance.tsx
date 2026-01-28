@@ -32,7 +32,7 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useAuth } from '@/hooks/useAuth';
 import { AttendanceTable } from '@/components/hr/AttendanceTable';
 import { MonthlyAttendanceSheet } from '@/components/hr/MonthlyAttendanceSheet';
-import { BiometricClockWidget } from '@/components/hr/BiometricClockWidget';
+import { ClockWidget } from '@/components/hr/ClockWidget';
 
 const HRAttendance = () => {
   const { user, roles } = useAuth();
@@ -158,8 +158,8 @@ const HRAttendance = () => {
             </Card>
           </div>
 
-          {/* Clock Widget with Biometric Support */}
-          <BiometricClockWidget
+          {/* Clock Widget */}
+          <ClockWidget
             todayRecord={myAttendance}
             onClockIn={handleClockIn}
             onClockOut={handleClockOut}
