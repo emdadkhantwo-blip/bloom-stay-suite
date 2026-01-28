@@ -104,8 +104,8 @@ const HRAttendance = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="daily" className="w-full">
+    <div className="space-y-6 min-w-0 overflow-hidden">
+      <Tabs defaultValue="daily" className="w-full min-w-0">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="daily" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -323,7 +323,7 @@ const HRAttendance = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="monthly" className="mt-6">
+        <TabsContent value="monthly" className="mt-6 min-w-0 overflow-hidden">
           <MonthlyAttendanceSheet />
         </TabsContent>
       </Tabs>
