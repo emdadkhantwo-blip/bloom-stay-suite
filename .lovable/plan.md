@@ -1,209 +1,262 @@
 
-# Fix HR Attendance and Shifts Sections
+# Add Monthly Attendance Sheet to Attendance Page
 
-## Problem Analysis
-
-### Current Issues:
-1. **Attendance Page (`/hr/attendance`)**: Currently shows only a basic clock-in widget for the current user with no real functionality. Does not show all employees, their positions, or allow managers to give attendance.
-
-2. **Shifts Page (`/hr/shifts`)**: Shows only static shift templates but doesn't fetch real data from `hr_shifts` table. The weekly schedule is not connected to the database.
+## Overview
+Add a comprehensive monthly attendance sheet view to the `/hr/attendance` page where users can view all employees' attendance for the entire month in a grid format.
 
 ---
 
-## Solution Overview
-
-### Phase 1: Create useAttendance Hook
-
-Create a new hook to manage attendance data and actions:
-
-**File: `src/hooks/useAttendance.tsx`**
-
-Features:
-- Fetch all attendance records for the current date
-- Fetch all staff members with their roles/positions
-- Clock in/out functionality (for self and admin override)
-- Start/end break functionality
-- Calculate attendance statistics (present, absent, late, on break)
-
-```text
-Interface StaffAttendance:
-- profile_id
-- full_name
-- avatar_url
-- role (position)
-- clock_in
-- clock_out
-- break_start
-- break_end
-- is_late
-- worked_hours
-- status (not_clocked_in | clocked_in | on_break | clocked_out)
-```
+## Current State
+- Attendance page shows daily view with stats bar, personal clock widget, and today's attendance table
+- `useAttendance` hook fetches attendance for a single date only
+- `hr_attendance` table stores: profile_id, date, clock_in, clock_out, is_late, worked_hours, etc.
 
 ---
 
-### Phase 2: Update Attendance Page
+## Solution Design
 
-**File: `src/pages/hr/Attendance.tsx`**
+### New Component: MonthlyAttendanceSheet
 
-New Features:
-
-1. **Stats Bar** (connected to real data):
-   - Present Today: Staff who clocked in
-   - Absent: Staff who haven't clocked in
-   - Late Arrivals: Staff marked as late
-   - On Break: Staff currently on break
-
-2. **Self Clock Widget** (existing - enhanced):
-   - Shows current user's attendance status
-   - Clock In/Out buttons
-   - Break Start/End buttons
-   - Persists to database
-
-3. **Staff Attendance Table** (new):
-   - List all employees
-   - Show avatar, name, and position/role
-   - Show clock-in time, clock-out time
-   - Show status badge (Present/Absent/On Break/Late)
-   - Admin override: Clock in/out on behalf of staff
+A grid-based table showing:
+- **Rows**: Each staff member (name + position)
+- **Columns**: Each day of the selected month (1-31)
+- **Cells**: Attendance status indicator (Present/Absent/Late/Leave)
 
 ```text
-┌────────────────────────────────────────────────────────────────┐
-│ Today's Attendance                                              │
-├────────────────────────────────────────────────────────────────┤
-│ Staff             │ Position      │ Clock In │ Clock Out │ Status │
-├───────────────────┼───────────────┼──────────┼───────────┼────────┤
-│ [Avatar] John     │ Manager       │ 08:05    │ --:--     │ Present│
-│ [Avatar] Sarah    │ Front Desk    │ 08:12    │ --:--     │ Late   │
-│ [Avatar] Mike     │ Kitchen       │ --:--    │ --:--     │ Absent │
-│ [Avatar] James    │ Housekeeping  │ 07:55    │ --:--     │ Present│
-│ [Avatar] Maria    │ Housekeeping  │ 08:00    │ 15:00     │ Left   │
-└────────────────────────────────────────────────────────────────┘
+Monthly Attendance - January 2026
+┌─────────────────┬─────┬─────┬─────┬─────┬─────┬───┬─────┬─────────┐
+│ Staff           │  1  │  2  │  3  │  4  │  5  │...│ 31  │ Summary │
+├─────────────────┼─────┼─────┼─────┼─────┼─────┼───┼─────┼─────────┤
+│ John (Manager)  │  P  │  P  │  L  │  P  │  A  │...│  P  │ 25/31   │
+│ Sarah (F.Desk)  │  P  │  P  │  P  │  P  │  P  │...│  P  │ 28/31   │
+│ Mike (Kitchen)  │  A  │  P  │  P  │  P  │  L  │...│  P  │ 22/31   │
+└─────────────────┴─────┴─────┴─────┴─────┴─────┴───┴─────┴─────────┘
+
+Legend: P=Present, A=Absent, L=Late, H=Holiday, W=Weekend
 ```
-
-4. **Admin Actions** (for owners/managers):
-   - "Mark Present" button for absent staff
-   - Quick clock-in timestamp override
-
----
-
-### Phase 3: Enhanced Shifts Page
-
-**File: `src/pages/hr/Shifts.tsx`**
-
-New Features:
-
-1. **Create Shift Template Dialog** (new):
-   - Name
-   - Start time
-   - End time
-   - Break minutes
-   - Color picker
-
-2. **Connect Shift Templates to Database**:
-   - Fetch from `hr_shifts` table
-   - Create, edit, delete shifts
-   - Show real data instead of hardcoded templates
-
-3. **Weekly Schedule Grid**:
-   - Show all staff in rows
-   - Days of the week as columns
-   - Display assigned shifts from `hr_shift_assignments`
-   - Click to assign/unassign shifts
-
-```text
-Weekly Schedule:
-┌────────────────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
-│ Staff          │ Mon │ Tue │ Wed │ Thu │ Fri │ Sat │ Sun │
-├────────────────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│ John (Manager) │ Day │ Day │ Day │ Off │ Day │ Off │ Off │
-│ Sarah (F.Desk) │ Day │ Eve │ Day │ Day │ Off │ Day │ Day │
-│ Mike (Kitchen) │ Eve │ Eve │ Eve │ Eve │ Eve │ Off │ Off │
-└────────────────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
-```
-
-4. **Real Statistics**:
-   - Shifts This Week (actual count)
-   - Staff Assigned (unique staff with shifts)
-   - Overtime Alerts (future: calculate based on hours)
 
 ---
 
 ## Implementation Plan
 
-### Files to Create:
+### Phase 1: Create Monthly Attendance Hook
+
+**File: `src/hooks/useMonthlyAttendance.tsx`**
+
+```typescript
+interface MonthlyAttendanceData {
+  staff: {
+    profile_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    position: string;
+    attendance: Record<string, AttendanceStatus>; // key: "YYYY-MM-DD"
+    summary: {
+      present: number;
+      absent: number;
+      late: number;
+      totalDays: number;
+    };
+  }[];
+  month: Date;
+  isLoading: boolean;
+}
+```
+
+Features:
+- Accept month/year as parameters
+- Fetch all attendance records for the entire month range
+- Fetch all staff profiles with roles
+- Aggregate attendance by date for each staff member
+- Calculate monthly summaries per staff
+
+Query approach:
+```typescript
+// Fetch attendance for entire month
+const { data: attendance } = await supabase
+  .from("hr_attendance")
+  .select("*")
+  .eq("tenant_id", tenantId)
+  .gte("date", startOfMonth)
+  .lte("date", endOfMonth);
+```
+
+---
+
+### Phase 2: Create Monthly Attendance Sheet Component
+
+**File: `src/components/hr/MonthlyAttendanceSheet.tsx`**
+
+Features:
+
+1. **Month Selector**
+   - Previous/Next month buttons
+   - Month/Year picker dropdown
+
+2. **Scrollable Grid Table**
+   - Fixed first column (staff names)
+   - Horizontally scrollable date columns
+   - Color-coded cells for status
+
+3. **Status Indicators**
+   | Status | Color | Symbol |
+   |--------|-------|--------|
+   | Present | Green | P or checkmark |
+   | Absent | Red | A or X |
+   | Late | Orange | L |
+   | Weekend | Gray | W |
+   | Holiday | Purple | H |
+
+4. **Summary Column**
+   - Total present days
+   - Attendance percentage
+   - Total worked hours (optional)
+
+5. **Legend**
+   - Visual guide for status colors/symbols
+
+---
+
+### Phase 3: Update Attendance Page
+
+**File: `src/pages/hr/Attendance.tsx`**
+
+Add a tabbed interface:
+
+```text
+┌────────────────────────────────────────────────────┐
+│ [Today's Attendance] [Monthly Sheet]               │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│  (Content based on selected tab)                   │
+│                                                    │
+└────────────────────────────────────────────────────┘
+```
+
+- **Today's Attendance Tab**: Current daily view (stats bar + clock widget + table)
+- **Monthly Sheet Tab**: New monthly grid view
+
+---
+
+## Detailed Component Structure
+
+### MonthlyAttendanceSheet.tsx
+
+```typescript
+interface MonthlyAttendanceSheetProps {
+  // Optional initial month, defaults to current
+  initialMonth?: Date;
+}
+
+// Internal state
+const [selectedMonth, setSelectedMonth] = useState<Date>(startOfMonth(new Date()));
+
+// Use monthly attendance hook
+const { staffAttendance, isLoading } = useMonthlyAttendance(selectedMonth);
+```
+
+### UI Layout:
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│ ◀ Previous  │ January 2026 ▼ │  Next ▶  │  [Export CSV] (future) │
+├───────────────────────────────────────────────────────────────────┤
+│              │ Days of Month (1-31)                      │Summary│
+├──────────────┼────────────────────────────────────────────┼───────┤
+│ Staff        │  1   2   3   4   5   6   7  ...  30   31  │  P/T  │
+│──────────────┼────────────────────────────────────────────┼───────│
+│ [👤] John    │  ✓   ✓   L   ✓   ✓   W   W  ...   ✓    ✓  │ 25/31 │
+│ [👤] Sarah   │  ✓   ✓   ✓   ✓   A   W   W  ...   ✓    ✓  │ 28/31 │
+│ [👤] Mike    │  A   ✓   ✓   ✓   L   W   W  ...   ✓    ✓  │ 22/31 │
+└──────────────┴────────────────────────────────────────────┴───────┘
+
+Legend: ✓ Present  L Late  A Absent  W Weekend
+```
+
+---
+
+## Files to Create
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useAttendance.tsx` | Attendance data management |
-| `src/components/hr/AttendanceTable.tsx` | Staff attendance list component |
-| `src/components/hr/CreateShiftDialog.tsx` | Create new shift template |
+| `src/hooks/useMonthlyAttendance.tsx` | Fetch and aggregate monthly attendance data |
+| `src/components/hr/MonthlyAttendanceSheet.tsx` | Grid view component for monthly attendance |
 
-### Files to Modify:
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/hr/Attendance.tsx` | Complete rewrite with real data |
-| `src/pages/hr/Shifts.tsx` | Connect to database, add create dialog |
-| `src/hooks/useShifts.tsx` | Add CRUD mutations for shifts |
+| `src/pages/hr/Attendance.tsx` | Add Tabs component with daily/monthly views |
 
 ---
 
-## Database Integration
+## Technical Details
 
-### Tables Used:
-- `hr_attendance` - Clock in/out records
-- `hr_shifts` - Shift templates
-- `hr_shift_assignments` - Staff-shift mappings
-- `profiles` - Staff info
-- `user_roles` - Staff positions/roles
+### Date Handling
+- Use `date-fns` functions: `startOfMonth`, `endOfMonth`, `eachDayOfInterval`, `format`, `isWeekend`
+- Generate array of all days in month for column headers
+- Weekend detection for visual differentiation
 
-### RLS Policies (already in place):
-- Owners/managers can manage all attendance
-- Users can view their own attendance
-- Users can clock in/out for themselves
+### Data Aggregation
+```typescript
+// Create a map of attendance by date for each staff
+const attendanceMap: Record<string, Record<string, AttendanceRecord>> = {};
 
----
+// staff_id -> { "2026-01-15": { status: "present", is_late: false }, ... }
+```
 
-## Role-to-Position Mapping
+### Responsive Design
+- Mobile: Show only staff name + summary, with option to expand individual days
+- Desktop: Full grid with horizontal scroll
+- Use ScrollArea component for smooth scrolling
 
-Staff positions displayed based on their primary role:
-
-| Role | Display Position |
-|------|------------------|
-| owner | Owner |
-| manager | Manager |
-| front_desk | Front Desk |
-| accountant | Accountant |
-| housekeeping | Housekeeping |
-| maintenance | Maintenance |
-| kitchen | Kitchen Staff |
-| waiter | Waiter/Server |
-| night_auditor | Night Auditor |
-
----
-
-## Feature Summary
-
-### Attendance Page:
-1. Real-time stats from database
-2. Personal clock in/out with persistence
-3. Full staff attendance table with positions
-4. Admin override capabilities
-5. Late/on-time indicators
-
-### Shifts Page:
-1. Create shift templates in database
-2. View/edit/delete shifts
-3. Weekly schedule grid with all staff
-4. Assign shifts from the grid
-5. Real statistics from database
+### Status Calculation Logic
+```typescript
+function getStatus(record: AttendanceRecord | undefined, date: Date): AttendanceStatus {
+  if (isWeekend(date)) return "weekend";
+  if (!record) return "absent";
+  if (record.clock_in) {
+    if (record.is_late) return "late";
+    return "present";
+  }
+  return "absent";
+}
+```
 
 ---
 
-## Security Considerations
+## UI Components Used
 
-1. **Clock-in Self**: Any authenticated user can clock in/out for themselves
-2. **Clock-in Others**: Only `owner` and `manager` can mark attendance for others
-3. **Manage Shifts**: Only `owner` and `manager` can create/edit shifts
-4. **Assign Shifts**: Only `owner`, `manager`, and `front_desk` can assign shifts
+| Component | Source | Usage |
+|-----------|--------|-------|
+| Tabs | shadcn/ui | Switch between daily/monthly views |
+| ScrollArea | shadcn/ui | Horizontal scroll for date columns |
+| Table | shadcn/ui | Grid structure |
+| Button | shadcn/ui | Month navigation |
+| Select | shadcn/ui | Month/year picker |
+| Badge | shadcn/ui | Status indicators |
+| Avatar | shadcn/ui | Staff photos |
+| Tooltip | shadcn/ui | Hover details (clock times) |
+
+---
+
+## Summary Statistics
+
+At the bottom or side of the sheet:
+
+| Metric | Description |
+|--------|-------------|
+| Total Present | Count of present days across all staff |
+| Average Attendance | (Total Present / Total Expected) * 100% |
+| Late Arrivals | Count of late days in month |
+| Most Absent | Staff member with most absences |
+
+---
+
+## Future Enhancements (Out of Scope)
+
+- Export to CSV/Excel
+- Print-friendly view
+- Holiday calendar integration
+- Leave request integration
+- Edit historical attendance (admin)
