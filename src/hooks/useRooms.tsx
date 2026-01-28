@@ -19,6 +19,7 @@ interface Room {
     code: string;
     base_rate: number;
     max_occupancy: number;
+    amenities?: unknown;
   } | null;
 }
 
@@ -44,7 +45,7 @@ export function useRooms() {
         .from("rooms")
         .select(`
           *,
-          room_type:room_types(id, name, code, base_rate, max_occupancy)
+          room_type:room_types(id, name, code, base_rate, max_occupancy, amenities)
         `)
         .eq("property_id", currentPropertyId)
         .eq("is_active", true)
