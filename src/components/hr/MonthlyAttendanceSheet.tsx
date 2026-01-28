@@ -58,7 +58,7 @@ export function MonthlyAttendanceSheet() {
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-2">
@@ -89,7 +89,7 @@ export function MonthlyAttendanceSheet() {
           </div>
         ) : (
           <>
-            <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+            <ScrollArea className="w-full max-w-full whitespace-nowrap rounded-md border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
