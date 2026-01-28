@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import type { DateRange } from "react-day-picker";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -113,7 +114,6 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   const [guestIdFiles, setGuestIdFiles] = useState<Map<number, { file: File; preview: string; type: string; fileName: string }>>(new Map());
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [selectedCorporateAccountId, setSelectedCorporateAccountId] = useState<string | null>(null);
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
 
   // Fetch all corporate accounts linked to the guest
   const { data: guestCorporateAccounts = [] } = useGuestCorporateAccounts(selectedGuest?.id);
@@ -181,9 +181,9 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
   }, [selectedRooms, form]);
 
   const nights = useMemo(() => {
-    if (selectedDates.length < 2) return 0;
-    return selectedDates.length - 1; // Number of nights = number of dates - 1
-  }, [selectedDates]);
+    if (!checkInDate || !checkOutDate) return 0;
+    return Math.max(0, differenceInDays(checkOutDate, checkInDate));
+  }, [checkInDate, checkOutDate]);
 
   const subtotal = useMemo(() => {
     return selectedRooms.reduce((sum, room) => sum + room.rate_per_night * nights, 0);
@@ -394,7 +394,6 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
       setSelectedReference(null);
       setSelectedRooms([{ id: crypto.randomUUID(), room_type_id: "", rate_per_night: 0, adults: 1, children: 0 }]);
       setSelectedGuest(null);
-      setSelectedDates([]);
       setSelectedCorporateAccountId(null);
       
       // Cleanup file previews
@@ -478,7 +477,7 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                 )}
               />
 
-              {/* Stay Dates - Multi-Select Calendar */}
+              {/* Stay Dates - Single Calendar Range Picker */}
               <FormItem className="flex flex-col">
                 <FormLabel>Stay Dates *</FormLabel>
                 <Popover>
@@ -487,19 +486,18 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        selectedDates.length === 0 && "text-muted-foreground"
+                        !checkInDate && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDates.length > 0 ? (
-                        <span>
-                          {selectedDates.length} date{selectedDates.length !== 1 ? "s" : ""} selected
-                          {selectedDates.length >= 2 && (
-                            <span className="text-muted-foreground ml-1">
-                              ({format(selectedDates[0], "MMM d")} - {format(selectedDates[selectedDates.length - 1], "MMM d")})
-                            </span>
-                          )}
-                        </span>
+                      {checkInDate && checkOutDate ? (
+                        <>
+                          {format(checkInDate, "MMM d, yyyy")} – {format(checkOutDate, "MMM d, yyyy")}
+                        </>
+                      ) : checkInDate ? (
+                        <>
+                          {format(checkInDate, "MMM d, yyyy")} – Select end date
+                        </>
                       ) : (
                         <span>Select stay dates</span>
                       )}
@@ -507,20 +505,15 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      mode="multiple"
-                      selected={selectedDates}
-                      onSelect={(dates: Date[] | undefined) => {
-                        const sortedDates = (dates || []).sort((a, b) => a.getTime() - b.getTime());
-                        setSelectedDates(sortedDates);
-                        
-                        // Auto-set check_in as first date, check_out as last date
-                        if (sortedDates.length > 0) {
-                          form.setValue("check_in_date", sortedDates[0]);
-                          form.setValue("check_out_date", sortedDates[sortedDates.length - 1]);
-                        } else {
-                          form.setValue("check_in_date", undefined as unknown as Date);
-                          form.setValue("check_out_date", undefined as unknown as Date);
-                        }
+                      mode="range"
+                      selected={
+                        checkInDate
+                          ? { from: checkInDate, to: checkOutDate }
+                          : undefined
+                      }
+                      onSelect={(range: DateRange | undefined) => {
+                        form.setValue("check_in_date", range?.from as Date);
+                        form.setValue("check_out_date", range?.to as Date);
                       }}
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       numberOfMonths={2}
@@ -529,15 +522,6 @@ export function NewReservationDialog({ open, onOpenChange }: NewReservationDialo
                     />
                   </PopoverContent>
                 </Popover>
-                {selectedDates.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {selectedDates.map((date) => (
-                      <Badge key={date.toISOString()} variant="secondary" className="text-xs">
-                        {format(date, "MMM d")}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
                 {nights > 0 && (
                   <p className="text-sm text-muted-foreground">
                     {nights} night{nights !== 1 ? "s" : ""}
