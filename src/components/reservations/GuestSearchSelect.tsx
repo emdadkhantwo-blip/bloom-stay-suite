@@ -53,7 +53,7 @@ export function GuestSearchSelect({ value, onSelect, onCreateNew }: GuestSearchS
               {selectedGuest.is_vip && (
                 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
               )}
-              {selectedGuest.corporate_account_id && (
+              {(selectedGuest.has_corporate_accounts || selectedGuest.corporate_account_id) && (
                 <Building2 className="h-3 w-3 text-blue-500" />
               )}
             </div>
@@ -99,7 +99,7 @@ export function GuestSearchSelect({ value, onSelect, onCreateNew }: GuestSearchS
                         {guest.is_vip && (
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                         )}
-                        {guest.corporate_account_id && (
+                        {(guest.has_corporate_accounts || guest.corporate_account_id) && (
                           <Badge variant="secondary" className="text-xs py-0 px-1">
                             <Building2 className="h-3 w-3 mr-1" />
                             Corporate

@@ -4,7 +4,9 @@ import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
-export type Guest = Tables<"guests">;
+export type Guest = Tables<"guests"> & {
+  has_corporate_accounts?: boolean;
+};
 
 export type GuestInsert = {
   first_name: string;
@@ -41,7 +43,7 @@ export function useGuests(searchQuery?: string) {
 
       let query = supabase
         .from("guests")
-        .select("*")
+        .select("*, guest_corporate_accounts(id)")
         .eq("tenant_id", tenantId)
         .order("last_name", { ascending: true });
 
@@ -54,7 +56,13 @@ export function useGuests(searchQuery?: string) {
       const { data, error } = await query.limit(100);
 
       if (error) throw error;
-      return data || [];
+      
+      // Map to include has_corporate_accounts flag
+      return (data || []).map((guest: any) => ({
+        ...guest,
+        has_corporate_accounts: (guest.guest_corporate_accounts?.length || 0) > 0 || !!guest.corporate_account_id,
+        guest_corporate_accounts: undefined, // Remove the nested array from the response
+      }));
     },
     enabled: !!tenantId,
   });
