@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   Clock, 
   LogIn, 
@@ -11,7 +22,8 @@ import {
   UserX,
   AlertCircle,
   Calendar,
-  Loader2
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAttendance } from '@/hooks/useAttendance';
@@ -30,11 +42,13 @@ const HRAttendance = () => {
     startBreak,
     endBreak,
     markPresent,
+    resetAttendance,
     isClockingIn,
     isClockingOut,
     isStartingBreak,
     isEndingBreak,
     isMarkingPresent,
+    isResettingAttendance,
   } = useAttendance();
 
   const isAdmin = roles.includes("owner") || roles.includes("manager");
@@ -80,6 +94,10 @@ const HRAttendance = () => {
 
   const handleAdminClockOut = (attendanceId: string, profileId: string) => {
     clockOut({ attendanceId, profileId });
+  };
+
+  const handleResetAttendance = () => {
+    resetAttendance();
   };
 
   return (
@@ -236,11 +254,39 @@ const HRAttendance = () => {
 
       {/* Today's Attendance */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-vibrant-blue" />
             Today's Attendance
           </CardTitle>
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={isResettingAttendance}>
+                  {isResettingAttendance ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                  )}
+                  Reset All
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset Today's Attendance</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will delete all attendance records for today, including clock-in/out times and break records for all staff members. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetAttendance} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Reset All Attendance
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
