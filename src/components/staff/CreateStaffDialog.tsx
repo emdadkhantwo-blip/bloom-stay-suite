@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2, Upload, CalendarIcon, Building2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Upload, CalendarIcon, Building2, FileText, X, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -83,6 +83,9 @@ const createStaffSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   staffId: z.string().max(20).optional(),
   notes: z.string().max(500).optional(),
+  nidNumber: z.string().max(20).optional(),
+  bankAccountNumber: z.string().max(30).optional(),
+  bankAccountName: z.string().max(100).optional(),
 });
 
 type CreateStaffFormData = z.infer<typeof createStaffSchema>;
@@ -114,6 +117,8 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
   const [employmentType, setEmploymentType] = useState<string>("full_time");
   const [salaryAmount, setSalaryAmount] = useState<string>("");
   const [salaryCurrency, setSalaryCurrency] = useState<string>("BDT");
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   const hasInitializedProperties = useRef(false);
 
@@ -130,6 +135,9 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
       email: "",
       staffId: "",
       notes: "",
+      nidNumber: "",
+      bankAccountNumber: "",
+      bankAccountName: "",
     },
   });
 
@@ -191,6 +199,57 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
     reader.readAsDataURL(file);
   };
 
+  const handleDocumentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxFiles = 10;
+
+    const validFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: `${file.name} is not a valid format. Use PDF, JPG, PNG, or WebP.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      if (file.size > maxSize) {
+        toast({
+          title: "File Too Large",
+          description: `${file.name} exceeds 5MB limit.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (documentFiles.length + validFiles.length > maxFiles) {
+      toast({
+        title: "Too Many Files",
+        description: `Maximum ${maxFiles} documents allowed.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDocumentFiles((prev) => [...prev, ...validFiles]);
+    // Reset input value to allow selecting same file again
+    event.target.value = "";
+  };
+
+  const removeDocument = (index: number) => {
+    setDocumentFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (data: CreateStaffFormData) => {
     if (selectedRoles.length === 0) {
       toast({
@@ -231,6 +290,10 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
           salaryAmount: salaryAmount ? parseFloat(salaryAmount) : undefined,
           salaryCurrency,
           notes: data.notes || undefined,
+          // New identity & banking fields
+          nidNumber: data.nidNumber || undefined,
+          bankAccountNumber: data.bankAccountNumber || undefined,
+          bankAccountName: data.bankAccountName || undefined,
         },
       });
 
@@ -263,6 +326,32 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
             .from("profiles")
             .update({ avatar_url: urlData.publicUrl })
             .eq("id", result.user.id);
+        }
+      }
+
+      // Upload documents if provided
+      if (documentFiles.length > 0 && result.user?.id) {
+        for (const docFile of documentFiles) {
+          const fileExt = docFile.name.split(".").pop();
+          const fileName = `${result.user.id}/${Date.now()}-${docFile.name}`;
+
+          const { error: docUploadError } = await supabase.storage
+            .from("hr-documents")
+            .upload(fileName, docFile, {
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+          if (!docUploadError) {
+            // Create hr_documents record
+            await supabase.from("hr_documents").insert({
+              tenant_id: tenant?.id,
+              profile_id: result.user.id,
+              name: docFile.name,
+              document_type: docFile.type.includes("pdf") ? "contract" : "id_document",
+              file_url: fileName,
+            });
+          }
         }
       }
 
@@ -299,6 +388,7 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
     setEmploymentType("full_time");
     setSalaryAmount("");
     setSalaryCurrency("BDT");
+    setDocumentFiles([]);
   };
 
   const generatePassword = () => {
@@ -554,7 +644,114 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
 
           <Separator />
 
-          {/* Contact & Notes Section */}
+          {/* Identity Documents Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Identity Documents
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="nidNumber">NID Number</Label>
+                <Input
+                  id="nidNumber"
+                  {...form.register("nidNumber")}
+                  placeholder="National ID number"
+                  maxLength={20}
+                />
+              </div>
+            </div>
+
+            {/* Document Upload */}
+            <div className="space-y-2">
+              <Label>Upload Documents</Label>
+              <div
+                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => documentInputRef.current?.click()}
+              >
+                <input
+                  ref={documentInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  multiple
+                  onChange={handleDocumentChange}
+                  className="hidden"
+                />
+                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Click to upload NID, contracts, certificates
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, JPG, PNG, WebP (max 5MB each, up to 10 files)
+                </p>
+              </div>
+
+              {/* Document List */}
+              {documentFiles.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  {documentFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-muted rounded-md"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="text-sm truncate">{file.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({(file.size / 1024).toFixed(0)} KB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => removeDocument(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Banking Information Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Banking Information
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
+                <Input
+                  id="bankAccountNumber"
+                  {...form.register("bankAccountNumber")}
+                  placeholder="Account number"
+                  maxLength={30}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankAccountName">Bank Account Name</Label>
+                <Input
+                  id="bankAccountName"
+                  {...form.register("bankAccountName")}
+                  placeholder="Account holder name"
+                  maxLength={100}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Notes Section */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Notes</h3>
             <Textarea

@@ -1482,6 +1482,7 @@ export type Database = {
           employment_type: Database["public"]["Enums"]["hr_employment_type"]
           id: string
           join_date: string | null
+          nid_number: string | null
           notes: string | null
           profile_id: string
           salary_amount: number | null
@@ -1500,6 +1501,7 @@ export type Database = {
           employment_type?: Database["public"]["Enums"]["hr_employment_type"]
           id?: string
           join_date?: string | null
+          nid_number?: string | null
           notes?: string | null
           profile_id: string
           salary_amount?: number | null
@@ -1518,6 +1520,7 @@ export type Database = {
           employment_type?: Database["public"]["Enums"]["hr_employment_type"]
           id?: string
           join_date?: string | null
+          nid_number?: string | null
           notes?: string | null
           profile_id?: string
           salary_amount?: number | null
