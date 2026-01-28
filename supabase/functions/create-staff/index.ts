@@ -22,6 +22,10 @@ interface CreateStaffRequest {
   salaryAmount?: number;
   salaryCurrency?: string;
   notes?: string;
+  // Identity & Banking fields
+  nidNumber?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
 }
 
 Deno.serve(async (req) => {
@@ -139,6 +143,10 @@ Deno.serve(async (req) => {
       salaryAmount,
       salaryCurrency = "BDT",
       notes,
+      // Identity & Banking fields
+      nidNumber,
+      bankAccountNumber,
+      bankAccountName,
     } = body;
 
     // Validate required fields
@@ -261,6 +269,10 @@ Deno.serve(async (req) => {
         salary_amount: salaryAmount || 0,
         salary_currency: salaryCurrency,
         notes: notes || null,
+        // Identity & Banking fields
+        nid_number: nidNumber || null,
+        bank_account: bankAccountNumber || null,
+        bank_name: bankAccountName || null,
       });
 
     if (hrProfileError) {
