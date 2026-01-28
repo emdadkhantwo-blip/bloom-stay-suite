@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { isSameDay } from "date-fns";
-import { BedDouble, CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react";
+import { isSameDay, format } from "date-fns";
+import { BedDouble, CheckCircle2, AlertCircle, AlertTriangle, User } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,11 +36,18 @@ interface RoomAssignment {
   roomId: string;
 }
 
+interface OccupantInfo {
+  guestName: string;
+  checkInDate: string;
+  checkOutDate: string;
+}
+
 interface AvailableRoom {
   id: string;
   room_number: string;
   floor: string | null;
   status: string;
+  occupant?: OccupantInfo;
 }
 
 interface RoomAssignmentDialogProps {
@@ -57,6 +64,7 @@ interface RoomAssignmentDialogProps {
  * Hook to get available rooms for check-in assignment.
  * - For same-day check-in: Only shows vacant rooms (physically ready)
  * - For future check-in: Shows all rooms without date conflicts (includes occupied/dirty)
+ * - Also fetches current occupant info for occupied rooms
  */
 function useAvailableRoomsByType(
   roomTypeId: string | null,
@@ -87,6 +95,37 @@ function useAvailableRoomsByType(
 
       const { data: rooms, error: roomsError } = await query;
       if (roomsError) throw roomsError;
+
+      // Fetch current occupants for occupied rooms
+      const occupiedRoomIds = rooms?.filter(r => r.status === "occupied").map(r => r.id) || [];
+      let occupantMap = new Map<string, OccupantInfo>();
+
+      if (occupiedRoomIds.length > 0) {
+        const { data: currentOccupants } = await supabase
+          .from("reservation_rooms")
+          .select(`
+            room_id,
+            reservation:reservations!inner(
+              check_in_date,
+              check_out_date,
+              status,
+              guest:guests(first_name, last_name)
+            )
+          `)
+          .in("room_id", occupiedRoomIds)
+          .eq("reservation.status", "checked_in");
+
+        currentOccupants?.forEach((occ) => {
+          const res = occ.reservation as any;
+          if (res?.guest && occ.room_id) {
+            occupantMap.set(occ.room_id, {
+              guestName: `${res.guest.first_name} ${res.guest.last_name}`,
+              checkInDate: res.check_in_date,
+              checkOutDate: res.check_out_date,
+            });
+          }
+        });
+      }
 
       // For future dates, also filter by reservation conflicts
       if (!isToday && checkInDate && checkOutDate) {
@@ -119,10 +158,16 @@ function useAvailableRoomsByType(
             .map((br) => br.room_id)
         );
 
-        return rooms?.filter((room) => !bookedRoomIds.has(room.id)) || [];
+        return rooms?.filter((room) => !bookedRoomIds.has(room.id)).map(room => ({
+          ...room,
+          occupant: occupantMap.get(room.id),
+        })) || [];
       }
 
-      return rooms || [];
+      return rooms?.map(room => ({
+        ...room,
+        occupant: occupantMap.get(room.id),
+      })) || [];
     },
     enabled: !!propertyId && !!roomTypeId,
   });
@@ -209,19 +254,31 @@ function RoomSelector({
             <SelectContent className="bg-popover">
               {filteredRooms?.map((room) => (
                 <SelectItem key={room.id} value={room.id}>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{room.room_number}</span>
-                    {room.floor && (
-                      <span className="text-xs text-muted-foreground">
-                        Floor {room.floor}
-                      </span>
-                    )}
-                    {/* Show status badge for non-vacant rooms (future bookings) */}
-                    {room.status !== "vacant" && (
-                      <RoomStatusBadge 
-                        status={room.status as RoomStatus} 
-                        size="sm" 
-                      />
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{room.room_number}</span>
+                      {room.floor && (
+                        <span className="text-xs text-muted-foreground">
+                          Floor {room.floor}
+                        </span>
+                      )}
+                      {/* Show status badge for non-vacant rooms (future bookings) */}
+                      {room.status !== "vacant" && (
+                        <RoomStatusBadge 
+                          status={room.status as RoomStatus} 
+                          size="sm" 
+                        />
+                      )}
+                    </div>
+                    {/* Show occupant info for occupied rooms */}
+                    {room.status === "occupied" && room.occupant && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <User className="h-3 w-3" />
+                        <span>{room.occupant.guestName}</span>
+                        <span className="text-muted-foreground/70">
+                          ({format(new Date(room.occupant.checkInDate), "MMM d")} - {format(new Date(room.occupant.checkOutDate), "MMM d")})
+                        </span>
+                      </div>
                     )}
                   </div>
                 </SelectItem>
