@@ -9,6 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { RoomStatusBadge } from "./RoomStatusBadge";
 import { 
   MoreVertical, 
@@ -31,6 +36,7 @@ import {
   Lock,
   Refrigerator,
   Shirt,
+  ListChecks,
 } from "lucide-react";
 import type { RoomStatus } from "@/types/database";
 import { cn } from "@/lib/utils";
@@ -202,31 +208,92 @@ export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardP
             </p>
           )}
 
-          {/* Facilities */}
+          {/* Facilities with Hover Card */}
           {amenities.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {amenities.slice(0, 3).map((facility) => {
-                const Icon = getFacilityIcon(facility);
-                return (
-                  <Badge
-                    key={facility}
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 h-5 gap-1 bg-muted/50"
-                  >
-                    <Icon className="h-2.5 w-2.5" />
-                    {facility}
-                  </Badge>
-                );
-              })}
-              {amenities.length > 3 && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-1.5 py-0 h-5 bg-muted/50"
-                >
-                  +{amenities.length - 3}
-                </Badge>
-              )}
-            </div>
+            <HoverCard openDelay={200} closeDelay={100}>
+              <HoverCardTrigger asChild>
+                <div className="flex flex-wrap gap-1 pt-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                  {amenities.slice(0, 3).map((facility) => {
+                    const Icon = getFacilityIcon(facility);
+                    return (
+                      <Badge
+                        key={facility}
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 h-5 gap-1 bg-muted/50 hover:bg-primary/10 transition-colors"
+                      >
+                        <Icon className="h-2.5 w-2.5" />
+                        {facility}
+                      </Badge>
+                    );
+                  })}
+                  {amenities.length > 3 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                    >
+                      +{amenities.length - 3} more
+                    </Badge>
+                  )}
+                </div>
+              </HoverCardTrigger>
+              <HoverCardContent 
+                className="w-80 p-0 overflow-hidden" 
+                align="start"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 border-b">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20">
+                      <ListChecks className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold">Room Facilities</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {room.room_type?.name} • {amenities.length} amenities
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Facilities Grid */}
+                <div className="p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {amenities.map((facility, index) => {
+                      const Icon = getFacilityIcon(facility);
+                      return (
+                        <div
+                          key={facility}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
+                            "bg-gradient-to-r from-muted/80 to-muted/40 hover:from-primary/10 hover:to-primary/5",
+                            "border border-transparent hover:border-primary/20"
+                          )}
+                          style={{
+                            animationDelay: `${index * 50}ms`,
+                          }}
+                        >
+                          <div className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-md",
+                            "bg-gradient-to-br from-primary/20 to-primary/10"
+                          )}>
+                            <Icon className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                          <span className="text-xs font-medium truncate">{facility}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Footer */}
+                <div className="bg-muted/30 px-3 py-2 border-t">
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Hover to view • Click card for details
+                  </p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           )}
         </div>
       </CardContent>
