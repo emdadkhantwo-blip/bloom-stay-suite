@@ -172,16 +172,25 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
         reservations: roomReservationsMap.get(room.id) || [],
       }));
 
-      // Add an "Unassigned" row if there are unassigned reservations
-      if (unassignedReservations.length > 0) {
+      // Create individual rows for each unassigned reservation
+      // This prevents overlapping blocks when multiple unassigned reservations exist
+      unassignedReservations.forEach((res) => {
+        const guestName = res.guest
+          ? `${res.guest.first_name} ${res.guest.last_name}`
+          : "Unknown Guest";
+        
         calendarRooms.unshift({
-          id: "unassigned",
-          room_number: "Unassigned",
-          floor: null,
-          room_type: null,
-          reservations: unassignedReservations,
+          id: `unassigned-${res.id}`,
+          room_number: guestName,
+          floor: "unassigned",
+          room_type: {
+            id: "unassigned",
+            name: res.room_type_name || "No Type",
+            code: "UA",
+          },
+          reservations: [res],
         });
-      }
+      });
 
       // Calculate stats for today
       const todayStr = format(new Date(), "yyyy-MM-dd");
