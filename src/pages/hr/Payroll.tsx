@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Wallet, 
-  Plus, 
   DollarSign,
   Users,
   FileText,
   Download,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  CheckCircle,
+  Lock
 } from 'lucide-react';
 import {
   Select,
@@ -27,7 +29,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { usePayroll, PayrollEntry } from '@/hooks/usePayroll';
+import { GeneratePayrollDialog } from '@/components/hr/GeneratePayrollDialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/lib/currency';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -38,7 +43,65 @@ const HRPayroll = () => {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const [selectedMonth, setSelectedMonth] = useState(MONTHS[currentMonth]);
+  const [selectedMonth, setSelectedMonth] = useState((currentMonth + 1).toString());
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
+
+  const { 
+    periods, 
+    isLoading: periodsLoading, 
+    usePayrollEntries,
+    generatePayroll,
+    finalizePayroll,
+    calculateTotals,
+  } = usePayroll();
+
+  // Find selected period
+  useEffect(() => {
+    const period = periods.find(
+      p => p.month === parseInt(selectedMonth) && p.year === parseInt(selectedYear)
+    );
+    setSelectedPeriodId(period?.id || null);
+  }, [periods, selectedMonth, selectedYear]);
+
+  const { data: entries = [], isLoading: entriesLoading } = usePayrollEntries(selectedPeriodId);
+  const selectedPeriod = periods.find(p => p.id === selectedPeriodId);
+  const totals = calculateTotals(entries);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return <Badge variant="outline">Draft</Badge>;
+      case 'processing':
+        return <Badge className="bg-vibrant-amber/10 text-vibrant-amber border-vibrant-amber">Processing</Badge>;
+      case 'finalized':
+        return <Badge className="bg-vibrant-green/10 text-vibrant-green border-vibrant-green">Finalized</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const handleExport = () => {
+    if (entries.length === 0) return;
+    
+    const headers = ['Staff ID', 'Name', 'Department', 'Basic Salary', 'Overtime', 'Gross Pay', 'Net Pay'];
+    const rows = entries.map(e => [
+      e.staff_id || '-',
+      e.staff_name,
+      e.department_name || '-',
+      e.basic_salary,
+      e.overtime_pay,
+      e.gross_pay,
+      e.net_pay,
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payroll-${MONTHS[parseInt(selectedMonth) - 1]}-${selectedYear}.csv`;
+    a.click();
+  };
 
   return (
     <div className="space-y-6">
@@ -49,7 +112,7 @@ const HRPayroll = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Payroll</p>
-                <p className="text-2xl font-bold">৳0</p>
+                <p className="text-2xl font-bold">{formatCurrency(totals.totalNet)}</p>
               </div>
               <DollarSign className="h-8 w-8 text-vibrant-green" />
             </div>
@@ -60,7 +123,7 @@ const HRPayroll = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Employees</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{entries.length}</p>
               </div>
               <Users className="h-8 w-8 text-vibrant-blue" />
             </div>
@@ -71,7 +134,7 @@ const HRPayroll = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Overtime Pay</p>
-                <p className="text-2xl font-bold">৳0</p>
+                <p className="text-2xl font-bold">{formatCurrency(totals.totalOvertime)}</p>
               </div>
               <TrendingUp className="h-8 w-8 text-vibrant-amber" />
             </div>
@@ -81,8 +144,8 @@ const HRPayroll = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Payslips Generated</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-sm text-muted-foreground">Periods</p>
+                <p className="text-2xl font-bold">{periods.length}</p>
               </div>
               <FileText className="h-8 w-8 text-vibrant-purple" />
             </div>
@@ -104,8 +167,8 @@ const HRPayroll = () => {
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MONTHS.map((month) => (
-                    <SelectItem key={month} value={month}>{month}</SelectItem>
+                  {MONTHS.map((month, idx) => (
+                    <SelectItem key={month} value={(idx + 1).toString()}>{month}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -119,16 +182,32 @@ const HRPayroll = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedPeriod && getStatusBadge(selectedPeriod.status)}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline">
+              <Button 
+                variant="outline" 
+                onClick={handleExport}
+                disabled={entries.length === 0}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <Button className="bg-vibrant-green hover:bg-vibrant-green/90">
-                <Plus className="h-4 w-4 mr-2" />
-                Generate Payroll
-              </Button>
+              {selectedPeriod && selectedPeriod.status === 'draft' && (
+                <Button 
+                  variant="outline"
+                  onClick={() => finalizePayroll.mutate(selectedPeriod.id)}
+                  disabled={finalizePayroll.isPending}
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Finalize
+                </Button>
+              )}
+              <GeneratePayrollDialog
+                onGenerate={(data) => generatePayroll.mutate(data)}
+                isGenerating={generatePayroll.isPending}
+                existingPeriods={periods.map(p => ({ month: p.month, year: p.year }))}
+              />
             </div>
           </div>
         </CardContent>
@@ -139,21 +218,74 @@ const HRPayroll = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-vibrant-green" />
-            Payroll Summary - {selectedMonth} {selectedYear}
+            Payroll Summary - {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Wallet className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-muted-foreground">No payroll data</h3>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Generate payroll for {selectedMonth} {selectedYear} to see the summary.
-            </p>
-            <Button className="mt-4 bg-vibrant-green hover:bg-vibrant-green/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Generate Payroll
-            </Button>
-          </div>
+          {periodsLoading || entriesLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Wallet className="h-16 w-16 text-muted-foreground/30 mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground">No payroll data</h3>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                Generate payroll for {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear} to see the summary.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead className="text-right">Basic Salary</TableHead>
+                    <TableHead className="text-right">Overtime</TableHead>
+                    <TableHead className="text-right">Gross Pay</TableHead>
+                    <TableHead className="text-right">Net Pay</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={entry.staff_avatar || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {entry.staff_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-sm">{entry.staff_name}</p>
+                            {entry.staff_id && (
+                              <p className="text-xs text-muted-foreground">ID: {entry.staff_id}</p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{entry.department_name || '-'}</TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(entry.basic_salary)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(entry.overtime_pay)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(entry.gross_pay)}</TableCell>
+                      <TableCell className="text-right font-mono font-medium">{formatCurrency(entry.net_pay)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-muted/50 font-medium">
+                    <TableCell colSpan={2}>Total</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(totals.totalBasic)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(totals.totalOvertime)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(totals.totalGross)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(totals.totalNet)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Activity, 
   Search,
@@ -29,7 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { useHRActivityLogs } from '@/hooks/useHRActivityLogs';
+import { format, parseISO } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ACTION_CATEGORIES = [
   { id: 'login', name: 'Login', icon: UserCheck, color: 'text-vibrant-blue' },
@@ -43,6 +46,22 @@ const ACTION_CATEGORIES = [
 const HRActivity = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const { logs, stats, isLoading, getCategory } = useHRActivityLogs(selectedCategory);
+
+  // Filter logs by search
+  const filteredLogs = logs.filter((log) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (log.user_name && log.user_name.toLowerCase().includes(query)) ||
+      log.action.toLowerCase().includes(query)
+    );
+  });
+
+  const getCategoryInfo = (action: string) => {
+    const category = getCategory(action);
+    return ACTION_CATEGORIES.find(c => c.id === category) || { id: 'other', name: 'Other', icon: Activity, color: 'text-muted-foreground' };
+  };
 
   return (
     <div className="space-y-6">
@@ -53,7 +72,7 @@ const HRActivity = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Activities</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.total}</p>
               </div>
               <Activity className="h-8 w-8 text-vibrant-rose" />
             </div>
@@ -64,7 +83,7 @@ const HRActivity = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Today</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.today}</p>
               </div>
               <Clock className="h-8 w-8 text-vibrant-blue" />
             </div>
@@ -75,7 +94,7 @@ const HRActivity = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Role Changes</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.roleChanges}</p>
               </div>
               <Shield className="h-8 w-8 text-vibrant-purple" />
             </div>
@@ -86,7 +105,7 @@ const HRActivity = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Logins Today</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.loginsToday}</p>
               </div>
               <UserCheck className="h-8 w-8 text-vibrant-green" />
             </div>
@@ -157,13 +176,79 @@ const HRActivity = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Activity className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-muted-foreground">No activity logs</h3>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              HR activity will be tracked and displayed here for auditing purposes.
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Activity className="h-16 w-16 text-muted-foreground/30 mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground">No activity logs</h3>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                HR activity will be tracked and displayed here for auditing purposes.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLogs.slice(0, 50).map((log) => {
+                    const categoryInfo = getCategoryInfo(log.action);
+                    const CategoryIcon = categoryInfo.icon;
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={log.user_avatar || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {log.user_name 
+                                  ? log.user_name.split(' ').map(n => n[0]).join('').slice(0, 2)
+                                  : '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-sm">
+                              {log.user_name || 'Unknown'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm font-mono">
+                          {log.action}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="gap-1">
+                            <CategoryIcon className={`h-3 w-3 ${categoryInfo.color}`} />
+                            {categoryInfo.name}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {log.entity_type || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(parseISO(log.created_at), 'MMM d, h:mm a')}
+                        </TableCell>
+                        <TableCell className="text-sm font-mono text-muted-foreground">
+                          {log.ip_address || '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
