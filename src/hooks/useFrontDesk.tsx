@@ -76,7 +76,7 @@ export function useTodayDepartures() {
         `)
         .eq("property_id", currentPropertyId)
         .eq("check_out_date", today)
-        .eq("status", "checked_in")
+        .in("status", ["checked_in", "checked_out"])
         .order("created_at", { ascending: true });
 
       if (error) throw error;
