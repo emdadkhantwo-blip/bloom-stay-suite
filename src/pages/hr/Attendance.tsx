@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,25 +10,76 @@ import {
   UserCheck,
   UserX,
   AlertCircle,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAttendance } from '@/hooks/useAttendance';
+import { useAuth } from '@/hooks/useAuth';
+import { AttendanceTable } from '@/components/hr/AttendanceTable';
 
 const HRAttendance = () => {
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const { user, roles } = useAuth();
+  const {
+    staffAttendance,
+    stats,
+    isLoading,
+    clockIn,
+    clockOut,
+    startBreak,
+    endBreak,
+    markPresent,
+    isClockingIn,
+    isClockingOut,
+    isStartingBreak,
+    isEndingBreak,
+    isMarkingPresent,
+  } = useAttendance();
+
+  const isAdmin = roles.includes("owner") || roles.includes("manager");
+
+  // Update time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Find current user's attendance
+  const myAttendance = staffAttendance.find(s => s.profile_id === user?.id);
 
   const handleClockIn = () => {
-    setIsClockedIn(true);
+    if (user?.id) {
+      clockIn(user.id);
+    }
   };
 
   const handleClockOut = () => {
-    setIsClockedIn(false);
-    setIsOnBreak(false);
+    if (myAttendance?.attendance_id) {
+      clockOut({ attendanceId: myAttendance.attendance_id, profileId: user?.id || "" });
+    }
   };
 
-  const handleBreak = () => {
-    setIsOnBreak(!isOnBreak);
+  const handleStartBreak = () => {
+    if (myAttendance?.attendance_id) {
+      startBreak(myAttendance.attendance_id);
+    }
+  };
+
+  const handleEndBreak = () => {
+    if (myAttendance?.attendance_id) {
+      endBreak(myAttendance.attendance_id);
+    }
+  };
+
+  const handleMarkPresent = (profileId: string) => {
+    markPresent({ profileId });
+  };
+
+  const handleAdminClockOut = (attendanceId: string, profileId: string) => {
+    clockOut({ attendanceId, profileId });
   };
 
   return (
@@ -40,7 +91,7 @@ const HRAttendance = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Present Today</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.present}</p>
               </div>
               <UserCheck className="h-8 w-8 text-vibrant-green" />
             </div>
@@ -51,7 +102,7 @@ const HRAttendance = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Absent</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.absent}</p>
               </div>
               <UserX className="h-8 w-8 text-vibrant-rose" />
             </div>
@@ -62,7 +113,7 @@ const HRAttendance = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Late Arrivals</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.late}</p>
               </div>
               <AlertCircle className="h-8 w-8 text-vibrant-amber" />
             </div>
@@ -73,7 +124,7 @@ const HRAttendance = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">On Break</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.onBreak}</p>
               </div>
               <Coffee className="h-8 w-8 text-vibrant-blue" />
             </div>
@@ -92,48 +143,90 @@ const HRAttendance = () => {
         <CardContent>
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="text-center">
-              <p className="text-4xl font-bold">{format(new Date(), 'HH:mm:ss')}</p>
-              <p className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+              <p className="text-4xl font-bold font-mono">{format(currentTime, 'HH:mm:ss')}</p>
+              <p className="text-muted-foreground">{format(currentTime, 'EEEE, MMMM d, yyyy')}</p>
             </div>
             <div className="flex gap-3">
-              {!isClockedIn ? (
+              {!myAttendance || myAttendance.status === "absent" ? (
                 <Button 
                   size="lg" 
                   className="bg-vibrant-green hover:bg-vibrant-green/90"
                   onClick={handleClockIn}
+                  disabled={isClockingIn}
                 >
-                  <LogIn className="h-5 w-5 mr-2" />
+                  {isClockingIn ? (
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  ) : (
+                    <LogIn className="h-5 w-5 mr-2" />
+                  )}
                   Clock In
                 </Button>
-              ) : (
+              ) : myAttendance.status !== "clocked_out" ? (
                 <>
-                  <Button 
-                    size="lg" 
-                    variant={isOnBreak ? "default" : "outline"}
-                    onClick={handleBreak}
-                    className={isOnBreak ? "bg-vibrant-amber hover:bg-vibrant-amber/90" : ""}
-                  >
-                    <Coffee className="h-5 w-5 mr-2" />
-                    {isOnBreak ? 'End Break' : 'Start Break'}
-                  </Button>
+                  {myAttendance.status === "on_break" ? (
+                    <Button 
+                      size="lg" 
+                      className="bg-vibrant-amber hover:bg-vibrant-amber/90"
+                      onClick={handleEndBreak}
+                      disabled={isEndingBreak}
+                    >
+                      {isEndingBreak ? (
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      ) : (
+                        <Coffee className="h-5 w-5 mr-2" />
+                      )}
+                      End Break
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="lg" 
+                      variant="outline"
+                      onClick={handleStartBreak}
+                      disabled={isStartingBreak}
+                    >
+                      {isStartingBreak ? (
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      ) : (
+                        <Coffee className="h-5 w-5 mr-2" />
+                      )}
+                      Start Break
+                    </Button>
+                  )}
                   <Button 
                     size="lg" 
                     variant="destructive"
                     onClick={handleClockOut}
+                    disabled={isClockingOut}
                   >
-                    <LogOut className="h-5 w-5 mr-2" />
+                    {isClockingOut ? (
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    ) : (
+                      <LogOut className="h-5 w-5 mr-2" />
+                    )}
                     Clock Out
                   </Button>
                 </>
+              ) : (
+                <Badge variant="secondary" className="text-lg px-4 py-2">
+                  Day Complete
+                </Badge>
               )}
             </div>
             <div className="ml-auto text-right">
-              <Badge variant={isClockedIn ? "default" : "secondary"} className="text-sm">
-                {isClockedIn ? (isOnBreak ? 'On Break' : 'Clocked In') : 'Not Clocked In'}
+              <Badge 
+                variant={myAttendance?.status === "present" ? "default" : "secondary"} 
+                className={`text-sm ${
+                  myAttendance?.status === "on_break" ? "bg-vibrant-amber text-white" : 
+                  myAttendance?.status === "present" ? "bg-vibrant-green text-white" : ""
+                }`}
+              >
+                {myAttendance?.status === "present" ? 'Clocked In' : 
+                 myAttendance?.status === "on_break" ? 'On Break' : 
+                 myAttendance?.status === "clocked_out" ? 'Clocked Out' : 'Not Clocked In'}
               </Badge>
-              {isClockedIn && (
+              {myAttendance?.clock_in && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  Clocked in at {format(new Date(), 'HH:mm')}
+                  Clocked in at {format(new Date(myAttendance.clock_in), 'HH:mm')}
                 </p>
               )}
             </div>
@@ -150,13 +243,20 @@ const HRAttendance = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Clock className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-muted-foreground">No attendance records yet</h3>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Staff attendance will appear here once they start clocking in.
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <AttendanceTable
+              staff={staffAttendance}
+              isAdmin={isAdmin}
+              onMarkPresent={handleMarkPresent}
+              onClockOut={handleAdminClockOut}
+              isMarkingPresent={isMarkingPresent}
+              isClockingOut={isClockingOut}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
