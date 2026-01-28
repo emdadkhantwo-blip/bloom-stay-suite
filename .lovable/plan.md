@@ -1,176 +1,248 @@
 
-# Add Monthly Attendance Sheet to Attendance Page
+# Add Browser Biometric Fingerprint System to HR Attendance
 
 ## Overview
-Add a comprehensive monthly attendance sheet view to the `/hr/attendance` page where users can view all employees' attendance for the entire month in a grid format.
+Implement a fingerprint-based clock in/out system using the browser's Web Authentication API (WebAuthn). This allows staff to use their device's built-in fingerprint sensor (on phones, laptops, or tablets with biometric readers) to authenticate their attendance actions.
 
 ---
 
-## Current State
-- Attendance page shows daily view with stats bar, personal clock widget, and today's attendance table
-- `useAttendance` hook fetches attendance for a single date only
-- `hr_attendance` table stores: profile_id, date, clock_in, clock_out, is_late, worked_hours, etc.
+## How It Works
+
+1. **One-time Setup**: Each staff member registers their fingerprint/biometric on their device
+2. **Daily Use**: Staff tap "Clock In with Fingerprint" and verify using their device's fingerprint sensor
+3. **Secure**: The fingerprint data never leaves the device - only a cryptographic signature is verified
 
 ---
 
-## Solution Design
-
-### New Component: MonthlyAttendanceSheet
-
-A grid-based table showing:
-- **Rows**: Each staff member (name + position)
-- **Columns**: Each day of the selected month (1-31)
-- **Cells**: Attendance status indicator (Present/Absent/Late/Leave)
+## Solution Architecture
 
 ```text
-Monthly Attendance - January 2026
-┌─────────────────┬─────┬─────┬─────┬─────┬─────┬───┬─────┬─────────┐
-│ Staff           │  1  │  2  │  3  │  4  │  5  │...│ 31  │ Summary │
-├─────────────────┼─────┼─────┼─────┼─────┼─────┼───┼─────┼─────────┤
-│ John (Manager)  │  P  │  P  │  L  │  P  │  A  │...│  P  │ 25/31   │
-│ Sarah (F.Desk)  │  P  │  P  │  P  │  P  │  P  │...│  P  │ 28/31   │
-│ Mike (Kitchen)  │  A  │  P  │  P  │  P  │  L  │...│  P  │ 22/31   │
-└─────────────────┴─────┴─────┴─────┴─────┴─────┴───┴─────┴─────────┘
-
-Legend: P=Present, A=Absent, L=Late, H=Holiday, W=Weekend
++-------------------+       +-------------------+       +-------------------+
+|   Staff Device    |       |   Frontend App    |       |   Database        |
+|   (Fingerprint)   |       |   (WebAuthn API)  |       |   (Supabase)      |
++-------------------+       +-------------------+       +-------------------+
+        |                           |                           |
+        |  1. Touch Sensor          |                           |
+        |-------------------------->|                           |
+        |                           |  2. Create Credential     |
+        |                           |  (Registration)           |
+        |                           |-------------------------->|
+        |                           |                           |
+        |  3. Verify on Clock-In    |                           |
+        |-------------------------->|                           |
+        |                           |  4. Record Attendance     |
+        |                           |-------------------------->|
+        +---------------------------+---------------------------+
 ```
+
+---
+
+## Database Changes
+
+### New Table: `biometric_credentials`
+
+Stores the WebAuthn credential information for each staff member.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| tenant_id | uuid | Tenant reference |
+| profile_id | uuid | Staff member reference |
+| credential_id | text | WebAuthn credential ID (base64 encoded) |
+| public_key | text | Public key for verification (base64 encoded) |
+| device_name | text | Friendly name (e.g., "iPhone 15", "MacBook Pro") |
+| created_at | timestamp | Registration date |
+
+**RLS Policies:**
+- Users can view their own credentials
+- Users can create credentials for themselves
+- Users can delete their own credentials
+- Owners/managers can view all tenant credentials
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Create Monthly Attendance Hook
+### Phase 1: Database Migration
 
-**File: `src/hooks/useMonthlyAttendance.tsx`**
+Create the `biometric_credentials` table with proper RLS policies:
+
+```sql
+CREATE TABLE public.biometric_credentials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL,
+  profile_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  credential_id TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  device_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(profile_id, credential_id)
+);
+
+ALTER TABLE public.biometric_credentials ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can manage their own credentials"
+  ON public.biometric_credentials FOR ALL
+  USING (profile_id = auth.uid());
+
+CREATE POLICY "Owners/managers can view all tenant credentials"
+  ON public.biometric_credentials FOR SELECT
+  USING (tenant_id = current_tenant_id() AND 
+         (has_role(auth.uid(), 'owner') OR has_role(auth.uid(), 'manager')));
+```
+
+---
+
+### Phase 2: Create Biometric Hook
+
+**File: `src/hooks/useBiometricAuth.tsx`**
+
+Features:
+- Check if WebAuthn is supported on the device
+- Register a new biometric credential
+- Authenticate using stored credential
+- Manage credential list (view/delete)
 
 ```typescript
-interface MonthlyAttendanceData {
-  staff: {
-    profile_id: string;
-    full_name: string;
-    avatar_url: string | null;
-    position: string;
-    attendance: Record<string, AttendanceStatus>; // key: "YYYY-MM-DD"
-    summary: {
-      present: number;
-      absent: number;
-      late: number;
-      totalDays: number;
-    };
-  }[];
-  month: Date;
+interface BiometricCredential {
+  id: string;
+  credential_id: string;
+  device_name: string;
+  created_at: string;
+}
+
+interface UseBiometricAuthReturn {
+  isSupported: boolean;
+  isRegistered: boolean;
+  credentials: BiometricCredential[];
+  registerBiometric: (deviceName?: string) => Promise<void>;
+  authenticateBiometric: () => Promise<boolean>;
+  removeCredential: (credentialId: string) => Promise<void>;
   isLoading: boolean;
 }
 ```
 
-Features:
-- Accept month/year as parameters
-- Fetch all attendance records for the entire month range
-- Fetch all staff profiles with roles
-- Aggregate attendance by date for each staff member
-- Calculate monthly summaries per staff
+Key Implementation Details:
 
-Query approach:
+1. **Check Browser Support**
 ```typescript
-// Fetch attendance for entire month
-const { data: attendance } = await supabase
-  .from("hr_attendance")
-  .select("*")
-  .eq("tenant_id", tenantId)
-  .gte("date", startOfMonth)
-  .lte("date", endOfMonth);
+const isSupported = typeof window !== 'undefined' && 
+  window.PublicKeyCredential !== undefined &&
+  typeof navigator.credentials !== 'undefined';
 ```
 
----
+2. **Registration Flow**
+- Generate a random challenge on the client
+- Create credential using `navigator.credentials.create()`
+- Store credential ID and public key in database
 
-### Phase 2: Create Monthly Attendance Sheet Component
-
-**File: `src/components/hr/MonthlyAttendanceSheet.tsx`**
-
-Features:
-
-1. **Month Selector**
-   - Previous/Next month buttons
-   - Month/Year picker dropdown
-
-2. **Scrollable Grid Table**
-   - Fixed first column (staff names)
-   - Horizontally scrollable date columns
-   - Color-coded cells for status
-
-3. **Status Indicators**
-   | Status | Color | Symbol |
-   |--------|-------|--------|
-   | Present | Green | P or checkmark |
-   | Absent | Red | A or X |
-   | Late | Orange | L |
-   | Weekend | Gray | W |
-   | Holiday | Purple | H |
-
-4. **Summary Column**
-   - Total present days
-   - Attendance percentage
-   - Total worked hours (optional)
-
-5. **Legend**
-   - Visual guide for status colors/symbols
+3. **Authentication Flow**
+- Retrieve stored credential IDs from database
+- Challenge user with `navigator.credentials.get()`
+- On success, proceed with clock in/out
 
 ---
 
-### Phase 3: Update Attendance Page
+### Phase 3: Create Fingerprint UI Components
 
-**File: `src/pages/hr/Attendance.tsx`**
+**File: `src/components/hr/BiometricClockWidget.tsx`**
 
-Add a tabbed interface:
+A dedicated widget that replaces or augments the current clock in/out buttons with fingerprint options.
 
+UI Layout:
 ```text
-┌────────────────────────────────────────────────────┐
-│ [Today's Attendance] [Monthly Sheet]               │
-├────────────────────────────────────────────────────┤
-│                                                    │
-│  (Content based on selected tab)                   │
-│                                                    │
-└────────────────────────────────────────────────────┘
++-------------------------------------------------------+
+|  Your Attendance                              10:45:32|
+|  Tuesday, January 28, 2026                            |
++-------------------------------------------------------+
+|                                                       |
+|  +-------------------+    +-------------------+       |
+|  |                   |    |                   |       |
+|  |    [Fingerprint]  |    |  [Manual Clock]   |       |
+|  |    Clock In       |    |  Clock In         |       |
+|  |                   |    |                   |       |
+|  +-------------------+    +-------------------+       |
+|                                                       |
+|  [Register Your Fingerprint]  (if not registered)    |
++-------------------------------------------------------+
 ```
 
-- **Today's Attendance Tab**: Current daily view (stats bar + clock widget + table)
-- **Monthly Sheet Tab**: New monthly grid view
+**File: `src/components/hr/FingerprintSetupDialog.tsx`**
+
+Dialog for registering biometric credentials:
+- Shows device compatibility status
+- Allows naming the device
+- Guides user through fingerprint registration
+- Shows success/error states
+
+**File: `src/components/hr/BiometricCredentialsList.tsx`**
+
+Shows list of registered devices with option to remove:
+- Device name
+- Registration date
+- Delete button
 
 ---
 
-## Detailed Component Structure
+### Phase 4: Update Attendance Page
 
-### MonthlyAttendanceSheet.tsx
+**Modify: `src/pages/hr/Attendance.tsx`**
 
+Changes:
+1. Import biometric components and hook
+2. Add "Fingerprint Settings" section in the clock widget
+3. Integrate fingerprint clock in/out as primary option (with manual fallback)
+4. Show registration prompt for unregistered users
+
+Updated Clock Widget Layout:
+```text
++-------------------------------------------------------+
+|  Clock Widget                                         |
+|-------------------------------------------------------|
+|  Current Time: 10:45:32                               |
+|  Tuesday, January 28, 2026                            |
+|-------------------------------------------------------|
+|                                                       |
+|  [If Fingerprint Registered:]                         |
+|    +------------------------+  +------------------+   |
+|    | [Fingerprint Icon]     |  | Clock In         |   |
+|    | Tap to Clock In        |  | (Manual)         |   |
+|    +------------------------+  +------------------+   |
+|                                                       |
+|  [If Not Registered:]                                 |
+|    +--------------------------------------------------+
+|    | Enable fingerprint for faster clock in          |
+|    | [Setup Fingerprint]                             |
+|    +--------------------------------------------------+
+|                                                       |
+|  Status: Clocked In at 09:15                          |
++-------------------------------------------------------+
+```
+
+---
+
+### Phase 5: Integrate with useAttendance Hook
+
+**Modify: `src/hooks/useAttendance.tsx`**
+
+Add biometric-aware clock functions:
+- `clockInWithBiometric`: Combines biometric auth + clock in
+- `clockOutWithBiometric`: Combines biometric auth + clock out
+
+Flow:
 ```typescript
-interface MonthlyAttendanceSheetProps {
-  // Optional initial month, defaults to current
-  initialMonth?: Date;
-}
-
-// Internal state
-const [selectedMonth, setSelectedMonth] = useState<Date>(startOfMonth(new Date()));
-
-// Use monthly attendance hook
-const { staffAttendance, isLoading } = useMonthlyAttendance(selectedMonth);
-```
-
-### UI Layout:
-
-```text
-┌───────────────────────────────────────────────────────────────────┐
-│ ◀ Previous  │ January 2026 ▼ │  Next ▶  │  [Export CSV] (future) │
-├───────────────────────────────────────────────────────────────────┤
-│              │ Days of Month (1-31)                      │Summary│
-├──────────────┼────────────────────────────────────────────┼───────┤
-│ Staff        │  1   2   3   4   5   6   7  ...  30   31  │  P/T  │
-│──────────────┼────────────────────────────────────────────┼───────│
-│ [👤] John    │  ✓   ✓   L   ✓   ✓   W   W  ...   ✓    ✓  │ 25/31 │
-│ [👤] Sarah   │  ✓   ✓   ✓   ✓   A   W   W  ...   ✓    ✓  │ 28/31 │
-│ [👤] Mike    │  A   ✓   ✓   ✓   L   W   W  ...   ✓    ✓  │ 22/31 │
-└──────────────┴────────────────────────────────────────────┴───────┘
-
-Legend: ✓ Present  L Late  A Absent  W Weekend
+const clockInWithBiometric = async () => {
+  // 1. Authenticate using fingerprint
+  const authenticated = await authenticateBiometric();
+  if (!authenticated) {
+    toast({ title: "Authentication Failed", variant: "destructive" });
+    return;
+  }
+  
+  // 2. Proceed with normal clock in
+  clockIn(user.id);
+};
 ```
 
 ---
@@ -179,84 +251,59 @@ Legend: ✓ Present  L Late  A Absent  W Weekend
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useMonthlyAttendance.tsx` | Fetch and aggregate monthly attendance data |
-| `src/components/hr/MonthlyAttendanceSheet.tsx` | Grid view component for monthly attendance |
+| `src/hooks/useBiometricAuth.tsx` | WebAuthn API integration and credential management |
+| `src/components/hr/BiometricClockWidget.tsx` | Fingerprint clock in/out UI |
+| `src/components/hr/FingerprintSetupDialog.tsx` | Registration dialog |
+| `src/components/hr/BiometricCredentialsList.tsx` | Manage registered devices |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/hr/Attendance.tsx` | Add Tabs component with daily/monthly views |
+| `src/pages/hr/Attendance.tsx` | Add fingerprint options to clock widget |
 
 ---
 
-## Technical Details
+## User Experience Flow
 
-### Date Handling
-- Use `date-fns` functions: `startOfMonth`, `endOfMonth`, `eachDayOfInterval`, `format`, `isWeekend`
-- Generate array of all days in month for column headers
-- Weekend detection for visual differentiation
+### First-Time Setup
+1. Staff opens Attendance page
+2. Sees "Enable Fingerprint Clock-In" prompt
+3. Clicks "Setup Fingerprint"
+4. Dialog opens with instructions
+5. Staff touches their device's fingerprint sensor
+6. Success message shows - fingerprint registered
 
-### Data Aggregation
-```typescript
-// Create a map of attendance by date for each staff
-const attendanceMap: Record<string, Record<string, AttendanceRecord>> = {};
+### Daily Clock In
+1. Staff opens Attendance page
+2. Clicks "Clock In with Fingerprint" button
+3. Device prompts for fingerprint
+4. Staff touches sensor
+5. Clock in recorded - success toast shown
 
-// staff_id -> { "2026-01-15": { status: "present", is_late: false }, ... }
-```
-
-### Responsive Design
-- Mobile: Show only staff name + summary, with option to expand individual days
-- Desktop: Full grid with horizontal scroll
-- Use ScrollArea component for smooth scrolling
-
-### Status Calculation Logic
-```typescript
-function getStatus(record: AttendanceRecord | undefined, date: Date): AttendanceStatus {
-  if (isWeekend(date)) return "weekend";
-  if (!record) return "absent";
-  if (record.clock_in) {
-    if (record.is_late) return "late";
-    return "present";
-  }
-  return "absent";
-}
-```
+### Fallback Option
+- Manual "Clock In" button always available
+- Works even if fingerprint fails or device doesn't support it
 
 ---
 
-## UI Components Used
+## Browser Compatibility Note
 
-| Component | Source | Usage |
-|-----------|--------|-------|
-| Tabs | shadcn/ui | Switch between daily/monthly views |
-| ScrollArea | shadcn/ui | Horizontal scroll for date columns |
-| Table | shadcn/ui | Grid structure |
-| Button | shadcn/ui | Month navigation |
-| Select | shadcn/ui | Month/year picker |
-| Badge | shadcn/ui | Status indicators |
-| Avatar | shadcn/ui | Staff photos |
-| Tooltip | shadcn/ui | Hover details (clock times) |
+WebAuthn is supported in:
+- Chrome 67+
+- Firefox 60+
+- Safari 13+
+- Edge 18+
+- Mobile browsers on iOS 14.5+ and Android 7+
+
+For unsupported browsers, the fingerprint option will be hidden and users will use the existing manual clock in/out buttons.
 
 ---
 
-## Summary Statistics
+## Security Considerations
 
-At the bottom or side of the sheet:
-
-| Metric | Description |
-|--------|-------------|
-| Total Present | Count of present days across all staff |
-| Average Attendance | (Total Present / Total Expected) * 100% |
-| Late Arrivals | Count of late days in month |
-| Most Absent | Staff member with most absences |
-
----
-
-## Future Enhancements (Out of Scope)
-
-- Export to CSV/Excel
-- Print-friendly view
-- Holiday calendar integration
-- Leave request integration
-- Edit historical attendance (admin)
+1. **No Fingerprint Data Stored**: Only cryptographic public keys are stored in the database
+2. **Device-Bound**: Credentials are tied to the specific device
+3. **Challenge-Response**: Each authentication uses a fresh challenge
+4. **RLS Protected**: Credentials table secured with row-level security
+5. **Tenant Isolation**: Credentials scoped to tenant
