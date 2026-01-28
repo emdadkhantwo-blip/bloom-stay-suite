@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,8 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useUpdateRoomType, useDeleteRoomType, type RoomType } from "@/hooks/useRoomTypes";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Plus, X, Wifi, Tv, Coffee, Bath, Wind, Sparkles, UtensilsCrossed, Car, Waves, Dumbbell, Snowflake } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+const getFacilityIcon = (facility: string) => {
+  const lower = facility.toLowerCase();
+  if (lower.includes("wifi") || lower.includes("internet")) return Wifi;
+  if (lower.includes("tv") || lower.includes("television")) return Tv;
+  if (lower.includes("coffee") || lower.includes("tea")) return Coffee;
+  if (lower.includes("bath") || lower.includes("tub") || lower.includes("jacuzzi")) return Bath;
+  if (lower.includes("ac") || lower.includes("air condition") || lower.includes("cooling")) return Snowflake;
+  if (lower.includes("balcony") || lower.includes("terrace")) return Wind;
+  if (lower.includes("room service") || lower.includes("dining")) return UtensilsCrossed;
+  if (lower.includes("parking") || lower.includes("car")) return Car;
+  if (lower.includes("pool") || lower.includes("swim")) return Waves;
+  if (lower.includes("gym") || lower.includes("fitness")) return Dumbbell;
+  return Sparkles;
+};
+
+const suggestedFacilities = [
+  "WiFi", "TV", "AC", "Mini Bar", "Coffee Maker", "Bathrobe", 
+  "Balcony", "Room Service", "Safe", "Hair Dryer"
+];
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required").max(50, "Name too long"),
@@ -57,6 +78,8 @@ interface EditRoomTypeDialogProps {
 export function EditRoomTypeDialog({ roomType, open, onOpenChange }: EditRoomTypeDialogProps) {
   const updateRoomType = useUpdateRoomType();
   const deleteRoomType = useDeleteRoomType();
+  const [facilities, setFacilities] = useState<string[]>([]);
+  const [newFacility, setNewFacility] = useState("");
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -80,8 +103,27 @@ export function EditRoomTypeDialog({ roomType, open, onOpenChange }: EditRoomTyp
         max_occupancy: roomType.max_occupancy,
         is_active: roomType.is_active,
       });
+      setFacilities((roomType.amenities as string[]) || []);
     }
   }, [roomType, form]);
+
+  const addFacility = () => {
+    const trimmed = newFacility.trim();
+    if (trimmed && !facilities.includes(trimmed)) {
+      setFacilities([...facilities, trimmed]);
+      setNewFacility("");
+    }
+  };
+
+  const removeFacility = (facility: string) => {
+    setFacilities(facilities.filter((f) => f !== facility));
+  };
+
+  const addSuggestedFacility = (facility: string) => {
+    if (!facilities.includes(facility)) {
+      setFacilities([...facilities, facility]);
+    }
+  };
 
   const onSubmit = (data: FormData) => {
     if (!roomType) return;
@@ -96,6 +138,7 @@ export function EditRoomTypeDialog({ roomType, open, onOpenChange }: EditRoomTyp
           base_rate: data.base_rate,
           max_occupancy: data.max_occupancy,
           is_active: data.is_active,
+          amenities: facilities,
         },
       },
       {
@@ -222,6 +265,72 @@ export function EditRoomTypeDialog({ roomType, open, onOpenChange }: EditRoomTyp
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Facilities Section */}
+            <div className="space-y-3">
+              <FormLabel>Facilities</FormLabel>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a facility..."
+                  value={newFacility}
+                  onChange={(e) => setNewFacility(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addFacility();
+                    }
+                  }}
+                />
+                <Button type="button" size="icon" onClick={addFacility}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {facilities.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {facilities.map((facility) => {
+                    const Icon = getFacilityIcon(facility);
+                    return (
+                      <Badge
+                        key={facility}
+                        variant="secondary"
+                        className="flex items-center gap-1 pr-1"
+                      >
+                        <Icon className="h-3 w-3" />
+                        {facility}
+                        <button
+                          type="button"
+                          onClick={() => removeFacility(facility)}
+                          className="ml-1 rounded-full p-0.5 hover:bg-muted"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+              
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Quick add:</p>
+                <div className="flex flex-wrap gap-1">
+                  {suggestedFacilities
+                    .filter((f) => !facilities.includes(f))
+                    .slice(0, 6)
+                    .map((facility) => (
+                      <Badge
+                        key={facility}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent"
+                        onClick={() => addSuggestedFacility(facility)}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        {facility}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
             </div>
 
             <FormField

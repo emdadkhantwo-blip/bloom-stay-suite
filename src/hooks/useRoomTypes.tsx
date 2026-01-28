@@ -84,6 +84,7 @@ export function useUpdateRoomType() {
         base_rate?: number;
         max_occupancy?: number;
         is_active?: boolean;
+        amenities?: string[];
       };
     }) => {
       const { error } = await supabase
