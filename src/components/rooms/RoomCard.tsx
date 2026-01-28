@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,9 +18,41 @@ import {
   DoorOpen, 
   AlertTriangle,
   BedDouble,
+  Wifi,
+  Tv,
+  Coffee,
+  Wind,
+  Bath,
+  UtensilsCrossed,
+  Car,
+  Dumbbell,
+  Waves,
+  Phone,
+  Lock,
+  Refrigerator,
+  Shirt,
 } from "lucide-react";
 import type { RoomStatus } from "@/types/database";
 import { cn } from "@/lib/utils";
+
+// Helper to get icon for facility
+const getFacilityIcon = (facility: string) => {
+  const lower = facility.toLowerCase();
+  if (lower.includes("wifi") || lower.includes("internet")) return Wifi;
+  if (lower.includes("tv") || lower.includes("television")) return Tv;
+  if (lower.includes("coffee") || lower.includes("tea")) return Coffee;
+  if (lower.includes("ac") || lower.includes("air")) return Wind;
+  if (lower.includes("bath") || lower.includes("tub") || lower.includes("jacuzzi")) return Bath;
+  if (lower.includes("breakfast") || lower.includes("dining") || lower.includes("restaurant")) return UtensilsCrossed;
+  if (lower.includes("parking") || lower.includes("car")) return Car;
+  if (lower.includes("gym") || lower.includes("fitness")) return Dumbbell;
+  if (lower.includes("pool") || lower.includes("swim")) return Waves;
+  if (lower.includes("phone") || lower.includes("call")) return Phone;
+  if (lower.includes("safe") || lower.includes("locker")) return Lock;
+  if (lower.includes("fridge") || lower.includes("mini") || lower.includes("bar")) return Refrigerator;
+  if (lower.includes("laundry") || lower.includes("iron")) return Shirt;
+  return Sparkles;
+};
 
 interface RoomCardProps {
   room: {
@@ -31,6 +64,7 @@ interface RoomCardProps {
       name: string;
       code: string;
       base_rate: number;
+      amenities?: unknown;
     } | null;
     notes: string | null;
   };
@@ -78,6 +112,7 @@ const statusStyles: Record<RoomStatus, { border: string; iconBg: string; iconCol
 export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const styles = statusStyles[room.status];
+  const amenities = (room.room_type?.amenities as string[]) || [];
 
   const handleStatusChange = (newStatus: RoomStatus) => {
     onStatusChange(room.id, newStatus);
@@ -165,6 +200,33 @@ export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardP
             <p className="text-sm font-bold text-vibrant-green">
               ${room.room_type.base_rate.toFixed(0)}/night
             </p>
+          )}
+
+          {/* Facilities */}
+          {amenities.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {amenities.slice(0, 3).map((facility) => {
+                const Icon = getFacilityIcon(facility);
+                return (
+                  <Badge
+                    key={facility}
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0 h-5 gap-1 bg-muted/50"
+                  >
+                    <Icon className="h-2.5 w-2.5" />
+                    {facility}
+                  </Badge>
+                );
+              })}
+              {amenities.length > 3 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-5 bg-muted/50"
+                >
+                  +{amenities.length - 3}
+                </Badge>
+              )}
+            </div>
           )}
         </div>
       </CardContent>
