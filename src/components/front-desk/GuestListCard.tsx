@@ -128,15 +128,12 @@ function GuestListItem({
           </Button>
         )}
 
-        {(type === "departures" || type === "in-house") && onCheckOut && (
+        {type === "in-house" && onCheckOut && (
           <Button
-            variant={type === "departures" ? "default" : "outline"}
+            variant="outline"
             size="sm"
             onClick={() => onCheckOut(reservation)}
-            className={cn(
-              "h-8 gap-1",
-              type === "departures" && "bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white border-none shadow-sm"
-            )}
+            className="h-8 gap-1"
           >
             <LogOut className="h-4 w-4" />
             Check Out
