@@ -18,9 +18,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -31,7 +37,25 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useRoomTypes } from "@/hooks/useRoomTypes";
 import { useUpdateRoom, useDeleteRoom } from "@/hooks/useRooms";
-import { Loader2, Trash2 } from "lucide-react";
+import { 
+  Loader2, 
+  Trash2, 
+  ListChecks,
+  Wifi,
+  Tv,
+  Coffee,
+  Wind,
+  Bath,
+  UtensilsCrossed,
+  Car,
+  Dumbbell,
+  Waves,
+  Phone,
+  Lock,
+  Refrigerator,
+  Shirt,
+  Sparkles,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +68,25 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { RoomStatus } from "@/types/database";
+
+// Helper to get icon for amenity
+const getAmenityIcon = (amenity: string) => {
+  const lower = amenity.toLowerCase();
+  if (lower.includes("wifi") || lower.includes("internet")) return Wifi;
+  if (lower.includes("tv") || lower.includes("television")) return Tv;
+  if (lower.includes("coffee") || lower.includes("tea")) return Coffee;
+  if (lower.includes("ac") || lower.includes("air")) return Wind;
+  if (lower.includes("bath") || lower.includes("tub") || lower.includes("jacuzzi")) return Bath;
+  if (lower.includes("breakfast") || lower.includes("dining") || lower.includes("restaurant")) return UtensilsCrossed;
+  if (lower.includes("parking") || lower.includes("car")) return Car;
+  if (lower.includes("gym") || lower.includes("fitness")) return Dumbbell;
+  if (lower.includes("pool") || lower.includes("swim")) return Waves;
+  if (lower.includes("phone") || lower.includes("call")) return Phone;
+  if (lower.includes("safe") || lower.includes("locker")) return Lock;
+  if (lower.includes("fridge") || lower.includes("mini") || lower.includes("bar")) return Refrigerator;
+  if (lower.includes("laundry") || lower.includes("iron")) return Shirt;
+  return Sparkles;
+};
 
 const formSchema = z.object({
   room_number: z.string().min(1, "Room number is required").max(20, "Room number too long"),
@@ -181,26 +224,76 @@ export function EditRoomDialog({ room, open, onOpenChange }: EditRoomDialogProps
             <FormField
               control={form.control}
               name="room_type_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Room Type *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select room type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {roomTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.name} (${type.base_rate}/night)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const selectedRoomType = roomTypes.find((rt) => rt.id === field.value);
+                const amenities = (selectedRoomType?.amenities as string[]) || [];
+                
+                return (
+                  <FormItem>
+                    <FormLabel>Room Type *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select room type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {roomTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name} (${type.base_rate}/night)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    
+                    {/* View Facilities Button */}
+                    {field.value && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2"
+                          >
+                            <ListChecks className="mr-2 h-4 w-4" />
+                            View Facilities
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72" align="start">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">
+                              Facilities for {selectedRoomType?.name}
+                            </h4>
+                            {amenities.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {amenities.map((amenity) => {
+                                  const Icon = getAmenityIcon(amenity);
+                                  return (
+                                    <Badge
+                                      key={amenity}
+                                      variant="secondary"
+                                      className="gap-1"
+                                    >
+                                      <Icon className="h-3 w-3" />
+                                      {amenity}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No facilities listed for this room type.
+                              </p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField
