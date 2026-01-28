@@ -318,6 +318,35 @@ export function useAttendance(date?: Date) {
     },
   });
 
+  // Reset all attendance for today
+  const resetAttendanceMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenant?.id) throw new Error("No tenant");
+
+      const { error } = await supabase
+        .from("hr_attendance")
+        .delete()
+        .eq("tenant_id", tenant.id)
+        .eq("date", dateStr);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance", tenant?.id, dateStr] });
+      toast({
+        title: "Attendance Reset",
+        description: "All attendance records for today have been cleared.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     staffAttendance: staffAttendanceQuery.data || [],
     stats,
@@ -327,10 +356,12 @@ export function useAttendance(date?: Date) {
     startBreak: startBreakMutation.mutate,
     endBreak: endBreakMutation.mutate,
     markPresent: markPresentMutation.mutate,
+    resetAttendance: resetAttendanceMutation.mutate,
     isClockingIn: clockInMutation.isPending,
     isClockingOut: clockOutMutation.isPending,
     isStartingBreak: startBreakMutation.isPending,
     isEndingBreak: endBreakMutation.isPending,
     isMarkingPresent: markPresentMutation.isPending,
+    isResettingAttendance: resetAttendanceMutation.isPending,
   };
 }
