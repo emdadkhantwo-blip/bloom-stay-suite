@@ -115,6 +115,51 @@ export type Database = {
           },
         ]
       }
+      biometric_credentials: {
+        Row: {
+          created_at: string | null
+          credential_id: string
+          device_name: string | null
+          id: string
+          profile_id: string
+          public_key: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credential_id: string
+          device_name?: string | null
+          id?: string
+          profile_id: string
+          public_key: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credential_id?: string
+          device_name?: string | null
+          id?: string
+          profile_id?: string
+          public_key?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biometric_credentials_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biometric_credentials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
