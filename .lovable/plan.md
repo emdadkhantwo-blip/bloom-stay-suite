@@ -1,197 +1,209 @@
 
+# Fix HR Attendance and Shifts Sections
 
-# Add NID Number, Documents, and Banking Fields to Create Staff
+## Problem Analysis
 
-## Overview
-Enhance the Create Staff dialog to include NID Number, document uploads, and banking information fields. Most of the database structure already exists - only a new column for NID is needed.
+### Current Issues:
+1. **Attendance Page (`/hr/attendance`)**: Currently shows only a basic clock-in widget for the current user with no real functionality. Does not show all employees, their positions, or allow managers to give attendance.
 
----
-
-## Current State Analysis
-
-### Already Available in Database:
-| Field | Table/Column | Status |
-|-------|--------------|--------|
-| Bank Account Number | `hr_staff_profiles.bank_account` | ✅ Exists |
-| Bank Account Name | `hr_staff_profiles.bank_name` | ✅ Exists |
-| Documents | `hr_documents` table + `hr-documents` bucket | ✅ Exists |
-
-### Missing in Database:
-| Field | Required Action |
-|-------|-----------------|
-| NID Number | Add `nid_number` column to `hr_staff_profiles` |
+2. **Shifts Page (`/hr/shifts`)**: Shows only static shift templates but doesn't fetch real data from `hr_shifts` table. The weekly schedule is not connected to the database.
 
 ---
 
-## Phase 1: Database Migration
+## Solution Overview
 
-Add a new column to `hr_staff_profiles` table:
+### Phase 1: Create useAttendance Hook
 
-```sql
-ALTER TABLE hr_staff_profiles 
-ADD COLUMN nid_number TEXT;
-```
+Create a new hook to manage attendance data and actions:
 
----
+**File: `src/hooks/useAttendance.tsx`**
 
-## Phase 2: Update Create Staff Dialog
+Features:
+- Fetch all attendance records for the current date
+- Fetch all staff members with their roles/positions
+- Clock in/out functionality (for self and admin override)
+- Start/end break functionality
+- Calculate attendance statistics (present, absent, late, on break)
 
-**File: `src/components/staff/CreateStaffDialog.tsx`**
-
-### Add New Form Fields
-
-1. **Identity Documents Section** (new section)
-   - NID Number input field
-   - Documents upload area (multiple file upload)
-
-2. **Banking Information Section** (new section)  
-   - Bank Account Number input
-   - Bank Account Name input
-
-### Form Layout Addition:
 ```text
-┌─────────────────────────────────────────────┐
-│ Identity Documents                           │
-├─────────────────────────────────────────────┤
-│ NID Number: _________________________       │
-│                                             │
-│ Documents: [+ Upload Documents]             │
-│ ┌─────────────────────────────────────────┐ │
-│ │ • NID_Front.jpg              [Remove]   │ │
-│ │ • NID_Back.jpg               [Remove]   │ │
-│ │ • Contract.pdf               [Remove]   │ │
-│ └─────────────────────────────────────────┘ │
-├─────────────────────────────────────────────┤
-│ Banking Information                          │
-├─────────────────────────────────────────────┤
-│ Bank Account Number: ___________________    │
-│ Bank Account Name: _____________________    │
-└─────────────────────────────────────────────┘
-```
-
-### New State Variables:
-```typescript
-const [nidNumber, setNidNumber] = useState<string>("");
-const [bankAccountNumber, setBankAccountNumber] = useState<string>("");
-const [bankAccountName, setBankAccountName] = useState<string>("");
-const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+Interface StaffAttendance:
+- profile_id
+- full_name
+- avatar_url
+- role (position)
+- clock_in
+- clock_out
+- break_start
+- break_end
+- is_late
+- worked_hours
+- status (not_clocked_in | clocked_in | on_break | clocked_out)
 ```
 
 ---
 
-## Phase 3: Update Edge Function
+### Phase 2: Update Attendance Page
 
-**File: `supabase/functions/create-staff/index.ts`**
+**File: `src/pages/hr/Attendance.tsx`**
 
-### Extend Request Interface:
-```typescript
-interface CreateStaffRequest {
-  // ... existing fields
-  nidNumber?: string;
-  bankAccountNumber?: string;
-  bankAccountName?: string;
-}
+New Features:
+
+1. **Stats Bar** (connected to real data):
+   - Present Today: Staff who clocked in
+   - Absent: Staff who haven't clocked in
+   - Late Arrivals: Staff marked as late
+   - On Break: Staff currently on break
+
+2. **Self Clock Widget** (existing - enhanced):
+   - Shows current user's attendance status
+   - Clock In/Out buttons
+   - Break Start/End buttons
+   - Persists to database
+
+3. **Staff Attendance Table** (new):
+   - List all employees
+   - Show avatar, name, and position/role
+   - Show clock-in time, clock-out time
+   - Show status badge (Present/Absent/On Break/Late)
+   - Admin override: Clock in/out on behalf of staff
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ Today's Attendance                                              │
+├────────────────────────────────────────────────────────────────┤
+│ Staff             │ Position      │ Clock In │ Clock Out │ Status │
+├───────────────────┼───────────────┼──────────┼───────────┼────────┤
+│ [Avatar] John     │ Manager       │ 08:05    │ --:--     │ Present│
+│ [Avatar] Sarah    │ Front Desk    │ 08:12    │ --:--     │ Late   │
+│ [Avatar] Mike     │ Kitchen       │ --:--    │ --:--     │ Absent │
+│ [Avatar] James    │ Housekeeping  │ 07:55    │ --:--     │ Present│
+│ [Avatar] Maria    │ Housekeeping  │ 08:00    │ 15:00     │ Left   │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### Update HR Profile Insert:
-Add the new fields to the `hr_staff_profiles` insert:
-```typescript
-{
-  // ... existing fields
-  nid_number: nidNumber || null,
-  bank_account: bankAccountNumber || null,
-  bank_name: bankAccountName || null,
-}
-```
+4. **Admin Actions** (for owners/managers):
+   - "Mark Present" button for absent staff
+   - Quick clock-in timestamp override
 
 ---
 
-## Phase 4: Document Upload Logic
+### Phase 3: Enhanced Shifts Page
 
-Documents will be uploaded to the `hr-documents` storage bucket after staff creation.
+**File: `src/pages/hr/Shifts.tsx`**
 
-### Upload Process:
-1. Staff creation via edge function (returns new user ID)
-2. Upload each document file to storage: `hr-documents/{profile_id}/{filename}`
-3. Create `hr_documents` record for each uploaded file
+New Features:
 
-### Document Types:
-- NID/Passport
-- Employment Contract
-- Certificates
-- Other
+1. **Create Shift Template Dialog** (new):
+   - Name
+   - Start time
+   - End time
+   - Break minutes
+   - Color picker
+
+2. **Connect Shift Templates to Database**:
+   - Fetch from `hr_shifts` table
+   - Create, edit, delete shifts
+   - Show real data instead of hardcoded templates
+
+3. **Weekly Schedule Grid**:
+   - Show all staff in rows
+   - Days of the week as columns
+   - Display assigned shifts from `hr_shift_assignments`
+   - Click to assign/unassign shifts
+
+```text
+Weekly Schedule:
+┌────────────────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+│ Staff          │ Mon │ Tue │ Wed │ Thu │ Fri │ Sat │ Sun │
+├────────────────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
+│ John (Manager) │ Day │ Day │ Day │ Off │ Day │ Off │ Off │
+│ Sarah (F.Desk) │ Day │ Eve │ Day │ Day │ Off │ Day │ Day │
+│ Mike (Kitchen) │ Eve │ Eve │ Eve │ Eve │ Eve │ Off │ Off │
+└────────────────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+```
+
+4. **Real Statistics**:
+   - Shifts This Week (actual count)
+   - Staff Assigned (unique staff with shifts)
+   - Overtime Alerts (future: calculate based on hours)
 
 ---
 
-## Implementation Details
+## Implementation Plan
+
+### Files to Create:
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useAttendance.tsx` | Attendance data management |
+| `src/components/hr/AttendanceTable.tsx` | Staff attendance list component |
+| `src/components/hr/CreateShiftDialog.tsx` | Create new shift template |
 
 ### Files to Modify:
 
 | File | Changes |
 |------|---------|
-| `src/components/staff/CreateStaffDialog.tsx` | Add NID, banking, and documents fields |
-| `supabase/functions/create-staff/index.ts` | Handle new fields in request |
-
-### Database Migration:
-
-| Table | Column | Type | Details |
-|-------|--------|------|---------|
-| `hr_staff_profiles` | `nid_number` | TEXT | Nullable, stores NID |
+| `src/pages/hr/Attendance.tsx` | Complete rewrite with real data |
+| `src/pages/hr/Shifts.tsx` | Connect to database, add create dialog |
+| `src/hooks/useShifts.tsx` | Add CRUD mutations for shifts |
 
 ---
 
-## Form Validation
+## Database Integration
 
-### NID Number:
-- Optional field
-- Max 20 characters
-- Alphanumeric only
+### Tables Used:
+- `hr_attendance` - Clock in/out records
+- `hr_shifts` - Shift templates
+- `hr_shift_assignments` - Staff-shift mappings
+- `profiles` - Staff info
+- `user_roles` - Staff positions/roles
 
-### Bank Account:
-- Optional fields
-- Account Number: Max 30 characters
-- Account Name: Max 100 characters
+### RLS Policies (already in place):
+- Owners/managers can manage all attendance
+- Users can view their own attendance
+- Users can clock in/out for themselves
 
-### Documents:
-- Optional
-- Allowed types: PDF, JPG, PNG, WEBP
-- Max 5MB per file
-- Max 10 files per staff creation
+---
+
+## Role-to-Position Mapping
+
+Staff positions displayed based on their primary role:
+
+| Role | Display Position |
+|------|------------------|
+| owner | Owner |
+| manager | Manager |
+| front_desk | Front Desk |
+| accountant | Accountant |
+| housekeeping | Housekeeping |
+| maintenance | Maintenance |
+| kitchen | Kitchen Staff |
+| waiter | Waiter/Server |
+| night_auditor | Night Auditor |
+
+---
+
+## Feature Summary
+
+### Attendance Page:
+1. Real-time stats from database
+2. Personal clock in/out with persistence
+3. Full staff attendance table with positions
+4. Admin override capabilities
+5. Late/on-time indicators
+
+### Shifts Page:
+1. Create shift templates in database
+2. View/edit/delete shifts
+3. Weekly schedule grid with all staff
+4. Assign shifts from the grid
+5. Real statistics from database
 
 ---
 
 ## Security Considerations
 
-1. **Banking Information**: Only visible to `owner` and `manager` roles (same as salary)
-2. **NID Number**: Sensitive data - only visible to authorized HR roles
-3. **Documents**: Stored in private `hr-documents` bucket with RLS
-
----
-
-## UI/UX Flow
-
-1. User fills out existing staff creation fields
-2. New **Identity Documents** section appears with:
-   - NID Number text input
-   - Multi-file upload with drag-and-drop
-   - Preview of selected files with remove option
-3. New **Banking Information** section appears with:
-   - Bank Account Number input
-   - Bank Account Name input
-4. On submit:
-   - Edge function creates staff account
-   - Avatar uploaded (if provided)
-   - Documents uploaded to storage
-   - Document records created in `hr_documents`
-
----
-
-## Summary
-
-| Component | Action |
-|-----------|--------|
-| Database | Add `nid_number` column to `hr_staff_profiles` |
-| CreateStaffDialog | Add NID, banking, and document upload sections |
-| Edge Function | Accept and store new fields |
-| Document Storage | Use existing `hr-documents` bucket |
-
+1. **Clock-in Self**: Any authenticated user can clock in/out for themselves
+2. **Clock-in Others**: Only `owner` and `manager` can mark attendance for others
+3. **Manage Shifts**: Only `owner` and `manager` can create/edit shifts
+4. **Assign Shifts**: Only `owner`, `manager`, and `front_desk` can assign shifts
