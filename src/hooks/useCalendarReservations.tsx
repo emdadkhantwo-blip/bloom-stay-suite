@@ -144,8 +144,8 @@ export function useCalendarReservations(startDate: Date, numDays: number = 14) {
           }
         });
 
-        // If no room assignment, add to unassigned list
-        if (!hasRoomAssignment && reservationRooms.length > 0) {
+        // If no room assignment (either no reservation_rooms or all have null room_id), add to unassigned list
+        if (!hasRoomAssignment) {
           const calendarRes: CalendarReservation = {
             id: res.id,
             confirmation_number: res.confirmation_number,
