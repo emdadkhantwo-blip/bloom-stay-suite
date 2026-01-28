@@ -13,6 +13,7 @@ export interface BiometricCredential {
 
 interface UseBiometricAuthReturn {
   isSupported: boolean;
+  isInIframe: boolean;
   isRegistered: boolean;
   credentials: BiometricCredential[];
   registerBiometric: (deviceName?: string) => Promise<boolean>;
@@ -73,8 +74,18 @@ export function useBiometricAuth(): UseBiometricAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Check if WebAuthn is supported
+  // Check if we're in an iframe (WebAuthn doesn't work in cross-origin iframes)
+  const isInIframe = typeof window !== 'undefined' && (() => {
+    try {
+      return window.self !== window.top;
+    } catch (e) {
+      return true; // If we can't access window.top, we're in a cross-origin iframe
+    }
+  })();
+
+  // Check if WebAuthn is supported (and not in iframe)
   const isSupported = typeof window !== 'undefined' && 
+    !isInIframe &&
     window.PublicKeyCredential !== undefined &&
     typeof navigator.credentials !== 'undefined';
 
@@ -321,6 +332,7 @@ export function useBiometricAuth(): UseBiometricAuthReturn {
 
   return {
     isSupported,
+    isInIframe,
     isRegistered: credentials.length > 0,
     credentials,
     registerBiometric,
