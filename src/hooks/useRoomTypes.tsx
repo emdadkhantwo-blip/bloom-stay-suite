@@ -42,6 +42,7 @@ export function useCreateRoomType() {
       description: string | null;
       base_rate: number;
       max_occupancy: number;
+      amenities?: string[];
     }) => {
       if (!propertyId || !tenantId) throw new Error("No property selected");
 
