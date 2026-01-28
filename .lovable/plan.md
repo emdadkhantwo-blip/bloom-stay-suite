@@ -1,131 +1,106 @@
 
-# Display Multiple Unassigned Reservations in Separate Rows
+# Single Calendar with Date Range Selection for New Reservation
 
 ## Overview
-Currently, all unassigned reservations are displayed in a single "Unassigned" row on the calendar. When multiple unassigned reservations exist (especially with overlapping dates), they can visually overlap and become difficult to read. This change will create separate rows for each unassigned reservation.
+Replace the two separate check-in and check-out date pickers with a single calendar popup that allows you to select your stay dates by clicking directly on the calendar. Click the start date, then click the end date - the selected range will be highlighted visually.
 
 ---
 
-## Current Behavior
+## What Changes
 
-```text
-+------------------+----+----+----+----+----+----+
-| Unassigned       | [Res 1 overlapping Res 2   ]|  <- Both stacked/overlapping
-+------------------+----+----+----+----+----+----+
-| Floor 1          |                              |
-+------------------+----+----+----+----+----+----+
-| Room 101         |    [Reservation 3]           |
-+------------------+----+----+----+----+----+----+
-```
+### Before (Current)
+Two separate buttons, each opening their own calendar:
+- "Check-in Date" button opens calendar to pick start
+- "Check-out Date" button opens calendar to pick end
 
-## Proposed Behavior
-
-```text
-+------------------+----+----+----+----+----+----+
-| Unassigned       |                              |
-+------------------+----+----+----+----+----+----+
-| Unassigned #1    |    [Reservation 1]           |  <- Separate row
-+------------------+----+----+----+----+----+----+
-| Unassigned #2    |         [Reservation 2]      |  <- Separate row
-+------------------+----+----+----+----+----+----+
-| Floor 1          |                              |
-+------------------+----+----+----+----+----+----+
-| Room 101         |    [Reservation 3]           |
-+------------------+----+----+----+----+----+----+
-```
+### After (New)
+One button labeled "Stay Dates" opens a single calendar where you:
+1. Click your arrival date (first click)
+2. Click your departure date (second click)
+3. See the entire range highlighted between both dates
 
 ---
 
-## Implementation Plan
+## Implementation Details
 
-### Modify: `src/hooks/useCalendarReservations.tsx`
+### File to Modify: `src/components/reservations/NewReservationDialog.tsx`
 
 **Changes:**
 
-1. Instead of creating a single "Unassigned" room with all unassigned reservations, create a separate pseudo-room for each unassigned reservation
-2. Each unassigned row will show the guest name or room type for identification
-3. Use unique IDs like `unassigned-{reservation_id}` to distinguish rows
+1. **Add DateRange type import** from react-day-picker for type safety
 
-**Before:**
+2. **Replace two form fields with one combined field** that uses range selection:
+   - Single popover trigger showing "Jan 28 - Jan 30" format
+   - Calendar opens in `mode="range"` instead of `mode="single"`
+   - User clicks start date, then end date on same calendar
+   - Both dates stored and synced to form fields
+
+3. **Update Calendar component usage**:
+   - Change from `mode="single"` to `mode="range"`
+   - Use `selected={{ from: checkInDate, to: checkOutDate }}` for the range
+   - Handle range selection with `onSelect` that updates both dates
+
+4. **Show 2 months side by side** for easier range selection:
+   - Add `numberOfMonths={2}` prop to show current and next month together
+   - Makes selecting ranges that span months much easier
+
+---
+
+## Technical Implementation
+
+### Key Code Changes
+
 ```typescript
-if (unassignedReservations.length > 0) {
-  calendarRooms.unshift({
-    id: "unassigned",
-    room_number: "Unassigned",
-    floor: null,
-    room_type: null,
-    reservations: unassignedReservations,
-  });
-}
+// Import DateRange type
+import { DateRange } from "react-day-picker";
+
+// Combined date range state derived from form
+const dateRange: DateRange | undefined = useMemo(() => {
+  if (checkInDate && checkOutDate) {
+    return { from: checkInDate, to: checkOutDate };
+  }
+  if (checkInDate) {
+    return { from: checkInDate, to: undefined };
+  }
+  return undefined;
+}, [checkInDate, checkOutDate]);
+
+// Handle range selection
+const handleDateRangeSelect = (range: DateRange | undefined) => {
+  form.setValue("check_in_date", range?.from);
+  form.setValue("check_out_date", range?.to);
+};
 ```
 
-**After:**
-```typescript
-// Create individual rows for each unassigned reservation
-unassignedReservations.forEach((res, index) => {
-  calendarRooms.unshift({
-    id: `unassigned-${res.id}`,
-    room_number: `Unassigned`,
-    floor: null,
-    room_type: { 
-      id: "unassigned", 
-      name: res.room_type_name || "No Type", 
-      code: "UA" 
-    },
-    reservations: [res],
-  });
-});
-```
+### UI Layout
+
+| Component | Change |
+|-----------|--------|
+| Grid layout | Change from 2-column to single full-width |
+| Trigger button | Shows range (e.g., "Jan 28 - Jan 30, 2025") or "Select stay dates" |
+| Calendar | `mode="range"` with `numberOfMonths={2}` |
+| Display | Both dates shown on single button, nights count below |
 
 ---
 
-### Modify: `src/components/calendar/CalendarTimeline.tsx`
+## Visual Behavior
 
-**Changes:**
-
-1. Update the room grouping logic to handle multiple unassigned rows under an "Unassigned" floor group
-2. Ensure drag constraints still prevent dragging to unassigned rows (check for `id.startsWith("unassigned")`)
-3. Display guest name or room type in the row label for identification
-
-**Key Updates:**
-
-| Section | Change |
-|---------|--------|
-| `isDragEnabled` check | Update from `room.id === "unassigned"` to `room.id.startsWith("unassigned")` |
-| Floor grouping | Group all unassigned rooms under "Unassigned" header |
-| Row label display | Show guest name or room type for unassigned rows |
-| Drag target validation | Prevent dropping on any unassigned row |
+1. **Initial state**: Button shows "Select stay dates" placeholder
+2. **First click**: Selected date becomes start, button shows "Jan 28 - Select end date"
+3. **Hover dates after first click**: Shows preview highlight between start and hovered date
+4. **Second click**: Completes range, button shows "Jan 28 - Jan 30, 2025"
+5. **Click again**: Resets and starts new selection
 
 ---
 
-## Files to Modify
+## Validation
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useCalendarReservations.tsx` | Create separate rows for each unassigned reservation |
-| `src/components/calendar/CalendarTimeline.tsx` | Handle multiple unassigned rows, update drag logic |
-
----
-
-## Edge Cases Handled
-
-1. **No unassigned reservations**: No unassigned section shown (same as current)
-2. **Single unassigned reservation**: Shows one row in Unassigned section
-3. **Multiple unassigned reservations**: Each gets its own row with guest/type info
-4. **Drag-and-drop**: Still prevents dragging TO any unassigned row, but allows dragging FROM them to assigned rooms
-5. **Row labels**: Show guest name and room type for easy identification
-
----
-
-## Visual Design for Unassigned Rows
-
-Each unassigned row will display:
-- Row label: Guest name (e.g., "John Doe")
-- Subtitle: Room type requested (e.g., "Deluxe Double")
-- Visual indicator: Distinctive styling to show it needs assignment
+- Cannot select check-in date in the past (dates before today are disabled)
+- Range automatically ensures check-out is after check-in
+- Visual feedback shows the full selected range highlighted on calendar
 
 ---
 
 ## No Database Changes Required
 
-This is purely a UI/display change. The data structure remains the same; we're just changing how unassigned reservations are rendered on the calendar grid.
+This is purely a UI/UX improvement to the date selection experience. Form data structure remains the same.
