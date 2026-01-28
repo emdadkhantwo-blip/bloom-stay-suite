@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,9 +17,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -30,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { useRoomTypes } from "@/hooks/useRoomTypes";
 import { useCreateRoom } from "@/hooks/useRooms";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wifi, Tv, Coffee, Wine, Sparkles, Wind, Bath, Car, Utensils, Phone, ListChecks } from "lucide-react";
 
 const formSchema = z.object({
   room_number: z.string().min(1, "Room number is required").max(20, "Room number too long"),
@@ -46,6 +51,21 @@ interface CreateRoomDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Helper to get icon for amenity
+const getAmenityIcon = (amenity: string) => {
+  const lower = amenity.toLowerCase();
+  if (lower.includes("wifi") || lower.includes("internet")) return Wifi;
+  if (lower.includes("tv") || lower.includes("television")) return Tv;
+  if (lower.includes("coffee") || lower.includes("tea")) return Coffee;
+  if (lower.includes("bar") || lower.includes("wine") || lower.includes("minibar")) return Wine;
+  if (lower.includes("air") || lower.includes("ac") || lower.includes("conditioning")) return Wind;
+  if (lower.includes("bath") || lower.includes("tub") || lower.includes("shower")) return Bath;
+  if (lower.includes("parking") || lower.includes("car")) return Car;
+  if (lower.includes("breakfast") || lower.includes("food") || lower.includes("dining")) return Utensils;
+  if (lower.includes("phone") || lower.includes("call")) return Phone;
+  return Sparkles;
+};
+
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { data: roomTypes = [] } = useRoomTypes();
   const createRoom = useCreateRoom();
@@ -59,6 +79,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
       notes: "",
     },
   });
+
+  // Watch selected room type to show facilities
+  const selectedRoomTypeId = form.watch("room_type_id");
+  const selectedRoomType = roomTypes.find((rt) => rt.id === selectedRoomTypeId);
+  const amenities = (selectedRoomType?.amenities as string[]) || [];
 
   const onSubmit = (data: FormData) => {
     createRoom.mutate(
@@ -140,6 +165,42 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 </FormItem>
               )}
             />
+
+            {/* Facilities Button - shows when room type is selected */}
+            {selectedRoomTypeId && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="w-full">
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    View Facilities
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">
+                      Facilities for {selectedRoomType?.name}
+                    </h4>
+                    {amenities.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {amenities.map((amenity, index) => {
+                          const Icon = getAmenityIcon(amenity);
+                          return (
+                            <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                              <Icon className="h-3 w-3" />
+                              {amenity}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No facilities listed for this room type.
+                      </p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
 
             <FormField
               control={form.control}
