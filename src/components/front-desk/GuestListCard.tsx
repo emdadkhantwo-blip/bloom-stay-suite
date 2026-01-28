@@ -69,10 +69,10 @@ function GuestListItem({
 
   return (
     <div className={cn(
-      "flex items-center justify-between gap-4 rounded-lg border border-l-4 p-3 transition-all hover:shadow-md hover:-translate-y-0.5 bg-card",
+      "flex flex-col gap-3 rounded-lg border border-l-4 p-3 transition-all hover:shadow-md hover:-translate-y-0.5 bg-card",
       getBorderColor()
     )}>
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-start gap-3 min-w-0">
         <div className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm",
           reservation.guest?.is_vip 
@@ -86,13 +86,13 @@ function GuestListItem({
           <User className="h-5 w-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium truncate">{guestName}</span>
             {reservation.guest?.is_vip && (
               <Crown className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" />
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mt-1">
             <span className="flex items-center gap-1">
               <BedDouble className="h-3 w-3" />
               {roomNumbers || roomTypes || "No room assigned"}
@@ -100,14 +100,14 @@ function GuestListItem({
             <span className="bg-muted/50 px-1.5 py-0.5 rounded">
               {nights} night{nights !== 1 ? "s" : ""}
             </span>
-            <span className="font-mono text-[10px] bg-muted/50 px-1.5 py-0.5 rounded">
-              {reservation.confirmation_number}
-            </span>
           </div>
+          <span className="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded inline-block mt-1">
+            {reservation.confirmation_number}
+          </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 justify-end">
         <Button
           variant="ghost"
           size="sm"
