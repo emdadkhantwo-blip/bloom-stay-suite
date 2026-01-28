@@ -238,15 +238,27 @@ export function CalendarTimeline({
     return list;
   }, [rooms]);
 
-  // Group rooms by floor
+  // Group rooms by floor, with unassigned rooms grouped under "Unassigned"
   const groupedRooms = useMemo(() => {
     const floors = new Map<string, CalendarRoom[]>();
-    rooms.forEach((room) => {
+    
+    // First, separate unassigned rooms
+    const unassignedRooms = rooms.filter((room) => room.id.startsWith("unassigned"));
+    const assignedRooms = rooms.filter((room) => !room.id.startsWith("unassigned"));
+    
+    // Add unassigned group first if there are any
+    if (unassignedRooms.length > 0) {
+      floors.set("Unassigned", unassignedRooms);
+    }
+    
+    // Then group assigned rooms by floor
+    assignedRooms.forEach((room) => {
       const floor = room.floor || "Other";
       const existing = floors.get(floor) || [];
       existing.push(room);
       floors.set(floor, existing);
     });
+    
     return floors;
   }, [rooms]);
 
@@ -286,15 +298,15 @@ export function CalendarTimeline({
 
       const targetRoom = flatRoomList[targetRoomIndex].room;
       
-      // Can't move to unassigned row
-      if (targetRoom.id === "unassigned") return;
+      // Can't move to any unassigned row
+      if (targetRoom.id.startsWith("unassigned")) return;
 
       // Call the move handler
       onReservationMove?.(
         reservation.id,
         reservation.reservation_room_id,
         targetRoom.id,
-        currentRoomId === "unassigned" ? null : currentRoomId
+        currentRoomId.startsWith("unassigned") ? null : currentRoomId
       );
     }
   };
@@ -350,9 +362,12 @@ export function CalendarTimeline({
         {Array.from(groupedRooms.entries()).map(([floor, floorRooms]) => (
           <div key={floor}>
             {/* Floor Header */}
-            <div className="flex border-b bg-muted/30">
+            <div className={cn(
+              "flex border-b",
+              floor === "Unassigned" ? "bg-amber-500/10" : "bg-muted/30"
+            )}>
               <div className="w-32 flex-shrink-0 border-r px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                {floor === "Other" ? "Unassigned" : `Floor ${floor}`}
+                {floor === "Other" ? "No Floor" : floor === "Unassigned" ? "Unassigned" : `Floor ${floor}`}
               </div>
               <div className="flex-1" />
             </div>
@@ -363,14 +378,23 @@ export function CalendarTimeline({
               globalRowIndex++;
               
               // Enable drag only if move handler is provided and room is not unassigned
-              const isDragEnabled = !!onReservationMove && room.id !== "unassigned";
+              const isDragEnabled = !!onReservationMove && !room.id.startsWith("unassigned");
+              const isUnassignedRoom = room.id.startsWith("unassigned");
               
               return (
-                <div key={room.id} className="flex border-b hover:bg-muted/20">
+                <div key={room.id} className={cn(
+                  "flex border-b hover:bg-muted/20",
+                  isUnassignedRoom && "bg-amber-500/5"
+                )}>
                   {/* Room label */}
                   <div className="w-32 flex-shrink-0 border-r px-3 py-2 flex flex-col justify-center">
-                    <span className="font-medium text-sm">{room.room_number}</span>
-                    <span className="text-2xs text-muted-foreground">
+                    <span className={cn(
+                      "font-medium text-sm truncate",
+                      isUnassignedRoom && "text-amber-700 dark:text-amber-400"
+                    )}>
+                      {room.room_number}
+                    </span>
+                    <span className="text-2xs text-muted-foreground truncate">
                       {room.room_type?.name || "—"}
                     </span>
                   </div>
