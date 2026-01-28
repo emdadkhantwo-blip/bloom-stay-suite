@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Timer, 
-  Plus, 
   Clock,
   CheckCircle,
   XCircle,
@@ -19,8 +19,35 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useOvertime } from '@/hooks/useOvertime';
+import { AddOvertimeDialog } from '@/components/hr/AddOvertimeDialog';
+import { format, parseISO } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/lib/currency';
 
 const HROvertime = () => {
+  const { entries, stats, staffList, isLoading, addEntry, approveEntry, rejectEntry } = useOvertime();
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="border-vibrant-amber text-vibrant-amber">Pending</Badge>;
+      case 'approved':
+        return <Badge className="bg-vibrant-green/10 text-vibrant-green border-vibrant-green">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getRateBadge = (rate: number) => {
+    if (rate === 1.5) return <Badge variant="outline">1.5x Weekday</Badge>;
+    if (rate === 2) return <Badge variant="outline" className="border-vibrant-blue text-vibrant-blue">2x Weekend</Badge>;
+    if (rate === 2.5) return <Badge variant="outline" className="border-vibrant-purple text-vibrant-purple">2.5x Holiday</Badge>;
+    return <Badge variant="outline">{rate}x</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Stats Bar */}
@@ -30,7 +57,7 @@ const HROvertime = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending Approval</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.pending}</p>
               </div>
               <Clock className="h-8 w-8 text-vibrant-orange" />
             </div>
@@ -41,7 +68,7 @@ const HROvertime = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Approved Hours</p>
-                <p className="text-2xl font-bold">0h</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : `${stats.approvedHours}h`}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-vibrant-green" />
             </div>
@@ -52,7 +79,7 @@ const HROvertime = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total OT Cost</p>
-                <p className="text-2xl font-bold">৳0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : formatCurrency(stats.totalCost)}</p>
               </div>
               <DollarSign className="h-8 w-8 text-vibrant-blue" />
             </div>
@@ -63,7 +90,7 @@ const HROvertime = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">This Month</p>
-                <p className="text-2xl font-bold">0h</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : `${stats.thisMonthHours}h`}</p>
               </div>
               <TrendingUp className="h-8 w-8 text-vibrant-purple" />
             </div>
@@ -114,20 +141,102 @@ const HROvertime = () => {
               <Timer className="h-5 w-5 text-vibrant-orange" />
               Overtime Entries
             </CardTitle>
-            <Button className="bg-vibrant-orange hover:bg-vibrant-orange/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Entry
-            </Button>
+            <AddOvertimeDialog
+              staffList={staffList}
+              onSubmit={(data) => addEntry.mutate(data)}
+              isSubmitting={addEntry.isPending}
+            />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Timer className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-muted-foreground">No overtime entries</h3>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Overtime hours will be automatically tracked from attendance records.
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Timer className="h-16 w-16 text-muted-foreground/30 mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground">No overtime entries</h3>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                Click "Add Entry" to log overtime hours for employees.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Hours</TableHead>
+                    <TableHead>Rate</TableHead>
+                    <TableHead className="text-right">Estimated Pay</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={entry.staff_avatar || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {entry.staff_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium text-sm">{entry.staff_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {format(parseISO(entry.date), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="font-medium">{entry.hours}h</TableCell>
+                      <TableCell>{getRateBadge(entry.rate_multiplier)}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(entry.total_pay)}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(entry.status)}</TableCell>
+                      <TableCell className="text-right">
+                        {entry.status === 'pending' && (
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="h-7 text-vibrant-green border-vibrant-green hover:bg-vibrant-green hover:text-white"
+                              onClick={() => approveEntry.mutate(entry.id)}
+                              disabled={approveEntry.isPending}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Approve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="h-7 text-vibrant-rose border-vibrant-rose hover:bg-vibrant-rose hover:text-white"
+                              onClick={() => rejectEntry.mutate(entry.id)}
+                              disabled={rejectEntry.isPending}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                        {entry.status !== 'pending' && entry.approver_name && (
+                          <span className="text-xs text-muted-foreground">
+                            by {entry.approver_name}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   CalendarDays, 
-  Plus, 
   Clock,
   CheckCircle,
   XCircle,
@@ -21,15 +21,44 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useLeaveManagement } from '@/hooks/useLeaveManagement';
+import { ApplyLeaveDialog } from '@/components/hr/ApplyLeaveDialog';
+import { CreateLeaveTypeDialog } from '@/components/hr/CreateLeaveTypeDialog';
+import { format, parseISO } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const LEAVE_TYPES = [
-  { id: 'annual', name: 'Annual Leave', days: 15, color: 'bg-vibrant-blue', icon: Umbrella },
-  { id: 'sick', name: 'Sick Leave', days: 10, color: 'bg-vibrant-rose', icon: Heart },
-  { id: 'casual', name: 'Casual Leave', days: 5, color: 'bg-vibrant-amber', icon: Calendar },
-  { id: 'unpaid', name: 'Unpaid Leave', days: 0, color: 'bg-muted', icon: Briefcase },
-];
+const LEAVE_TYPE_ICONS: Record<string, typeof Umbrella> = {
+  annual: Umbrella,
+  sick: Heart,
+  casual: Calendar,
+  unpaid: Briefcase,
+};
 
 const HRLeave = () => {
+  const { 
+    leaveTypes, 
+    leaveRequests, 
+    stats, 
+    isLoading,
+    submitRequest,
+    approveRequest,
+    rejectRequest,
+    createLeaveType,
+  } = useLeaveManagement();
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="border-vibrant-amber text-vibrant-amber">Pending</Badge>;
+      case 'approved':
+        return <Badge className="bg-vibrant-green/10 text-vibrant-green border-vibrant-green">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Stats Bar */}
@@ -39,7 +68,7 @@ const HRLeave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending Requests</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.pending}</p>
               </div>
               <Clock className="h-8 w-8 text-vibrant-amber" />
             </div>
@@ -50,7 +79,7 @@ const HRLeave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Approved</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.approved}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-vibrant-green" />
             </div>
@@ -61,7 +90,7 @@ const HRLeave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Rejected</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.rejected}</p>
               </div>
               <XCircle className="h-8 w-8 text-vibrant-rose" />
             </div>
@@ -72,7 +101,7 @@ const HRLeave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">On Leave Today</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{isLoading ? '-' : stats.onLeaveToday}</p>
               </div>
               <CalendarDays className="h-8 w-8 text-vibrant-blue" />
             </div>
@@ -89,30 +118,49 @@ const HRLeave = () => {
                 <CalendarDays className="h-4 w-4 text-vibrant-purple" />
                 Leave Types
               </CardTitle>
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Type
-              </Button>
+              <CreateLeaveTypeDialog 
+                onSubmit={(data) => createLeaveType.mutate(data)}
+                isSubmitting={createLeaveType.isPending}
+              />
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {LEAVE_TYPES.map((type) => {
-              const Icon = type.icon;
-              return (
-                <div 
-                  key={type.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${type.color}/20`}>
-                      <Icon className={`h-4 w-4 ${type.color.replace('bg-', 'text-')}`} />
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : leaveTypes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarDays className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No leave types configured</p>
+              </div>
+            ) : (
+              leaveTypes.map((type) => {
+                const Icon = LEAVE_TYPE_ICONS[type.code.toLowerCase()] || Calendar;
+                return (
+                  <div 
+                    key={type.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="p-2 rounded-lg"
+                        style={{ backgroundColor: `${type.color || '#3B82F6'}20` }}
+                      >
+                        <Icon 
+                          className="h-4 w-4" 
+                          style={{ color: type.color || '#3B82F6' }}
+                        />
+                      </div>
+                      <span className="font-medium text-sm">{type.name}</span>
                     </div>
-                    <span className="font-medium text-sm">{type.name}</span>
+                    <Badge variant="outline">{type.days_per_year || 0} days/year</Badge>
                   </div>
-                  <Badge variant="outline">{type.days} days/year</Badge>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
 
@@ -124,39 +172,152 @@ const HRLeave = () => {
                 <Calendar className="h-5 w-5 text-vibrant-blue" />
                 Leave Requests
               </CardTitle>
-              <Button className="bg-vibrant-blue hover:bg-vibrant-blue/90">
-                <Plus className="h-4 w-4 mr-2" />
-                Apply for Leave
-              </Button>
+              <ApplyLeaveDialog 
+                leaveTypes={leaveTypes}
+                onSubmit={(data) => submitRequest.mutate(data)}
+                isSubmitting={submitRequest.isPending}
+              />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <CalendarDays className="h-16 w-16 text-muted-foreground/30 mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground">No leave requests</h3>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Leave requests will appear here once staff members apply for leave.
-              </p>
-            </div>
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : leaveRequests.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <CalendarDays className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground">No leave requests</h3>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  Leave requests will appear here once staff members apply for leave.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Dates</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaveRequests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={request.staff_avatar || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {request.staff_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-sm">{request.staff_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: request.leave_type_color || '#3B82F6' }}
+                            />
+                            <span className="text-sm">{request.leave_type_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(parseISO(request.start_date), 'MMM d')} - {format(parseISO(request.end_date), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="text-sm">{request.days}</TableCell>
+                        <TableCell>{getStatusBadge(request.status)}</TableCell>
+                        <TableCell className="text-right">
+                          {request.status === 'pending' && (
+                            <div className="flex items-center justify-end gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="h-7 text-vibrant-green border-vibrant-green hover:bg-vibrant-green hover:text-white"
+                                onClick={() => approveRequest.mutate(request.id)}
+                                disabled={approveRequest.isPending}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Approve
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="h-7 text-vibrant-rose border-vibrant-rose hover:bg-vibrant-rose hover:text-white"
+                                onClick={() => rejectRequest.mutate({ requestId: request.id })}
+                                disabled={rejectRequest.isPending}
+                              >
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Leave Calendar */}
+      {/* Leave Calendar - Approved Leaves */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-vibrant-green" />
-            Team Leave Calendar
+            Team on Leave
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="min-h-[200px] border rounded-lg p-4 flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <Calendar className="h-12 w-12 mx-auto mb-2 opacity-30" />
-              <p>No scheduled leaves to display</p>
+          {leaveRequests.filter(r => r.status === 'approved').length === 0 ? (
+            <div className="min-h-[150px] border rounded-lg p-4 flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Calendar className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>No scheduled leaves to display</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {leaveRequests.filter(r => r.status === 'approved').slice(0, 6).map((request) => (
+                <div 
+                  key={request.id}
+                  className="p-4 rounded-lg border flex items-center gap-3"
+                  style={{ borderLeftWidth: 4, borderLeftColor: request.leave_type_color || '#3B82F6' }}
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={request.staff_avatar || undefined} />
+                    <AvatarFallback>
+                      {request.staff_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{request.staff_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(parseISO(request.start_date), 'MMM d')} - {format(parseISO(request.end_date), 'MMM d')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{request.leave_type_name}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
