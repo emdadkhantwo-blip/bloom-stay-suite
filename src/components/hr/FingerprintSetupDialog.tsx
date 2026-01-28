@@ -21,7 +21,7 @@ interface FingerprintSetupDialogProps {
 type SetupStep = 'intro' | 'registering' | 'success' | 'error';
 
 export function FingerprintSetupDialog({ open, onOpenChange }: FingerprintSetupDialogProps) {
-  const { isSupported, registerBiometric, isAuthenticating } = useBiometricAuth();
+  const { isSupported, isInIframe, registerBiometric, isAuthenticating } = useBiometricAuth();
   const [step, setStep] = useState<SetupStep>('intro');
   const [deviceName, setDeviceName] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -53,6 +53,38 @@ export function FingerprintSetupDialog({ open, onOpenChange }: FingerprintSetupD
     setStep('intro');
     setErrorMessage('');
   };
+
+  // Show iframe warning
+  if (isInIframe) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Preview Limitation
+            </DialogTitle>
+            <DialogDescription className="space-y-3">
+              <p>
+                Fingerprint authentication cannot work in the preview window due to browser security restrictions.
+              </p>
+              <p className="font-medium text-foreground">
+                To use fingerprint clock-in, please:
+              </p>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                <li>Publish your app</li>
+                <li>Open it in a new browser tab</li>
+                <li>Register your fingerprint there</li>
+              </ol>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={handleClose}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (!isSupported) {
     return (

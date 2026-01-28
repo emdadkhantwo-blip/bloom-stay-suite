@@ -39,6 +39,7 @@ export function BiometricClockWidget({
 }: BiometricClockWidgetProps) {
   const { 
     isSupported, 
+    isInIframe,
     isRegistered, 
     authenticateBiometric, 
     isAuthenticating 
@@ -309,10 +310,19 @@ export function BiometricClockWidget({
           </div>
 
           {/* Fingerprint Setup Prompt or Settings Toggle */}
-          {isSupported && (
+          {(isSupported || isInIframe) && (
             <>
               <Separator />
-              {!isRegistered ? (
+              {isInIframe ? (
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                  onClick={() => setSetupDialogOpen(true)}
+                >
+                  <Fingerprint className="h-4 w-4 mr-2" />
+                  Fingerprint available after publishing
+                </Button>
+              ) : !isRegistered ? (
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start text-muted-foreground hover:text-foreground"
