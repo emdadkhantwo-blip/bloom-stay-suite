@@ -332,8 +332,9 @@ export function CreateStaffDialog({ open, onOpenChange }: CreateStaffDialogProps
       // Upload documents if provided
       if (documentFiles.length > 0 && result.user?.id) {
         for (const docFile of documentFiles) {
-          const fileExt = docFile.name.split(".").pop();
-          const fileName = `${result.user.id}/${Date.now()}-${docFile.name}`;
+          // Sanitize filename - replace spaces and special chars with underscores
+          const sanitizedName = docFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const fileName = `${result.user.id}/${Date.now()}-${sanitizedName}`;
 
           const { error: docUploadError } = await supabase.storage
             .from("hr-documents")
