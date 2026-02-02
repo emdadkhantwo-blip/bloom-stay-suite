@@ -33,6 +33,8 @@ import {
   Star,
   FolderOpen,
   Activity,
+  Percent,
+  Globe,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -105,7 +107,9 @@ const hrItems = [
 const adminItems = [
   { title: 'Properties', url: '/properties', icon: Building2, color: 'text-vibrant-blue' },
   { title: 'Rates & Packages', url: '/settings/rates', icon: Tags, color: 'text-vibrant-green' },
-  { title: 'References', url: '/references', icon: Tags, color: 'text-vibrant-amber' },
+  { title: 'Tax Configuration', url: '/settings/taxes', icon: Percent, color: 'text-vibrant-amber' },
+  { title: 'Website Builder', url: '/settings/website', icon: Globe, color: 'text-vibrant-purple' },
+  { title: 'References', url: '/references', icon: Tags, color: 'text-vibrant-orange' },
   { title: 'Settings', url: '/settings', icon: Settings, color: 'text-vibrant-cyan' },
 ];
 
