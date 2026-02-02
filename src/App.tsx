@@ -50,7 +50,7 @@ import HRActivity from "./pages/hr/Activity";
 import SettingsRates from "./pages/settings/Rates";
 import SettingsTaxes from "./pages/settings/Taxes";
 import SettingsWebsite from "./pages/settings/Website";
-
+import PublicHotelWebsite from "./pages/PublicHotelWebsite";
 const queryClient = new QueryClient();
 
 // Define which routes each role can access
@@ -538,6 +538,9 @@ const AppRoutes = () => (
         </RoleProtectedRoute>
       }
     />
+
+    {/* Public Hotel Website Route (no auth required) */}
+    <Route path="/site/:subdomain" element={<PublicHotelWebsite />} />
 
     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
     <Route path="*" element={<NotFound />} />

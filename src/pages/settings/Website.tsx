@@ -116,12 +116,21 @@ export default function WebsitePage() {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`https://${websiteConfig.subdomain}.beehotel.app`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/site/${websiteConfig.subdomain}`} target="_blank" rel="noopener noreferrer">
                     <Eye className="h-4 w-4 mr-2" />
                     Preview
                   </a>
                 </Button>
-                {!websiteConfig.is_published && (
+                {websiteConfig.is_published ? (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => publishWebsite.mutate(false)}
+                  >
+                    <Globe className="h-4 w-4 mr-2" />
+                    Unpublish
+                  </Button>
+                ) : (
                   <Button size="sm" onClick={handlePublishWebsite}>
                     <Rocket className="h-4 w-4 mr-2" />
                     Publish
