@@ -48,6 +48,8 @@ import HRPerformance from "./pages/hr/Performance";
 import HRDocuments from "./pages/hr/Documents";
 import HRActivity from "./pages/hr/Activity";
 import SettingsRates from "./pages/settings/Rates";
+import SettingsTaxes from "./pages/settings/Taxes";
+import SettingsWebsite from "./pages/settings/Website";
 
 const queryClient = new QueryClient();
 
@@ -512,6 +514,26 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={[]} route="/hr/activity">
           <DashboardLayout title="HR Activity Logs">
             <HRActivity />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/settings/taxes"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/settings/taxes">
+          <DashboardLayout title="Tax Configuration">
+            <SettingsTaxes />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/settings/website"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/settings/website">
+          <DashboardLayout title="Website Builder">
+            <SettingsWebsite />
           </DashboardLayout>
         </RoleProtectedRoute>
       }
