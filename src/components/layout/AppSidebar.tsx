@@ -104,6 +104,7 @@ const hrItems = [
 
 const adminItems = [
   { title: 'Properties', url: '/properties', icon: Building2, color: 'text-vibrant-blue' },
+  { title: 'Rates & Packages', url: '/settings/rates', icon: Tags, color: 'text-vibrant-green' },
   { title: 'References', url: '/references', icon: Tags, color: 'text-vibrant-amber' },
   { title: 'Settings', url: '/settings', icon: Settings, color: 'text-vibrant-cyan' },
 ];

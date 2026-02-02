@@ -204,6 +204,47 @@ export type Database = {
           },
         ]
       }
+      contact_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          phone: string | null
+          status: Database["public"]["Enums"]["contact_submission_status"]
+          website_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          phone?: string | null
+          status?: Database["public"]["Enums"]["contact_submission_status"]
+          website_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          phone?: string | null
+          status?: Database["public"]["Enums"]["contact_submission_status"]
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "website_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_accounts: {
         Row: {
           account_code: string
@@ -269,6 +310,71 @@ export type Database = {
           },
         ]
       }
+      daily_rates: {
+        Row: {
+          calculated_rate: number
+          created_at: string
+          date: string
+          id: string
+          is_manual_override: boolean
+          property_id: string
+          rate_period_id: string | null
+          room_type_id: string
+          tenant_id: string
+        }
+        Insert: {
+          calculated_rate: number
+          created_at?: string
+          date: string
+          id?: string
+          is_manual_override?: boolean
+          property_id: string
+          rate_period_id?: string | null
+          room_type_id: string
+          tenant_id: string
+        }
+        Update: {
+          calculated_rate?: number
+          created_at?: string
+          date?: string
+          id?: string
+          is_manual_override?: boolean
+          property_id?: string
+          rate_period_id?: string | null
+          room_type_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_rates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_rates_rate_period_id_fkey"
+            columns: ["rate_period_id"]
+            isOneToOne: false
+            referencedRelation: "rate_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_rates_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_rates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flags: {
         Row: {
           created_at: string
@@ -318,6 +424,7 @@ export type Database = {
           reference_type: string | null
           service_date: string
           tax_amount: number
+          tax_breakdown: Json | null
           tenant_id: string
           total_price: number
           unit_price: number
@@ -339,6 +446,7 @@ export type Database = {
           reference_type?: string | null
           service_date?: string
           tax_amount?: number
+          tax_breakdown?: Json | null
           tenant_id: string
           total_price: number
           unit_price: number
@@ -360,6 +468,7 @@ export type Database = {
           reference_type?: string | null
           service_date?: string
           tax_amount?: number
+          tax_breakdown?: Json | null
           tenant_id?: string
           total_price?: number
           unit_price?: number
@@ -1758,6 +1867,78 @@ export type Database = {
           },
         ]
       }
+      packages: {
+        Row: {
+          adjustment_type: Database["public"]["Enums"]["package_adjustment_type"]
+          applicable_room_types: string[] | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          inclusions: Json | null
+          is_active: boolean
+          min_nights: number | null
+          name: string
+          price_adjustment: number
+          property_id: string
+          tenant_id: string
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          adjustment_type?: Database["public"]["Enums"]["package_adjustment_type"]
+          applicable_room_types?: string[] | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          inclusions?: Json | null
+          is_active?: boolean
+          min_nights?: number | null
+          name: string
+          price_adjustment?: number
+          property_id: string
+          tenant_id: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          adjustment_type?: Database["public"]["Enums"]["package_adjustment_type"]
+          applicable_room_types?: string[] | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          inclusions?: Json | null
+          is_active?: boolean
+          min_nights?: number | null
+          name?: string
+          price_adjustment?: number
+          property_id?: string
+          tenant_id?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packages_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -2292,6 +2473,7 @@ export type Database = {
           tenant_id: string
           timezone: string | null
           updated_at: string
+          use_advanced_tax: boolean | null
         }
         Insert: {
           address?: string | null
@@ -2311,6 +2493,7 @@ export type Database = {
           tenant_id: string
           timezone?: string | null
           updated_at?: string
+          use_advanced_tax?: boolean | null
         }
         Update: {
           address?: string | null
@@ -2330,6 +2513,7 @@ export type Database = {
           tenant_id?: string
           timezone?: string | null
           updated_at?: string
+          use_advanced_tax?: boolean | null
         }
         Relationships: [
           {
@@ -2366,6 +2550,82 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rate_periods: {
+        Row: {
+          adjustment_type: Database["public"]["Enums"]["rate_adjustment_type"]
+          amount: number
+          created_at: string
+          days_of_week: number[] | null
+          end_date: string | null
+          id: string
+          is_active: boolean
+          name: string
+          priority: number
+          property_id: string
+          rate_type: Database["public"]["Enums"]["rate_period_type"]
+          room_type_id: string | null
+          start_date: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_type?: Database["public"]["Enums"]["rate_adjustment_type"]
+          amount?: number
+          created_at?: string
+          days_of_week?: number[] | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          priority?: number
+          property_id: string
+          rate_type?: Database["public"]["Enums"]["rate_period_type"]
+          room_type_id?: string | null
+          start_date?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_type?: Database["public"]["Enums"]["rate_adjustment_type"]
+          amount?: number
+          created_at?: string
+          days_of_week?: number[] | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          priority?: number
+          property_id?: string
+          rate_type?: Database["public"]["Enums"]["rate_period_type"]
+          room_type_id?: string | null
+          start_date?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_periods_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_periods_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -2888,6 +3148,126 @@ export type Database = {
           },
         ]
       }
+      tax_configurations: {
+        Row: {
+          applies_to: Database["public"]["Enums"]["tax_applies_to"][]
+          calculation_order: number
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_compound: boolean
+          is_inclusive: boolean
+          name: string
+          property_id: string
+          rate: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to?: Database["public"]["Enums"]["tax_applies_to"][]
+          calculation_order?: number
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_compound?: boolean
+          is_inclusive?: boolean
+          name: string
+          property_id: string
+          rate?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: Database["public"]["Enums"]["tax_applies_to"][]
+          calculation_order?: number
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_compound?: boolean
+          is_inclusive?: boolean
+          name?: string
+          property_id?: string
+          rate?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_configurations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_configurations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_exemptions: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tax_exemption_entity_type"]
+          exemption_rate: number | null
+          exemption_type: Database["public"]["Enums"]["tax_exemption_type"]
+          id: string
+          notes: string | null
+          tax_configuration_id: string
+          tenant_id: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tax_exemption_entity_type"]
+          exemption_rate?: number | null
+          exemption_type?: Database["public"]["Enums"]["tax_exemption_type"]
+          id?: string
+          notes?: string | null
+          tax_configuration_id: string
+          tenant_id: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["tax_exemption_entity_type"]
+          exemption_rate?: number | null
+          exemption_type?: Database["public"]["Enums"]["tax_exemption_type"]
+          id?: string
+          notes?: string | null
+          tax_configuration_id?: string
+          tenant_id?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_exemptions_tax_configuration_id_fkey"
+            columns: ["tax_configuration_id"]
+            isOneToOne: false
+            referencedRelation: "tax_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_exemptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           address: string | null
@@ -2950,6 +3330,163 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      website_configurations: {
+        Row: {
+          created_at: string
+          custom_domain: string | null
+          font_family: string | null
+          hero_image_url: string | null
+          id: string
+          is_published: boolean
+          logo_url: string | null
+          primary_color: string | null
+          property_id: string
+          secondary_color: string | null
+          sections: Json | null
+          seo_description: string | null
+          seo_title: string | null
+          social_links: Json | null
+          subdomain: string | null
+          template_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_domain?: string | null
+          font_family?: string | null
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          logo_url?: string | null
+          primary_color?: string | null
+          property_id: string
+          secondary_color?: string | null
+          sections?: Json | null
+          seo_description?: string | null
+          seo_title?: string | null
+          social_links?: Json | null
+          subdomain?: string | null
+          template_id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_domain?: string | null
+          font_family?: string | null
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          logo_url?: string | null
+          primary_color?: string | null
+          property_id?: string
+          secondary_color?: string | null
+          sections?: Json | null
+          seo_description?: string | null
+          seo_title?: string | null
+          social_links?: Json | null
+          subdomain?: string | null
+          template_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_configurations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_configurations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_gallery: {
+        Row: {
+          caption: string | null
+          category: string | null
+          created_at: string
+          id: string
+          image_url: string
+          sort_order: number
+          website_id: string
+        }
+        Insert: {
+          caption?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          image_url: string
+          sort_order?: number
+          website_id: string
+        }
+        Update: {
+          caption?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          sort_order?: number
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_gallery_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "website_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_pages: {
+        Row: {
+          content: Json | null
+          created_at: string
+          id: string
+          is_published: boolean
+          slug: string
+          title: string
+          updated_at: string
+          website_id: string
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          slug: string
+          title: string
+          updated_at?: string
+          website_id: string
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          slug?: string
+          title?: string
+          updated_at?: string
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_pages_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "website_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -3038,6 +3575,7 @@ export type Database = {
         | "corporate"
         | "travel_agent"
         | "other"
+      contact_submission_status: "new" | "read" | "replied"
       folio_item_type:
         | "room_charge"
         | "food_beverage"
@@ -3059,6 +3597,7 @@ export type Database = {
       hr_performance_note_type: "feedback" | "warning" | "reward" | "kpi"
       hr_shift_assignment_status: "scheduled" | "completed" | "absent"
       night_audit_status: "pending" | "in_progress" | "completed" | "failed"
+      package_adjustment_type: "fixed" | "percentage"
       payment_method:
         | "cash"
         | "credit_card"
@@ -3073,6 +3612,13 @@ export type Database = {
         | "cancelled"
         | "posted"
       property_status: "active" | "inactive" | "maintenance"
+      rate_adjustment_type: "fixed" | "percentage" | "override"
+      rate_period_type:
+        | "weekend"
+        | "seasonal"
+        | "event"
+        | "last_minute"
+        | "holiday"
       reservation_status:
         | "confirmed"
         | "checked_in"
@@ -3086,6 +3632,9 @@ export type Database = {
         | "maintenance"
         | "out_of_order"
       subscription_plan: "starter" | "growth" | "pro"
+      tax_applies_to: "room" | "food" | "service" | "other" | "all"
+      tax_exemption_entity_type: "corporate_account" | "guest"
+      tax_exemption_type: "full" | "partial"
       tenant_status: "active" | "suspended" | "pending"
     }
     CompositeTypes: {
@@ -3239,6 +3788,7 @@ export const Constants = {
         "travel_agent",
         "other",
       ],
+      contact_submission_status: ["new", "read", "replied"],
       folio_item_type: [
         "room_charge",
         "food_beverage",
@@ -3261,6 +3811,7 @@ export const Constants = {
       hr_performance_note_type: ["feedback", "warning", "reward", "kpi"],
       hr_shift_assignment_status: ["scheduled", "completed", "absent"],
       night_audit_status: ["pending", "in_progress", "completed", "failed"],
+      package_adjustment_type: ["fixed", "percentage"],
       payment_method: [
         "cash",
         "credit_card",
@@ -3277,6 +3828,14 @@ export const Constants = {
         "posted",
       ],
       property_status: ["active", "inactive", "maintenance"],
+      rate_adjustment_type: ["fixed", "percentage", "override"],
+      rate_period_type: [
+        "weekend",
+        "seasonal",
+        "event",
+        "last_minute",
+        "holiday",
+      ],
       reservation_status: [
         "confirmed",
         "checked_in",
@@ -3292,6 +3851,9 @@ export const Constants = {
         "out_of_order",
       ],
       subscription_plan: ["starter", "growth", "pro"],
+      tax_applies_to: ["room", "food", "service", "other", "all"],
+      tax_exemption_entity_type: ["corporate_account", "guest"],
+      tax_exemption_type: ["full", "partial"],
       tenant_status: ["active", "suspended", "pending"],
     },
   },

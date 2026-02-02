@@ -47,6 +47,7 @@ import HROvertime from "./pages/hr/Overtime";
 import HRPerformance from "./pages/hr/Performance";
 import HRDocuments from "./pages/hr/Documents";
 import HRActivity from "./pages/hr/Activity";
+import SettingsRates from "./pages/settings/Rates";
 
 const queryClient = new QueryClient();
 
@@ -287,6 +288,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={[]} route="/properties">
           <DashboardLayout title="Properties">
             <Properties />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      }
+    />
+    <Route
+      path="/settings/rates"
+      element={
+        <RoleProtectedRoute allowedRoles={[]} route="/settings/rates">
+          <DashboardLayout title="Rates & Packages">
+            <SettingsRates />
           </DashboardLayout>
         </RoleProtectedRoute>
       }
