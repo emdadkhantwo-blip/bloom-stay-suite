@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Globe, Palette, Search, Share2 } from 'lucide-react';
+import { Globe, Palette, Search, Share2, Image, Upload } from 'lucide-react';
 
 interface WebsiteConfig {
   id: string;
@@ -19,6 +18,8 @@ interface WebsiteConfig {
   seo_title: string | null;
   seo_description: string | null;
   social_links: any;
+  hero_image_url: string | null;
+  logo_url: string | null;
 }
 
 interface WebsiteSettingsProps {
@@ -44,6 +45,8 @@ export default function WebsiteSettings({ config, onUpdate }: WebsiteSettingsPro
     seo_title: config.seo_title || '',
     seo_description: config.seo_description || '',
     social_links: config.social_links || {},
+    hero_image_url: config.hero_image_url || '',
+    logo_url: config.logo_url || '',
   });
 
   const handleSave = () => {
@@ -90,6 +93,66 @@ export default function WebsiteSettings({ config, onUpdate }: WebsiteSettingsPro
             <p className="text-xs text-muted-foreground">
               Contact support to set up a custom domain
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Images Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Image className="h-5 w-5" />
+            Images
+          </CardTitle>
+          <CardDescription>Hero background and logo images</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Hero Background Image URL</Label>
+            <Input
+              value={formData.hero_image_url}
+              onChange={(e) => setFormData({ ...formData, hero_image_url: e.target.value })}
+              placeholder="https://example.com/hero-image.jpg"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter a URL to an image for your hero section background
+            </p>
+            {formData.hero_image_url && (
+              <div className="mt-2 rounded-lg overflow-hidden border h-32">
+                <img 
+                  src={formData.hero_image_url} 
+                  alt="Hero preview" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Logo URL</Label>
+            <Input
+              value={formData.logo_url}
+              onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+              placeholder="https://example.com/logo.png"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter a URL to your hotel logo (appears in navbar)
+            </p>
+            {formData.logo_url && (
+              <div className="mt-2 p-2 border rounded-lg bg-muted/50 inline-block">
+                <img 
+                  src={formData.logo_url} 
+                  alt="Logo preview" 
+                  className="h-8 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
