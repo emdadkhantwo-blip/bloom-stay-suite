@@ -13,7 +13,17 @@ import {
   Users,
   ChevronRight,
   Send,
-  Home
+  Home,
+  Menu,
+  X,
+  Star,
+  Wifi,
+  Car,
+  Waves,
+  Dumbbell,
+  Utensils,
+  Sparkles,
+  Quote
 } from 'lucide-react';
 
 interface TemplateProps {
@@ -25,6 +35,7 @@ interface TemplateProps {
     secondary_color: string;
     hero_image_url: string;
     social_links: any;
+    logo_url?: string;
   };
   property: {
     name: string;
@@ -48,11 +59,21 @@ interface TemplateProps {
     category: string;
   }>;
   sections: Array<{
+    id?: string;
     type: string;
     enabled: boolean;
     content: any;
   }>;
 }
+
+const amenityIcons: Record<string, React.ReactNode> = {
+  wifi: <Wifi className="h-5 w-5" />,
+  parking: <Car className="h-5 w-5" />,
+  pool: <Waves className="h-5 w-5" />,
+  gym: <Dumbbell className="h-5 w-5" />,
+  restaurant: <Utensils className="h-5 w-5" />,
+  spa: <Sparkles className="h-5 w-5" />,
+};
 
 export default function ClassicTemplate({ 
   config, 
@@ -68,6 +89,7 @@ export default function ClassicTemplate({
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getSectionEnabled = (type: string) => {
     const section = sections.find(s => s.type === type);
@@ -78,6 +100,15 @@ export default function ClassicTemplate({
     const section = sections.find(s => s.type === type);
     return section?.content || {};
   };
+
+  const navbarContent = getSectionContent('navbar');
+  const heroContent = getSectionContent('hero');
+  const aboutContent = getSectionContent('about');
+  const roomsContent = getSectionContent('rooms');
+  const amenitiesContent = getSectionContent('amenities');
+  const testimonialsContent = getSectionContent('testimonials');
+  const contactContent = getSectionContent('contact');
+  const locationContent = getSectionContent('location');
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,28 +139,78 @@ export default function ClassicTemplate({
   return (
     <div className="min-h-screen bg-amber-50">
       {/* Navigation */}
-      <nav className="bg-amber-900 text-amber-50 py-4 px-6">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Home className="h-6 w-6" />
-            <span className="text-xl font-serif">{property?.name || 'Hotel'}</span>
+      {getSectionEnabled('navbar') && (
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-amber-900 text-amber-50">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              {config.logo_url ? (
+                <img src={config.logo_url} alt={property?.name} className="h-8" />
+              ) : (
+                <>
+                  <Home className="h-6 w-6" />
+                  <span className="text-xl font-serif">{property?.name || 'Hotel'}</span>
+                </>
+              )}
+            </div>
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex gap-8 text-sm">
+              {(navbarContent.links || []).map((link: any, index: number) => (
+                <a 
+                  key={index} 
+                  href={link.href} 
+                  className="hover:text-amber-200 transition-colors"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+            
+            <Button size="sm" className="hidden md:flex bg-amber-100 text-amber-900 hover:bg-white" asChild>
+              <a href={navbarContent.ctaLink || '#contact'}>
+                {navbarContent.ctaText || 'Book Now'}
+              </a>
+            </Button>
+
+            {/* Mobile Menu Button */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden text-amber-50"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
-          <div className="hidden md:flex gap-8 text-sm">
-            <a href="#about" className="hover:text-amber-200 transition-colors">About</a>
-            <a href="#rooms" className="hover:text-amber-200 transition-colors">Rooms</a>
-            <a href="#gallery" className="hover:text-amber-200 transition-colors">Gallery</a>
-            <a href="#contact" className="hover:text-amber-200 transition-colors">Contact</a>
-          </div>
-          <Button size="sm" className="bg-amber-100 text-amber-900 hover:bg-white">
-            Book Now
-          </Button>
-        </div>
-      </nav>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden absolute top-16 left-0 right-0 bg-amber-900 border-t border-amber-800 p-4 space-y-4">
+              {(navbarContent.links || []).map((link: any, index: number) => (
+                <a 
+                  key={index} 
+                  href={link.href} 
+                  className="block text-sm text-amber-100/80 hover:text-amber-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ))}
+              <Button className="w-full bg-amber-100 text-amber-900 hover:bg-white" asChild>
+                <a href={navbarContent.ctaLink || '#contact'}>
+                  {navbarContent.ctaText || 'Book Now'}
+                </a>
+              </Button>
+            </div>
+          )}
+        </nav>
+      )}
 
       {/* Hero Section - Classic Banner */}
       {getSectionEnabled('hero') && (
         <section 
-          className="relative h-[60vh] min-h-[400px] flex items-center"
+          id="hero"
+          className="relative h-[60vh] min-h-[400px] flex items-center pt-16"
           style={{
             backgroundImage: config.hero_image_url 
               ? `url(${config.hero_image_url})` 
@@ -138,20 +219,25 @@ export default function ClassicTemplate({
             backgroundPosition: 'center',
           }}
         >
-          <div className="absolute inset-0 bg-black/50" />
+          <div 
+            className="absolute inset-0" 
+            style={{ backgroundColor: `rgba(0,0,0,${(heroContent.overlayOpacity || 50) / 100})` }} 
+          />
           <div className="relative z-10 max-w-6xl mx-auto px-6 w-full">
             <div className="max-w-2xl">
               <p className="text-amber-200 font-serif italic text-lg mb-2">Welcome to</p>
               <h1 className="text-4xl md:text-5xl font-serif text-white mb-4">
-                {config.seo_title || property?.name || 'Our Hotel'}
+                {heroContent.title || config.seo_title || property?.name || 'Our Hotel'}
               </h1>
               <div className="w-20 h-1 bg-amber-500 mb-6" />
               <p className="text-lg text-amber-100 mb-8">
-                {config.seo_description || 'A tradition of excellence and warm hospitality'}
+                {heroContent.subtitle || config.seo_description || 'A tradition of excellence and warm hospitality'}
               </p>
-              <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white">
-                Explore Our Rooms
-                <ChevronRight className="ml-2 h-5 w-5" />
+              <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white" asChild>
+                <a href={heroContent.ctaLink || '#rooms'}>
+                  {heroContent.ctaText || 'Explore Our Rooms'}
+                  <ChevronRight className="ml-2 h-5 w-5" />
+                </a>
               </Button>
             </div>
           </div>
@@ -164,16 +250,26 @@ export default function ClassicTemplate({
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <p className="text-amber-600 font-serif italic mb-2">About Us</p>
-              <h2 className="text-3xl font-serif text-amber-900 mb-4">Our Heritage</h2>
+              <h2 className="text-3xl font-serif text-amber-900 mb-4">{aboutContent.title || 'Our Heritage'}</h2>
               <div className="w-16 h-1 bg-amber-500 mx-auto" />
             </div>
-            <p className="text-lg text-amber-800 leading-relaxed text-center">
-              {getSectionContent('about').text || 
+            <p className="text-lg text-amber-800 leading-relaxed text-center mb-12">
+              {aboutContent.description || 
                 `For generations, ${property?.name || 'our hotel'} has been a beacon of 
-                hospitality and warmth. Our commitment to traditional values combined 
-                with modern comforts ensures that every guest feels at home. Step through 
-                our doors and become part of our continuing story.`}
+                hospitality and warmth.`}
             </p>
+            
+            {/* Features Grid */}
+            {aboutContent.features && aboutContent.features.length > 0 && (
+              <div className="grid md:grid-cols-3 gap-8">
+                {aboutContent.features.map((feature: any, index: number) => (
+                  <div key={index} className="text-center p-6 border border-amber-200 rounded-lg">
+                    <h3 className="font-serif text-lg text-amber-900 mb-2">{feature.title}</h3>
+                    <p className="text-sm text-amber-700">{feature.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -184,8 +280,11 @@ export default function ClassicTemplate({
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <p className="text-amber-600 font-serif italic mb-2">Accommodations</p>
-              <h2 className="text-3xl font-serif text-amber-900 mb-4">Our Rooms</h2>
-              <div className="w-16 h-1 bg-amber-500 mx-auto" />
+              <h2 className="text-3xl font-serif text-amber-900 mb-4">{roomsContent.title || 'Our Rooms'}</h2>
+              {roomsContent.subtitle && (
+                <p className="text-amber-700">{roomsContent.subtitle}</p>
+              )}
+              <div className="w-16 h-1 bg-amber-500 mx-auto mt-4" />
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {roomTypes.map((room) => (
@@ -219,16 +318,20 @@ export default function ClassicTemplate({
                       ))}
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t border-amber-100">
-                      <div>
-                        <span className="text-2xl font-serif text-amber-900">৳{room.base_rate}</span>
-                        <span className="text-sm text-amber-600">/night</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="bg-amber-700 hover:bg-amber-800 text-white"
-                      >
-                        Book Now
-                      </Button>
+                      {roomsContent.showPrices !== false && (
+                        <div>
+                          <span className="text-2xl font-serif text-amber-900">৳{room.base_rate}</span>
+                          <span className="text-sm text-amber-600">/night</span>
+                        </div>
+                      )}
+                      {roomsContent.showBooking !== false && (
+                        <Button 
+                          size="sm" 
+                          className="bg-amber-700 hover:bg-amber-800 text-white"
+                        >
+                          Book Now
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -238,9 +341,36 @@ export default function ClassicTemplate({
         </section>
       )}
 
+      {/* Amenities Section */}
+      {getSectionEnabled('amenities') && (
+        <section id="amenities" className="py-20 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-amber-600 font-serif italic mb-2">Services</p>
+              <h2 className="text-3xl font-serif text-amber-900 mb-4">{amenitiesContent.title || 'Amenities'}</h2>
+              {amenitiesContent.subtitle && (
+                <p className="text-amber-700">{amenitiesContent.subtitle}</p>
+              )}
+              <div className="w-16 h-1 bg-amber-500 mx-auto mt-4" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+              {(amenitiesContent.items || []).map((item: any, index: number) => (
+                <div key={index} className="text-center p-4 border border-amber-200 rounded-lg">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                    {amenityIcons[item.icon] || <Sparkles className="h-5 w-5" />}
+                  </div>
+                  <h3 className="font-serif text-sm text-amber-900 mb-1">{item.name}</h3>
+                  <p className="text-xs text-amber-600">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Gallery Section */}
       {getSectionEnabled('gallery') && galleryImages.length > 0 && (
-        <section id="gallery" className="py-20 px-6 bg-white">
+        <section id="gallery" className="py-20 px-6 bg-amber-100/50">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <p className="text-amber-600 font-serif italic mb-2">Explore</p>
@@ -265,14 +395,53 @@ export default function ClassicTemplate({
         </section>
       )}
 
+      {/* Testimonials Section */}
+      {getSectionEnabled('testimonials') && (testimonialsContent.reviews || []).length > 0 && (
+        <section id="testimonials" className="py-20 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-amber-600 font-serif italic mb-2">Reviews</p>
+              <h2 className="text-3xl font-serif text-amber-900 mb-4">{testimonialsContent.title || 'Guest Reviews'}</h2>
+              {testimonialsContent.subtitle && (
+                <p className="text-amber-700">{testimonialsContent.subtitle}</p>
+              )}
+              <div className="w-16 h-1 bg-amber-500 mx-auto mt-4" />
+            </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {(testimonialsContent.reviews || []).map((review: any, index: number) => (
+                <Card key={index} className="p-6 bg-amber-50 border-amber-200">
+                  <Quote className="h-8 w-8 text-amber-300 mb-4" />
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(5)].map((_, i) => (
+                      <Star 
+                        key={i} 
+                        className={`h-4 w-4 ${i < review.rating ? 'fill-amber-500 text-amber-500' : 'text-amber-200'}`} 
+                      />
+                    ))}
+                  </div>
+                  <p className="text-amber-800 mb-4 italic">"{review.text}"</p>
+                  <div>
+                    <p className="font-serif text-amber-900">{review.name}</p>
+                    <p className="text-sm text-amber-600">{review.location}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Contact Section */}
       {getSectionEnabled('contact') && (
         <section id="contact" className="py-20 px-6 bg-amber-900 text-amber-50">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <p className="text-amber-300 font-serif italic mb-2">Get in Touch</p>
-              <h2 className="text-3xl font-serif mb-4">Contact Us</h2>
-              <div className="w-16 h-1 bg-amber-500 mx-auto" />
+              <h2 className="text-3xl font-serif mb-4">{contactContent.title || 'Contact Us'}</h2>
+              {contactContent.subtitle && (
+                <p className="text-amber-200">{contactContent.subtitle}</p>
+              )}
+              <div className="w-16 h-1 bg-amber-500 mx-auto mt-4" />
             </div>
             <div className="grid md:grid-cols-2 gap-12">
               {/* Contact Info */}
@@ -307,46 +476,78 @@ export default function ClassicTemplate({
               </div>
 
               {/* Contact Form */}
-              <form onSubmit={handleContactSubmit} className="space-y-4">
-                <Input
-                  placeholder="Your Name"
-                  className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
-                  value={contactForm.name}
-                  onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                  required
-                />
-                <Input
-                  type="email"
-                  placeholder="Your Email"
-                  className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
-                  value={contactForm.email}
-                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                  required
-                />
-                <Input
-                  placeholder="Phone Number"
-                  className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
-                  value={contactForm.phone}
-                  onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                />
-                <Textarea
-                  placeholder="Your Message"
-                  rows={4}
-                  className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
-                  value={contactForm.message}
-                  onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                  required
-                />
-                <Button 
-                  type="submit" 
-                  className="w-full bg-amber-100 text-amber-900 hover:bg-white" 
-                  disabled={isSubmitting}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Sending...' : 'Send Message'}
-                </Button>
-              </form>
+              {contactContent.showForm !== false && (
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <Input
+                    placeholder="Your Name"
+                    className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                    required
+                  />
+                  <Input
+                    type="email"
+                    placeholder="Your Email"
+                    className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                    required
+                  />
+                  <Input
+                    placeholder="Phone Number"
+                    className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                  />
+                  <Textarea
+                    placeholder="Your Message"
+                    rows={4}
+                    className="bg-amber-800 border-amber-700 text-white placeholder:text-amber-400"
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                    required
+                  />
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-amber-100 text-amber-900 hover:bg-white" 
+                    disabled={isSubmitting}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {isSubmitting ? 'Sending...' : 'Send Message'}
+                  </Button>
+                </form>
+              )}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Location Section */}
+      {getSectionEnabled('location') && locationContent.showMap && locationContent.mapEmbedUrl && (
+        <section id="location" className="py-20 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-amber-600 font-serif italic mb-2">Find Us</p>
+              <h2 className="text-3xl font-serif text-amber-900 mb-4">{locationContent.title || 'Location'}</h2>
+              {locationContent.subtitle && (
+                <p className="text-amber-700">{locationContent.subtitle}</p>
+              )}
+              <div className="w-16 h-1 bg-amber-500 mx-auto mt-4" />
+            </div>
+            <div className="aspect-video rounded-lg overflow-hidden border-4 border-amber-100 shadow-md">
+              <iframe
+                src={locationContent.mapEmbedUrl}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+            {locationContent.directions && (
+              <p className="mt-6 text-center text-amber-700">{locationContent.directions}</p>
+            )}
           </div>
         </section>
       )}
