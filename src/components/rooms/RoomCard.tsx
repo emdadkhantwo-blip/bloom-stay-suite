@@ -89,8 +89,8 @@ const statusStyles: Record<RoomStatus, { border: string; iconBg: string; iconCol
   },
   occupied: { 
     border: "border-l-4 border-l-room-occupied", 
-    iconBg: "bg-vibrant-blue-light",
-    iconColor: "text-vibrant-blue"
+    iconBg: "bg-vibrant-rose-light",
+    iconColor: "text-vibrant-rose"
   },
   dirty: { 
     border: "border-l-4 border-l-room-dirty", 
