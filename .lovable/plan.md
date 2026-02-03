@@ -1,171 +1,67 @@
 
-# Website Builder - Publish/Unpublish & Preview Fix
+# Change Occupied Room Color to Red
 
-## Problem Summary
+## Overview
 
-Two issues need to be addressed in the Website Builder:
-
-1. **Missing Unpublish Button**: Only the "Publish" button exists. When a website is published, there's no way to unpublish it.
-2. **Preview Not Working**: The preview links to `https://{subdomain}.beehotel.app` which doesn't exist. Users can't see their website.
+This update will change the color theme for occupied rooms from **blue** to **red** across the entire application for better visual distinction.
 
 ---
 
-## Solution Overview
+## Files to Modify
 
-### 1. Add Publish/Unpublish Toggle Buttons
+### 1. CSS Variables (`src/index.css`)
 
-Update the Website Builder status card to show:
-- **Publish** button when website is in draft (`is_published = false`)
-- **Unpublish** button when website is live (`is_published = true`)
+Change the occupied room color from blue to red:
 
-### 2. Create In-App Website Preview
+| Line | Current Value | New Value |
+|------|---------------|-----------|
+| 68 | `--room-occupied: 217 91% 60%` (blue) | `--room-occupied: 350 89% 60%` (red) |
 
-Create a public route within the app to render hotel websites:
-- Route: `/site/:subdomain` - Public hotel website viewer
-- Users can preview their website within the Lovable environment
-- No external domain required
-
----
-
-## Technical Implementation
-
-### File Changes
-
-**1. Update `src/pages/settings/Website.tsx`**
-
-Add the Unpublish button alongside Publish:
-
-```
-Current (lines 117-129):
-- Preview button always visible
-- Publish button only when NOT published
-- No unpublish option
-
-Updated:
-- Preview button → links to /site/{subdomain} instead of external URL
-- Publish button when draft
-- Unpublish button when published
-```
-
-**2. Create `src/pages/PublicHotelWebsite.tsx`**
-
-New public page that renders the hotel website based on subdomain:
-- Fetches website configuration by subdomain
-- Renders the selected template with configured sections
-- Shows rooms, gallery, contact form from database
-- Displays "Not Found" or "Coming Soon" for unpublished sites
-
-**3. Create `src/components/website-templates/` folder**
-
-Template components for rendering the public website:
-- `ModernTemplate.tsx` - Modern Minimalist design
-- `LuxuryTemplate.tsx` - Luxury Elegance design  
-- `ClassicTemplate.tsx` - Classic Heritage design
-- `WebsiteHeroSection.tsx` - Hero section component
-- `WebsiteRoomsSection.tsx` - Rooms listing
-- `WebsiteContactSection.tsx` - Contact form
-- `WebsiteGallerySection.tsx` - Image gallery
-
-**4. Update `src/App.tsx`**
-
-Add the public route:
-```typescript
-<Route path="/site/:subdomain" element={<PublicHotelWebsite />} />
-```
-
-This route is public (no authentication required).
+This single change automatically updates all components using the CSS variable classes like:
+- `bg-room-occupied`
+- `text-room-occupied`
+- `border-room-occupied`
 
 ---
 
-## UI Changes
+### 2. Room Card Styles (`src/components/rooms/RoomCard.tsx`)
 
-### Website Status Card (Published State)
+Update the occupied status styles at lines 90-94:
 
-```
-+----------------------------------------------------------+
-|  [Globe]  Main Property Website        [Published Badge] |
-|           main.beehotel.app                              |
-|                                                          |
-|  [Preview]  [Unpublish]                                  |
-+----------------------------------------------------------+
-```
-
-### Website Status Card (Draft State)
-
-```
-+----------------------------------------------------------+
-|  [Globe]  Main Property Website        [Draft Badge]     |
-|           main.beehotel.app                              |
-|                                                          |
-|  [Preview]  [Publish]                                    |
-+----------------------------------------------------------+
-```
-
-### Preview Button Behavior
-
-- Opens `/site/{subdomain}` in a new tab
-- Works within Lovable's preview environment
-- Shows actual rendered website with configured template
+| Property | Current | New |
+|----------|---------|-----|
+| `iconBg` | `bg-vibrant-blue-light` | `bg-vibrant-rose-light` |
+| `iconColor` | `text-vibrant-blue` | `text-vibrant-rose` |
 
 ---
 
-## Public Website Page Features
+### 3. Housekeeping Room Grid (`src/components/housekeeping/RoomStatusGrid.tsx`)
 
-### Route: `/site/:subdomain`
+Update the occupied status config at line 21:
 
-1. **Published Website**: Shows full website with all enabled sections
-2. **Unpublished Website**: Shows "Coming Soon" page
-3. **Not Found**: Shows "Website Not Found" if subdomain doesn't exist
-
-### Template Rendering
-
-Based on `template_id` in `website_configurations`:
-- `modern` → Clean, image-focused layout
-- `luxury` → Elegant with gold accents
-- `classic` → Traditional serif fonts
-
-### Sections Rendered (if enabled)
-
-| Section | Content Source |
-|---------|----------------|
-| Hero | website_configurations.hero_image_url, seo_title |
-| About | sections[].content |
-| Rooms | room_types table (fetched live) |
-| Amenities | sections[].content |
-| Gallery | website_gallery table |
-| Packages | packages table (if enabled) |
-| Contact | Contact form → contact_submissions |
+| Property | Current | New |
+|----------|---------|-----|
+| `color` | `text-blue-700` | `text-red-700` |
+| `bgColor` | `bg-blue-100 border-blue-200` | `bg-red-100 border-red-200` |
 
 ---
 
-## Files to Create/Modify
+## Visual Result
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/pages/settings/Website.tsx` | Modify | Add unpublish button, fix preview link |
-| `src/pages/PublicHotelWebsite.tsx` | Create | Public website renderer |
-| `src/components/website-templates/ModernTemplate.tsx` | Create | Modern template layout |
-| `src/components/website-templates/LuxuryTemplate.tsx` | Create | Luxury template layout |
-| `src/components/website-templates/ClassicTemplate.tsx` | Create | Classic template layout |
-| `src/components/website-templates/sections/` | Create | Shared section components |
-| `src/App.tsx` | Modify | Add public route |
+After this change, occupied rooms will display as **red** consistently across:
 
----
-
-## Database Changes
-
-No database changes required - using existing tables:
-- `website_configurations`
-- `website_gallery`  
-- `contact_submissions`
-- `room_types`
-- `packages`
+- Room cards on the Rooms page
+- Room status badges everywhere
+- Housekeeping room grid
+- Calendar timeline reservations
+- Front desk displays
+- Any other component using `room-occupied` color tokens
 
 ---
 
-## Security Considerations
+## Technical Notes
 
-- Public website route allows anonymous access (no auth required)
-- Contact form submissions include rate limiting
-- Only published websites are fully viewable
-- Unpublished sites show "Coming Soon" placeholder
+- The CSS variable approach ensures consistency - most components will update automatically
+- Only 2 components have hardcoded blue colors that need manual updates
+- No database changes required
+- No new dependencies needed
