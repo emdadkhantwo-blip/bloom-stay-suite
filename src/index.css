@@ -65,7 +65,7 @@
 
     /* Room status colors - Vibrant */
     --room-vacant: 160 84% 39%;
-    --room-occupied: 217 91% 60%;
+    --room-occupied: 350 89% 60%;
     --room-dirty: 38 92% 50%;
     --room-maintenance: 262 83% 58%;
     --room-out-of-order: 350 89% 60%;

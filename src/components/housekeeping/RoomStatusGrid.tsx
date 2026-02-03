@@ -18,7 +18,7 @@ type RoomStatus = 'vacant' | 'occupied' | 'dirty' | 'maintenance' | 'out_of_orde
 
 const statusConfig: Record<RoomStatus, { label: string; color: string; bgColor: string }> = {
   vacant: { label: 'Vacant', color: 'text-emerald-700', bgColor: 'bg-emerald-100 border-emerald-200' },
-  occupied: { label: 'Occupied', color: 'text-blue-700', bgColor: 'bg-blue-100 border-blue-200' },
+  occupied: { label: 'Occupied', color: 'text-red-700', bgColor: 'bg-red-100 border-red-200' },
   dirty: { label: 'Dirty', color: 'text-amber-700', bgColor: 'bg-amber-100 border-amber-200' },
   maintenance: { label: 'Maintenance', color: 'text-orange-700', bgColor: 'bg-orange-100 border-orange-200' },
   out_of_order: { label: 'Out of Order', color: 'text-red-700', bgColor: 'bg-red-100 border-red-200' },
