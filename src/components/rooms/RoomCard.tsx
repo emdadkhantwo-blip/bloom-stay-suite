@@ -131,7 +131,7 @@ export function RoomCard({ room, guestName, onStatusChange, onClick }: RoomCardP
       <div className={cn(
         "absolute -right-8 -top-8 h-20 w-20 rounded-full opacity-30 transition-transform group-hover:scale-150",
         room.status === "vacant" && "bg-gradient-to-br from-emerald-400 to-emerald-600",
-        room.status === "occupied" && "bg-gradient-to-br from-red-600 to-red-800",
+        room.status === "occupied" && "bg-gradient-to-br from-red-400 to-red-600",
         room.status === "dirty" && "bg-gradient-to-br from-amber-400 to-amber-600",
         room.status === "maintenance" && "bg-gradient-to-br from-purple-400 to-purple-600",
         room.status === "out_of_order" && "bg-gradient-to-br from-rose-400 to-rose-600"
